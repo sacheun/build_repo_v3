@@ -32,3 +32,16 @@ Behavior:
    - Change [ ] to [x] to mark task as completed
 
 8. Return  the absolute path to the directory where the repository was successfully cloned.
+
+Output Contract:
+- repo_name: string (friendly name parsed from URL)
+- repo_directory: string (absolute path to cloned repo)
+- clone_status: SUCCESS | FAIL
+- operation: CLONE | REFRESH (indicates new clone vs existing reset/pull)
+
+Implementation Notes (conceptual):
+1. Idempotency: If the directory exists, perform refresh sequence (reset/clean/pull) instead of recloning.
+2. Error Handling: Any non-zero exit code from git commands sets clone_status=FAIL; do not mark progress checkbox.
+3. Logging Order Recommendation: a) determine repo_name b) perform clone/refresh c) append results d) update progress e) emit JSON.
+4. Progress Update: Only set [x] in repo-progress for task-clone-repo on SUCCESS.
+5. Security: Avoid embedding credentials in the URL; rely on pre-configured auth.

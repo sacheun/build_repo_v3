@@ -41,6 +41,20 @@ Behavior:
    - Successfully processed count
    - Failed processing count
 
+Output Contract:
+- total_solutions: integer
+- success_count: integer
+- failure_count: integer
+- processed: array[object] each { solution_name, solution_path, restore_status }
+- overall_status: SUCCESS | FAIL
+
+Implementation Notes (conceptual):
+1. Initialization: Create tracking artifacts only if absent to allow incremental runs.
+2. Idempotency: Skip adding duplicate result rows; only transition [ ] → [x] once per solution task.
+3. Failure Strategy: Continue processing remaining solutions after a failure; overall_status reflects aggregate.
+4. Extensibility: Additional per-solution tasks should append fields to each processed item’s object.
+5. Logging Order per solution: a) parse name b) invoke pipeline c) record status d) update progress.
+
 Variables available:
 - {{solutions_json}} → Raw JSON input containing local_path and solutions array
 - {{local_path}} → Repository directory extracted from solutions_json

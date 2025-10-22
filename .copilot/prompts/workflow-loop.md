@@ -36,3 +36,18 @@ Behavior:
 Variables available:
 - {{input_file}} → text file path
 - {{clone_path}} → root folder for cloned repos
+
+Output Contract:
+- repositories_total: integer
+- repositories_success: integer
+- repositories_fail: integer
+- started_at: timestamp
+- finished_at: timestamp
+- overall_status: SUCCESS | PARTIAL | FAIL
+
+Implementation Notes (conceptual):
+1. Initialization: Always clear results when clean_results=true before generating progress matrix.
+2. Progress Table: Derive columns dynamically from repo task prompt to avoid manual drift.
+3. Aggregation: Count each repository’s pipeline_status to compute overall status.
+4. Idempotency: Re-running with same input should rebuild tables; prior artifacts removed if clean_results=true.
+5. Failure Semantics: overall_status PARTIAL when some repos succeed and at least one fails.

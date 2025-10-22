@@ -1,5 +1,9 @@
-# Repository Progress Tracking
+## Repository Task Progress
 
 | Repository | task-clone-repo | task-find-solutions | task-process-solutions |
-|-----------|-----------------|---------------------|------------------------|
+|------------|----------------|----------------|----------------|
 | ic3_spool_cosine-dep-spool | [x] | [x] | [x] |
+
+
+
+

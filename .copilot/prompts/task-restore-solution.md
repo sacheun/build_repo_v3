@@ -35,3 +35,18 @@ Behavior:
    - Solution path
    - Solution name
    - Restoration status
+
+Implementation Notes (conceptual, not executable code):
+1. A runner should perform the validation, printing, restore, logging, progress update, and JSON emission described above.
+2. Idempotency: re-running must not duplicate rows or re-flip already checked progress cells.
+3. Output contract (JSON) expected fields:
+    - solution_path (string, absolute)
+    - solution_name (string, no extension)
+    - restore_status (SUCCESS | FAIL)
+4. Logging order recommendation:
+    a. Print metadata
+    b. Run restore
+    c. Append results rows
+    d. Update progress checkbox
+    e. Emit JSON line for chaining
+5. Error handling: on invalid path or failed restore mark FAIL, skip checkbox update, still emit JSON.
