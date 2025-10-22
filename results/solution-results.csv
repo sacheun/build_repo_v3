@@ -1,1 +1,25 @@
-Repository,Solution,Task,Result,Timestamp
+Timestamp,Repository,Solution,Task,Status,Symbol
+2025-10-22 11:32:04,ic3_spool_cosine-dep-spool,SDKTestApp,task-restore-solution,SUCCESS,✓
+2025-10-22 11:32:06,ic3_spool_cosine-dep-spool,SDKTestApp,task-build-solution,SUCCESS,✓
+2025-10-22 11:32:06,ic3_spool_cosine-dep-spool,SDKTestApp,task-collect-knowledge-base,SKIPPED,○
+2025-10-22 11:32:10,ic3_spool_cosine-dep-spool,AcsAdminConsoleApp,task-restore-solution,SUCCESS,✓
+2025-10-22 11:32:12,ic3_spool_cosine-dep-spool,AcsAdminConsoleApp,task-build-solution,SUCCESS,✓
+2025-10-22 11:32:12,ic3_spool_cosine-dep-spool,AcsAdminConsoleApp,task-collect-knowledge-base,SKIPPED,○
+2025-10-22 11:33:45,ic3_spool_cosine-dep-spool,ResourceProvider,task-restore-solution,SUCCESS,✓
+2025-10-22 11:34:28,ic3_spool_cosine-dep-spool,ResourceProvider,task-build-solution,SUCCESS,✓
+2025-10-22 11:34:28,ic3_spool_cosine-dep-spool,ResourceProvider,task-collect-knowledge-base,SKIPPED,○
+2025-10-22 11:39:38,ic3_spool_cosine-dep-spool,Microsoft.Azure.Communication.Email,task-restore-solution,SUCCESS,✓
+2025-10-22 11:42:43,ic3_spool_cosine-dep-spool,Microsoft.Azure.Communication.Email,task-build-solution,SUCCESS,✓
+2025-10-22 11:42:43,ic3_spool_cosine-dep-spool,Microsoft.Azure.Communication.Email,task-collect-knowledge-base,SKIPPED,○
+2025-10-22 11:42:46,ic3_spool_cosine-dep-spool,LinkDomains,task-restore-solution,SUCCESS,✓
+2025-10-22 11:42:48,ic3_spool_cosine-dep-spool,LinkDomains,task-build-solution,SUCCESS,✓
+2025-10-22 11:42:48,ic3_spool_cosine-dep-spool,LinkDomains,task-collect-knowledge-base,SKIPPED,○
+2025-10-22 11:42:54,ic3_spool_cosine-dep-spool,MigrateCosmosDb,task-restore-solution,FAIL,✗
+2025-10-22 11:42:56,ic3_spool_cosine-dep-spool,MigrateCosmosDb,task-build-solution,FAIL,✗
+2025-10-22 11:42:56,ic3_spool_cosine-dep-spool,MigrateCosmosDb,task-collect-knowledge-base,SUCCESS,✓
+2025-10-22 11:42:59,ic3_spool_cosine-dep-spool,codereview,task-restore-solution,SUCCESS,✓
+2025-10-22 11:43:01,ic3_spool_cosine-dep-spool,codereview,task-build-solution,SUCCESS,✓
+2025-10-22 11:43:01,ic3_spool_cosine-dep-spool,codereview,task-collect-knowledge-base,SKIPPED,○
+2025-10-22 11:43:40,ic3_spool_cosine-dep-spool,RPClientSampleService,task-restore-solution,FAIL,✗
+2025-10-22 11:43:53,ic3_spool_cosine-dep-spool,RPClientSampleService,task-build-solution,FAIL,✗
+2025-10-22 11:43:53,ic3_spool_cosine-dep-spool,RPClientSampleService,task-collect-knowledge-base,SUCCESS,✓

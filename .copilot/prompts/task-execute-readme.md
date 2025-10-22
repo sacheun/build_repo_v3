@@ -5,6 +5,8 @@ Task name: task-execute-readme
 Description:
 This tool locates and extracts the README documentation file from a repository's root directory to provide build instructions and project context for downstream workflow steps.
 
+** Important ** Do not generate or execute any scripts. Instead, use structural reasoning to analyze the contents of the README file and identify which commands are safe to run. Focus on understanding the intent, context, and constraints described in the README to determine command safety.
+
 Behavior:
 0. DEBUG Entry Trace: If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
    "[debug][task-execute-readme] START repo_directory='{{repo_directory}}'"

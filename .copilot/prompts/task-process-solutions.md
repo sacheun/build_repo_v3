@@ -23,18 +23,22 @@ Behavior:
 3. **For each solution file in the solutions array (process one solution completely before moving to the next)**:
    a. Derive solution_name from the file name (e.g., MyApp.sln → MyApp)
    b. Initialize a per-solution context object with: solution_path, solution_name
-   c. If environment variable DEBUG=1 emit a debug line: `[debug][task-process-solutions] starting pipeline for solution='MyApp' path='C:\full\path\MyApp.sln'`
-   d. **Execute ALL tasks from solution_tasks_list sequentially for this solution**:
+   c. **CRITICAL - Add solution to progress table FIRST**: Before executing any tasks for this solution:
+      - Check if a row for {{repo_name}} + {{solution_name}} exists in solution-progress.md
+      - If NOT found, append a new row: `| {{repo_name}} | {{solution_name}} |  [ ]  |  [ ]  |  [ ]  |`
+      - This ensures the solution appears in the progress table even if task execution fails
+   d. If environment variable DEBUG=1 emit a debug line: `[debug][task-process-solutions] starting pipeline for solution='MyApp' path='C:\full\path\MyApp.sln'`
+   e. **Execute ALL tasks from solution_tasks_list sequentially for this solution**:
       - For each task directive in solution_tasks_list (in order):
         i. Substitute placeholders (e.g., {{solution_path}}, {{solution_name}})
         ii. **Run the task synchronously and wait for completion** before proceeding to the next task
         iii. **CRITICAL**: After the task completes, capture its exit code/status (e.g., `$LASTEXITCODE` in PowerShell, `$?` in Bash)
         iv. **Check the exit code** to determine if the task succeeded or failed
-        v. Update the corresponding task column in solution-progress.md ([ ] → [x] for success) - use {{repo_name}} to locate the correct row
+        v. **IMMEDIATELY Update solution-progress.md**: Find the row for {{repo_name}} + {{solution_name}} and update the specific task column ([ ] → [x] for success, [ ] → [!] for failure)
         vi. Append task result to solution-results.md and solution-results.csv - include {{repo_name}} in the Repository column
         vii. Merge returned fields into the per-solution context
-   e. **After ALL tasks complete for this solution**, accumulate the solution's overall status into aggregate counts
-   f. **IMPORTANT**: Only after finishing all tasks for the current solution, move to the next solution in the array and repeat steps a-e
+   f. **After ALL tasks complete for this solution**, accumulate the solution's overall status into aggregate counts
+   g. **IMPORTANT**: Only after finishing all tasks for the current solution, move to the next solution in the array and repeat steps a-g
 
 4. Create and initialize a solution progress markdown file:
       - results/solution-progress.md (Solution Progress tracking table)
@@ -43,9 +47,12 @@ Behavior:
       - Create table with columns: Repository | Solution | task-restore-solution | task-build-solution | [additional tasks...]
       - **IMPORTANT**: Include a column for EVERY task found in solution_tasks_list.md, not just restore
       - **Repository Column**: Fill in the Repository column for each row with the value from the {{repo_name}} input argument passed to this prompt
-      - Initialize all task cells with [ ] (empty checkboxes)
+      - **CRITICAL - Append to existing file**: If solution-progress.md already exists from previous repositories, APPEND new rows to it. DO NOT replace the entire file.
+      - **Check for duplicates**: Before appending, verify that a row for {{repo_name}} + {{solution_name}} doesn't already exist
+      - Initialize all task cells with [ ] (empty checkboxes) for new rows only
       - Example header: `| Repository | Solution | task-restore-solution | task-build-solution |`
       - Example row: `| ic3_spool_cosine-dep-spool | ResourceProvider | [ ] | [ ] |`
+      - **REMEMBER**: Each repository can have multiple solutions, and all solutions from all repositories must be visible in this single table
 
 5. Initialize solution tracking artifacts if not present:
       - results/solution-results.md (Markdown table: Repository | Solution | Task | Status | Timestamp)
@@ -54,8 +61,16 @@ Behavior:
       - For each solution row initialize task-restore-solution cell with [ ]
 
 6. Track progress for each solution:
-   - After successful completion of all tasks for that solution, mark the corresponding checkbox(es)
-   - On partial failure do not mark remaining task columns (future multi-task support)
+   - **CRITICAL - Update solution-progress.md after EACH task completion**: When a task (restore/build/kb) completes for a solution, immediately update the corresponding cell in solution-progress.md
+   - **Find the correct row**: Locate the row matching BOTH {{repo_name}} AND {{solution_name}}
+   - **Update the correct column**: Change [ ] to [x] for success or [!] for failure in the appropriate task column
+   - **Task column mapping**:
+     * Column 3 (index 2 after repo/solution): task-restore-solution
+     * Column 4 (index 3): task-build-solution  
+     * Column 5 (index 4): task-collect-knowledge-base
+   - After successful completion of all tasks for that solution, verify all checkboxes are properly marked
+   - On partial failure, mark failed tasks with [!] and leave remaining task columns with [ ] (future multi-task support)
+   - **This ensures real-time progress visibility across all repositories and solutions**
 
 7. Return summary of processed solutions:
    - Total solutions found

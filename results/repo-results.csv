@@ -1,3 +1,4 @@
-Repository,Task,Result,Timestamp
-ic3_spool_cosine-dep-spool,task-clone-repo,SUCCESS,2025-10-22 00:22:14
-ic3_spool_cosine-dep-spool,task-execute-readme,SUCCESS,2025-10-22 00:22:14
+Timestamp,Repository,Task,Status,Symbol
+2025-10-22 11:29:58,ic3_spool_cosine-dep-spool,task-clone-repo,SUCCESS,✓
+2025-10-22 11:30:25,ic3_spool_cosine-dep-spool,task-execute-readme,SUCCESS,✓
+2025-10-22 11:30:53,ic3_spool_cosine-dep-spool,task-find-solutions,SUCCESS,✓

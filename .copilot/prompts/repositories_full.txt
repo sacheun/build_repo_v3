@@ -26,7 +26,6 @@ https://skype.visualstudio.com/SCC/_git/async_messaging_datamgmt
 https://skype.visualstudio.com/SCC/_git/service-shared_framework_waimea
 https://skype.visualstudio.com/SBS/_git/meetings_azure_rb
 https://skype.visualstudio.com/SCC/_git/async_messaging_conversations
-https://skype.visualstudio.com/SCC/_git/ic3_spool_cosine-dep-spool
 https://skype.visualstudio.com/SCC/_git/people_azure_permission-service-teams
 https://skype.visualstudio.com/SBS/_git/sync_pstn_hub
 https://skype.visualstudio.com/SBS/_git/sync_pstn_avs-appworkflowservice
