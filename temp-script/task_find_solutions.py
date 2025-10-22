@@ -1,56 +1,50 @@
 import os
+import sys
 import json
-from pathlib import Path
+import re
 from datetime import datetime
 
-repo_dir = r'C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool'
-repo_name = 'ic3_spool_cosine-dep-spool'
-DEBUG = os.environ.get('DEBUG', '0') == '1'
+# Accept parameters
+if len(sys.argv) < 3:
+    print("Usage: task_find_solutions.py <repo_directory> <repo_name>")
+    sys.exit(1)
 
-if DEBUG:
-    print(f'[debug][task-find-solutions] START repo_directory="{repo_dir}"')
+repo_dir = sys.argv[1]
+repo_name = sys.argv[2]
+
+timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 # Find all .sln files recursively
 solutions = []
-for sln_path in Path(repo_dir).rglob('*.sln'):
-    solution_name = sln_path.stem
-    solutions.append({
-        'name': solution_name,
-        'path': str(sln_path.relative_to(repo_dir)).replace('\\', '/')
-    })
-    if DEBUG:
-        print(f'[debug][task-find-solutions] found solution: {solution_name} at {sln_path.relative_to(repo_dir)}')
+for root, dirs, files in os.walk(repo_dir):
+    for file in files:
+        if file.endswith('.sln'):
+            full_path = os.path.join(root, file)
+            solutions.append({
+                'name': os.path.splitext(file)[0],
+                'path': full_path
+            })
 
-# Write to output/solutions.json
-os.chdir(r'C:\Users\sacheu\source\build_repo_v3')
-with open('output/solutions.json', 'w', encoding='utf-8') as f:
+# Ensure output directory exists
+os.makedirs('output', exist_ok=True)
+
+# Save solutions to JSON (will be used by next task)
+output_file = f'output/solutions_{repo_name}.json'
+with open(output_file, 'w') as f:
     json.dump(solutions, f, indent=2)
 
-status = 'SUCCESS' if solutions else 'FAIL'
-timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+print(f'[run12][find-solutions] found {len(solutions)} solution(s)')
 
-# Update tracking files
-with open('results/repo-progress.md', 'r', encoding='utf-8') as f:
-    lines = f.readlines()
+# Record success
+with open('results/repo-results.csv', 'a') as f:
+    f.write(f'{repo_name},task-find-solutions,SUCCESS,{timestamp}\n')
 
-for i, line in enumerate(lines):
-    if repo_name in line:
-        parts = line.split('|')
-        if len(parts) >= 5 and '[ ]' in parts[4]:
-            parts[4] = parts[4].replace('[ ]', '[x]', 1)
-            lines[i] = '|'.join(parts)
-            break
+# Update progress
+with open('results/repo-progress.md', 'r') as f:
+    content = f.read()
 
-with open('results/repo-progress.md', 'w', encoding='utf-8') as f:
-    f.writelines(lines)
+pattern = f'(\\| {re.escape(repo_name)} \\| \\[x\\] \\| \\[x\\] \\| )\\[ \\]'
+content = re.sub(pattern, r'\1[x]', content, count=1)
 
-# Append to results files
-with open('results/repo-results.md', 'a', encoding='utf-8') as f:
-    f.write(f'| {repo_name} | task-find-solutions | {status} | {timestamp} |\n')
-with open('results/repo-results.csv', 'a', encoding='utf-8') as f:
-    f.write(f'{repo_name},task-find-solutions,{status},{timestamp}\n')
-
-if DEBUG:
-    print(f'[debug][task-find-solutions] END solutions_count={len(solutions)} status={status}')
-
-print(f'[run10][find-solutions] found {len(solutions)} solution(s)')
+with open('results/repo-progress.md', 'w') as f:
+    f.write(content)

@@ -30,12 +30,16 @@ Behavior:
       - results/repo-results.md (Repository Markdown table)
       - results/repo-results.csv (Repository CSV table)
     
-5. Read the text file line by line:
-   For each line (repo_url):
-      - Extract a friendly repo_name
-      - Call `@tasks-list` with repo_url and clone_path
-      - Append success/fail for each task to Markdown + CSV
-6. After all lines are processed, return a summary message.
+5. Read the text file and process ALL repositories:
+   - Read all non-empty, non-comment lines from the input file
+   - For EACH repository URL in the file:
+      a. Extract a friendly repo_name from the URL
+      b. Call `@tasks-list` with repo_url and clone_path
+      c. Append success/fail for each task to Markdown + CSV
+      d. Update repo-progress.md with task completion checkboxes
+   - **CRITICAL**: Process EVERY repository in the input file, not just the first one
+   - **IMPLEMENTATION**: Create a master loop script that reads all repository URLs and processes each one sequentially
+6. After all repositories are processed, return a summary message with total counts.
 
 Variables available:
 - {{input_file}} → text file path

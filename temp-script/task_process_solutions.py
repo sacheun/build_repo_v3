@@ -1,68 +1,51 @@
 import os
+import sys
 import json
-from pathlib import Path
+import re
 from datetime import datetime
 
-repo_name = 'ic3_spool_cosine-dep-spool'
-DEBUG = os.environ.get('DEBUG', '0') == '1'
+# Accept parameters
+if len(sys.argv) < 2:
+    print("Usage: task_process_solutions.py <repo_name>")
+    sys.exit(1)
 
-if DEBUG:
-    print(f'[debug][task-process-solutions] START repo_name="{repo_name}"')
-
-os.chdir(r'C:\Users\sacheu\source\build_repo_v3')
-
-# Load solutions
-with open('output/solutions.json', 'r', encoding='utf-8') as f:
-    solutions = json.load(f)
-
-if DEBUG:
-    print(f'[debug][task-process-solutions] loaded {len(solutions)} solutions')
-
-# Initialize solution-progress.md
-with open('results/solution-progress.md', 'w', encoding='utf-8') as f:
-    f.write('# Solution Progress Tracking\n\n')
-    f.write('| Repository | Solution | task-restore-solution | task-build-solution |\n')
-    f.write('|------------|----------|---------------------|-------------------|\n')
-    for sol in solutions:
-        f.write(f'| {repo_name} | {sol["name"]} | [ ] | [ ] |\n')
-
-# Initialize solution-results files
-with open('results/solution-results.md', 'w', encoding='utf-8') as f:
-    f.write('# Solution Results\n\n')
-    f.write('| Repository | Solution | Task | Result | Timestamp |\n')
-    f.write('|------------|----------|------|--------|----------|\n')
-
-with open('results/solution-results.csv', 'w', encoding='utf-8') as f:
-    f.write('Repository,Solution,Task,Result,Timestamp\n')
+repo_name = sys.argv[1]
 
 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-# Update repo tracking
-with open('results/repo-progress.md', 'r', encoding='utf-8') as f:
-    lines = f.readlines()
+# Load solutions from JSON file created by task-find-solutions
+solutions_file = f'output/solutions_{repo_name}.json'
+if not os.path.exists(solutions_file):
+    print(f'[run12][process-solutions] ERROR: Solutions file not found: {solutions_file}')
+    with open('results/repo-results.csv', 'a') as f:
+        f.write(f'{repo_name},task-process-solutions,FAIL,{timestamp}\n')
+    sys.exit(1)
 
-for i, line in enumerate(lines):
-    if repo_name in line:
-        parts = line.split('|')
-        if len(parts) >= 6 and '[ ]' in parts[5]:
-            parts[5] = parts[5].replace('[ ]', '[x]', 1)
-            lines[i] = '|'.join(parts)
-            break
+with open(solutions_file, 'r') as f:
+    solutions = json.load(f)
 
-with open('results/repo-progress.md', 'w', encoding='utf-8') as f:
-    f.writelines(lines)
+if not solutions:
+    print('[run12][process-solutions] No solutions to process')
+    with open('results/repo-results.csv', 'a') as f:
+        f.write(f'{repo_name},task-process-solutions,SUCCESS,{timestamp}\n')
+    
+    # Update progress
+    with open('results/repo-progress.md', 'r') as f:
+        content = f.read()
+    
+    pattern = f'(\\| {re.escape(repo_name)} \\| \\[x\\] \\| \\[x\\] \\| \\[x\\] \\| )\\[ \\]'
+    content = re.sub(pattern, r'\1[x]', content, count=1)
+    
+    with open('results/repo-progress.md', 'w') as f:
+        f.write(content)
+    
+    sys.exit(0)
 
-with open('results/repo-results.md', 'a', encoding='utf-8') as f:
-    f.write(f'| {repo_name} | task-process-solutions | SUCCESS | {timestamp} |\n')
-with open('results/repo-results.csv', 'a', encoding='utf-8') as f:
-    f.write(f'{repo_name},task-process-solutions,SUCCESS,{timestamp}\n')
+# Process each solution
+DEBUG = os.environ.get('DEBUG', '0')
 
-if DEBUG:
-    print(f'[debug][task-process-solutions] initialized tracking files for {len(solutions)} solutions')
-
-# Process each solution sequentially
 for idx, sol in enumerate(solutions, 1):
-    print(f'\n[run10][process-solutions] === Processing solution {idx}/{len(solutions)}: {sol["name"]} ===')
+    print(f'[run12][process-solutions] === Processing solution {idx}/{len(solutions)}: {sol["name"]} ===')
     
     # Execute task-restore-solution
     exec(open('temp-script/task_restore_solution.py').read())
@@ -70,7 +53,18 @@ for idx, sol in enumerate(solutions, 1):
     # Execute task-build-solution
     exec(open('temp-script/task_build_solution.py').read())
 
-if DEBUG:
-    print(f'[debug][task-process-solutions] END processed {len(solutions)} solutions')
+print(f'[run12][process-solutions] completed processing {len(solutions)} solutions')
 
-print(f'[run10][process-solutions] completed processing {len(solutions)} solutions')
+# Record success
+with open('results/repo-results.csv', 'a') as f:
+    f.write(f'{repo_name},task-process-solutions,SUCCESS,{timestamp}\n')
+
+# Update progress
+with open('results/repo-progress.md', 'r') as f:
+    content = f.read()
+
+pattern = f'(\\| {re.escape(repo_name)} \\| \\[x\\] \\| \\[x\\] \\| \\[x\\] \\| )\\[ \\]'
+content = re.sub(pattern, r'\1[x]', content, count=1)
+
+with open('results/repo-progress.md', 'w') as f:
+    f.write(content)

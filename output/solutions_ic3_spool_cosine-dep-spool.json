@@ -1,0 +1,34 @@
+[
+  {
+    "name": "SDKTestApp",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\samples\\External\\samples\\SDKTestApp\\SDKTestApp.sln"
+  },
+  {
+    "name": "AcsAdminConsoleApp",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\samples\\External\\samples\\TurnWebRTCApps\\AcsAdminConsoleApp.sln"
+  },
+  {
+    "name": "ResourceProvider",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\ResourceProvider.sln"
+  },
+  {
+    "name": "Microsoft.Azure.Communication.Email",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Email\\Microsoft.Azure.Communication.Email.sln"
+  },
+  {
+    "name": "LinkDomains",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Email\\tools\\azure-cli\\LinkDomains\\LinkDomains.sln"
+  },
+  {
+    "name": "MigrateCosmosDb",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Management\\Deployment\\Tools\\MigrateCosmosDb\\MigrateCosmosDb.sln"
+  },
+  {
+    "name": "codereview",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\tools\\codereview\\codereview.sln"
+  },
+  {
+    "name": "RPClientSampleService",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\tools\\testing\\RPClientSampleService\\RPClientSampleService.sln"
+  }
+]

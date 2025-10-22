@@ -1,0 +1,22 @@
+[
+  {
+    "name": "people_spool_usertokenmanagement",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\people_spool_usertokenmanagement.sln"
+  },
+  {
+    "name": "JitBackfill",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\scripts\\Cosmos\\JitBackfill\\JitBackfill.sln"
+  },
+  {
+    "name": "WebJob1",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Backfill WebJob\\WebJob1.sln"
+  },
+  {
+    "name": "Tools",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Manual test tools\\Tools\\Tools.sln"
+  },
+  {
+    "name": "GetToken",
+    "path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Manual test tools\\Tools\\GetCiamToken\\GetToken.sln"
+  }
+]

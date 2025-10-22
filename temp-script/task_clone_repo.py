@@ -1,54 +1,89 @@
 import os
 import subprocess
+import sys
 from datetime import datetime
 
-repo_url = 'https://skype.visualstudio.com/SCC/_git/ic3_spool_cosine-dep-spool'
-clone_path = r'C:\Users\sacheu\speckit_repos'
+# Accept parameters
+if len(sys.argv) < 3:
+    print("Usage: task_clone_repo.py <repo_url> <clone_path>")
+    sys.exit(1)
+
+repo_url = sys.argv[1]
+clone_path = sys.argv[2]
 repo_name = repo_url.rstrip('/').split('/')[-1]
+
+# Ensure clone directory exists
+os.makedirs(clone_path, exist_ok=True)
+
 repo_dir = os.path.join(clone_path, repo_name)
-
-DEBUG = os.environ.get('DEBUG', '0') == '1'
-
-if DEBUG:
-    print(f'[debug][task-clone-repo] START repo="{repo_name}" url="{repo_url}"')
-
-# Check if repo exists
-if not os.path.exists(repo_dir):
-    if DEBUG:
-        print(f'[debug][task-clone-repo] performing fresh clone: git clone --depth 1 {repo_url} {repo_dir}')
-    result = subprocess.run(['git', 'clone', '--depth', '1', repo_url, repo_dir], 
-                          capture_output=True, text=True)
-    exit_code = result.returncode
-    operation = 'CLONE'
-else:
-    if DEBUG:
-        print(f'[debug][task-clone-repo] repository exists, refreshing: reverting local changes and pulling latest')
-    os.chdir(repo_dir)
-    subprocess.run(['git', 'reset', '--hard', 'HEAD'], capture_output=True)
-    subprocess.run(['git', 'clean', '-fd'], capture_output=True)
-    result = subprocess.run(['git', 'pull'], capture_output=True, text=True)
-    exit_code = result.returncode
-    operation = 'REFRESH'
-
-status = 'SUCCESS' if exit_code == 0 else 'FAIL'
 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-if DEBUG:
-    print(f'[debug][task-clone-repo] END operation={operation} status={status} exitCode={exit_code}')
+# Check if repository already exists
+if os.path.exists(repo_dir):
+    # Repository exists, refresh it
+    print(f'[run12][clone] Repository already exists, refreshing: {repo_name}')
+    
+    result = subprocess.run(
+        ['git', 'fetch', '--all'],
+        cwd=repo_dir,
+        capture_output=True,
+        text=True,
+        timeout=120
+    )
+    
+    if result.returncode != 0:
+        print(f'[run12][clone] FAIL - git fetch failed: {result.stderr}')
+        with open('results/repo-results.csv', 'a') as f:
+            f.write(f'{repo_name},task-clone-repo,FAIL,{timestamp}\n')
+        sys.exit(1)
+    
+    result = subprocess.run(
+        ['git', 'reset', '--hard', 'origin/HEAD'],
+        cwd=repo_dir,
+        capture_output=True,
+        text=True,
+        timeout=120
+    )
+    
+    if result.returncode != 0:
+        print(f'[run12][clone] FAIL - git reset failed: {result.stderr}')
+        with open('results/repo-results.csv', 'a') as f:
+            f.write(f'{repo_name},task-clone-repo,FAIL,{timestamp}\n')
+        sys.exit(1)
+    
+    print(f'[run12][clone] repo_directory="{repo_dir}" (REFRESHED)')
+else:
+    # Clone the repository
+    print(f'[run12][clone] Cloning repository: {repo_name}')
+    
+    result = subprocess.run(
+        ['git', 'clone', repo_url, repo_dir],
+        capture_output=True,
+        text=True,
+        timeout=300
+    )
+    
+    if result.returncode != 0:
+        print(f'[run12][clone] FAIL - git clone failed: {result.stderr}')
+        with open('results/repo-results.csv', 'a') as f:
+            f.write(f'{repo_name},task-clone-repo,FAIL,{timestamp}\n')
+        sys.exit(1)
+    
+    print(f'[run12][clone] repo_directory="{repo_dir}" (CLONED)')
 
-# Update repo-progress.md
-os.chdir(r'C:\Users\sacheu\source\build_repo_v3')
-with open('results/repo-progress.md', 'r', encoding='utf-8') as f:
+# Record success
+with open('results/repo-results.csv', 'a') as f:
+    f.write(f'{repo_name},task-clone-repo,SUCCESS,{timestamp}\n')
+
+# Update progress
+import re
+with open('results/repo-progress.md', 'r') as f:
     content = f.read()
-if status == 'SUCCESS':
-    content = content.replace(f'| {repo_name} | [ ]', f'| {repo_name} | [x]', 1)
-    with open('results/repo-progress.md', 'w', encoding='utf-8') as f:
-        f.write(content)
 
-# Append to results files
-with open('results/repo-results.md', 'a', encoding='utf-8') as f:
-    f.write(f'| {repo_name} | task-clone-repo | {status} | {timestamp} |\n')
-with open('results/repo-results.csv', 'a', encoding='utf-8') as f:
-    f.write(f'{repo_name},task-clone-repo,{status},{timestamp}\n')
+pattern = f'(\\| {re.escape(repo_name)} \\| )\\[ \\]'
+content = re.sub(pattern, r'\1[x]', content, count=1)
 
-print(f'[run10][clone] repo_directory="{repo_dir}"')
+with open('results/repo-progress.md', 'w') as f:
+    f.write(content)
+
+print(f'[run12][clone] SUCCESS')
