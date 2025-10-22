@@ -1,5 +1,10 @@
 @task-execute-readme repo_directory={{repo_directory}} repo_name={{repo_name}}@task-execute-readme repo_directory={{repo_directory}} repo_name={{repo_name}}
 
+---
+temperature: 0.1
+model: gpt-4
+---
+
 
 
 Task name: task-execute-readmeTask name: task-execute-readme

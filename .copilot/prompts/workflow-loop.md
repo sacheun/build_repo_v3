@@ -1,4 +1,8 @@
 @workflow-loop input=<optional> clone=<optional> clean_results=<optional>
+---
+temperature: 0.1
+model: gpt-5
+---
 
 Description:
 This prompt reads a text file where each line is a repository URL.

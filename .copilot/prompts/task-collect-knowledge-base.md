@@ -1,4 +1,8 @@
 @task-collect-knowledge-base solution_path={{solution_path}} build_status={{build_status}} build_stderr={{build_stderr}}
+---
+temperature: 0.1
+model: gpt-4
+---
 
 ** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
 
