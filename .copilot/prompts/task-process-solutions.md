@@ -30,25 +30,27 @@ Behavior:
         ii. **Run the task synchronously and wait for completion** before proceeding to the next task
         iii. **CRITICAL**: After the task completes, capture its exit code/status (e.g., `$LASTEXITCODE` in PowerShell, `$?` in Bash)
         iv. **Check the exit code** to determine if the task succeeded or failed
-        v. Update the corresponding task column in solution-progress.md ([ ] → [x] for success)
-        vi. Append task result to solution-results.md and solution-results.csv
+        v. Update the corresponding task column in solution-progress.md ([ ] → [x] for success) - use {{repo_name}} to locate the correct row
+        vi. Append task result to solution-results.md and solution-results.csv - include {{repo_name}} in the Repository column
         vii. Merge returned fields into the per-solution context
    e. **After ALL tasks complete for this solution**, accumulate the solution's overall status into aggregate counts
    f. **IMPORTANT**: Only after finishing all tasks for the current solution, move to the next solution in the array and repeat steps a-e
 
 4. Create and initialize a solution progress markdown file:
       - results/solution-progress.md (Solution Progress tracking table)
-      - Parse all repository URLs from input file to get friendly repo names
       - Parse solution_tasks_list.md to extract ALL task directive names (e.g., @task-restore-solution, @task-build-solution, etc.)
       - Get all the solution names from the solution array
       - Create table with columns: Repository | Solution | task-restore-solution | task-build-solution | [additional tasks...]
       - **IMPORTANT**: Include a column for EVERY task found in solution_tasks_list.md, not just restore
+      - **Repository Column**: Fill in the Repository column for each row with the value from the {{repo_name}} input argument passed to this prompt
       - Initialize all task cells with [ ] (empty checkboxes)
       - Example header: `| Repository | Solution | task-restore-solution | task-build-solution |`
+      - Example row: `| ic3_spool_cosine-dep-spool | ResourceProvider | [ ] | [ ] |`
 
 5. Initialize solution tracking artifacts if not present:
       - results/solution-results.md (Markdown table: Repository | Solution | Task | Status | Timestamp)
       - results/solution-results.csv (CSV with same columns)
+      - **Repository Column**: When appending rows to solution-results.md and solution-results.csv, fill in the Repository column with the value from the {{repo_name}} input argument
       - For each solution row initialize task-restore-solution cell with [ ]
 
 6. Track progress for each solution:
