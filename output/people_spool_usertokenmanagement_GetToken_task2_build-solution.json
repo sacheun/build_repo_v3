@@ -1,0 +1,10 @@
+{
+  "repo_name": "people_spool_usertokenmanagement",
+  "solution_name": "GetToken",
+  "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Manual test tools\\Tools\\GetCiamToken\\GetToken.sln",
+  "exit_code": 0,
+  "error_tokens": [
+    "NU1605"
+  ],
+  "status": "SUCCESS"
+}

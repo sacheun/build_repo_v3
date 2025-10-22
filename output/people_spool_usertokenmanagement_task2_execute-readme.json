@@ -1,0 +1,9 @@
+{
+  "repo_directory": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement",
+  "repo_name": "people_spool_usertokenmanagement",
+  "readme_filename": "README.md",
+  "readme_content": "\n\nUser Token Management Service \n===============================\n\n### How to issue access tokens - [check wiki](https://skype.visualstudio.com/SPOOL/_wiki/wikis/SPOOL.wiki/14510/How-to-issue-access-tokens)\n### Pipelines - [check wiki](https://skype.visualstudio.com/SPOOL/_wiki/wikis/SPOOL.wiki/14514/Pipelines)\n### Deployment to shared cluster - [check wiki](https://skype.visualstudio.com/SPOOL/_wiki/wikis/SPOOL.wiki/14516/Deployment-to-shared-cluster)\n### Run UTM in local SF cluster/ console application - [check wiki](https://skype.visualstudio.com/SPOOL/_wiki/wikis/SPOOL.wiki/14519/Run-UTM-Local)",
+  "setup_commands_executed": [],
+  "setup_commands_skipped": [],
+  "status": "SUCCESS"
+}

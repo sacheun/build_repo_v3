@@ -1,0 +1,29 @@
+{
+  "repo_name": "ic3_spool_cosine-dep-spool",
+  "solution_name": "MigrateCosmosDb",
+  "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Management\\Deployment\\Tools\\MigrateCosmosDb\\MigrateCosmosDb.sln",
+  "build_status": "FAIL",
+  "error_tokens": [
+    "CS0234",
+    "CS0618",
+    "CS8632",
+    "NU1605",
+    "CS8002",
+    "CS1587",
+    "CS0246"
+  ],
+  "kb_articles_count": 2,
+  "kb_articles": [
+    {
+      "error_token": "CS0234",
+      "kb_file": "cs0234_cs0115_cs0246.md",
+      "kb_path": "knowledge_base_markdown\\cs0234_cs0115_cs0246.md"
+    },
+    {
+      "error_token": "CS0246",
+      "kb_file": "cs0234_cs0115_cs0246.md",
+      "kb_path": "knowledge_base_markdown\\cs0234_cs0115_cs0246.md"
+    }
+  ],
+  "status": "SUCCESS"
+}

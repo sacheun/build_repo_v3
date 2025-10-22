@@ -5,14 +5,23 @@ Task name: task-execute-readme
 Description:
 This tool locates and extracts the README documentation file from a repository's root directory to provide build instructions and project context for downstream workflow steps.
 
-** Important ** Do not generate or execute any scripts. Instead, use structural reasoning to analyze the contents of the README file and identify which commands are safe to run. Focus on understanding the intent, context, and constraints described in the README to determine command safety.
+** CRITICAL ** DO NOT GENERATE OR EXECUTE A SCRIPT FOR THIS TASK. 
+
+This task MUST be performed using DIRECT TOOL CALLS:
+1. Use read_file tool to locate and read README files
+2. Use structural reasoning to analyze README content
+3. Use run_in_terminal tool to execute individual safe commands
+4. Use replace_string_in_file or create_file tools to update progress/results files
+
+** NEVER create a Python/PowerShell/Bash script for this task **
+** NEVER wrap this entire task in a single executable script **
+
+The AI agent must perform each step interactively using available tools.
 
 Behavior:
-0. DEBUG Entry Trace: If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
-   "[debug][task-execute-readme] START repo_directory='{{repo_directory}}'"
-   This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
+0. DEBUG Entry Trace: If you need to output debug messages, use run_in_terminal with echo/Write-Host commands.
 
-1. Input Validation: Reads JSON input expecting repo_directory field (absolute path to repository root); raises ContractError if missing or if path does not exist on filesystem.
+1. Input Parameters: You are given repo_directory (absolute path to repository root) and repo_name from the calling context.
 
 2. README Candidate Search: Iterates through prioritized list of common README filenames in exact order:
    - README.md
@@ -69,7 +78,7 @@ Behavior:
      - Log skipped commands to output for review
    - If DEBUG=1, print summary: `[debug][task-execute-readme] executed {{safe_count}} safe commands, skipped {{unsafe_count}} unsafe commands`
 
-6. Structured Output: Returns JSON object with:
+6. Structured Output: Save JSON object to output/{repo_name}_task2_execute-readme.json with:
    - repo_directory: echoed from input
    - readme_content: string if found, null otherwise
    - readme_filename: name of matched file, null if not found
@@ -78,16 +87,15 @@ Behavior:
    - status: SUCCESS if README found, FAIL if not found
 
 7. Result Tracking:
-   - Append the result to:
+   - Use create_file or replace_string_in_file to append the result to:
      - results/repo-results.md (Markdown table row)
      - results/repo-results.csv (CSV row)
    - Update the progress table:
      - In results/repo-progress.md, find the row for {{repo_name}} and column for "task-execute-readme"
      - Change [ ] to [x] to mark task as completed
 
-8. DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), emit a final line to stdout (or terminal) after all processing completes:
+8. DEBUG Exit Trace: Use run_in_terminal to emit a final debug message after all processing completes:
    "[debug][task-execute-readme] END repo_directory='{{repo_directory}}' status={{status}} readme_found={{readme_filename}} commands_executed={{safe_count}}"
-   This line marks task completion and provides quick status visibility for debugging pipeline execution.
 
 Conditional Verbose Output (DEBUG):
 - Purpose: Provide clear trace that the execute-readme task was called and for which repository, plus completion status.
@@ -113,16 +121,17 @@ Output Contract:
 - status: SUCCESS | FAIL (SUCCESS if README found and read, FAIL if not found)
 
 Implementation Notes (conceptual):
-1. Detection: In PowerShell: `if($env:DEBUG -eq '1') { Write-Host "[debug][task-execute-readme] START repo_directory='$repoDirectory'" }`
+1. **THIS IS NOT A SCRIPT**: The AI agent performs each step using available tools (read_file, run_in_terminal, replace_string_in_file, create_file)
 2. Prioritization: Check filenames in exact order listed; first match wins.
 3. Error Handling: File read errors (permissions, encoding) should be caught and logged; set status=FAIL if content cannot be extracted.
-4. Contract Compliance: Always return all six fields (repo_directory, readme_content, readme_filename, setup_commands_executed, setup_commands_skipped, status) regardless of success/failure.
+4. Contract Compliance: Always save JSON output file with all six fields (repo_directory, readme_content, readme_filename, setup_commands_executed, setup_commands_skipped, status) regardless of success/failure.
 5. Progress Update: Mark [x] in repo-progress for task-execute-readme on both SUCCESS and FAIL (task completed, even if README not found).
 6. Content Handling: Return entire file content; do not truncate or summarize at this stage.
 7. Encoding Tolerance: Use UTF-8 with ignore mode to handle malformed characters gracefully.
 8. Null Safety: Ensure readme_content and readme_filename are explicitly null (not empty string) when no README found.
-9. **Command Execution Safety**: Always execute commands in the repository directory (cd to {{repo_directory}} first). Use shell detection (PowerShell vs Bash) to execute commands appropriately.
+9. **Command Execution Safety**: Use run_in_terminal tool to execute commands in the repository directory. Each command is run individually, not in a batch script.
 10. **Command Parsing**: Use structural reasoning to identify command patterns in markdown (code blocks, inline code, list items starting with $, >, etc.).
 11. **Safety First**: When in doubt about command safety, classify as UNSAFE and skip. Better to skip a potentially useful command than execute a destructive one.
 12. **Empty Arrays**: If no commands found or README not found, return empty arrays for setup_commands_executed and setup_commands_skipped.
 13. **Command Context**: Commands should be executed with appropriate shell (pwsh/bash) based on command syntax detection or system default.
+14. **Tool-Based Execution**: Use read_file to read README, run_in_terminal to execute individual commands, create_file to save JSON output, replace_string_in_file to update progress tables.

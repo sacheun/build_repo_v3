@@ -1,0 +1,48 @@
+{
+  "repo_directory": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool",
+  "repo_name": "ic3_spool_cosine-dep-spool",
+  "solutions_count": 8,
+  "solutions": [
+    {
+      "solution_name": "SDKTestApp",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\samples\\External\\samples\\SDKTestApp\\SDKTestApp.sln",
+      "relative_path": "samples\\External\\samples\\SDKTestApp\\SDKTestApp.sln"
+    },
+    {
+      "solution_name": "AcsAdminConsoleApp",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\samples\\External\\samples\\TurnWebRTCApps\\AcsAdminConsoleApp.sln",
+      "relative_path": "samples\\External\\samples\\TurnWebRTCApps\\AcsAdminConsoleApp.sln"
+    },
+    {
+      "solution_name": "ResourceProvider",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\ResourceProvider.sln",
+      "relative_path": "src\\ResourceProvider.sln"
+    },
+    {
+      "solution_name": "Microsoft.Azure.Communication.Email",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Email\\Microsoft.Azure.Communication.Email.sln",
+      "relative_path": "src\\Email\\Microsoft.Azure.Communication.Email.sln"
+    },
+    {
+      "solution_name": "LinkDomains",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Email\\tools\\azure-cli\\LinkDomains\\LinkDomains.sln",
+      "relative_path": "src\\Email\\tools\\azure-cli\\LinkDomains\\LinkDomains.sln"
+    },
+    {
+      "solution_name": "MigrateCosmosDb",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Management\\Deployment\\Tools\\MigrateCosmosDb\\MigrateCosmosDb.sln",
+      "relative_path": "src\\Management\\Deployment\\Tools\\MigrateCosmosDb\\MigrateCosmosDb.sln"
+    },
+    {
+      "solution_name": "codereview",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\tools\\codereview\\codereview.sln",
+      "relative_path": "tools\\codereview\\codereview.sln"
+    },
+    {
+      "solution_name": "RPClientSampleService",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\tools\\testing\\RPClientSampleService\\RPClientSampleService.sln",
+      "relative_path": "tools\\testing\\RPClientSampleService\\RPClientSampleService.sln"
+    }
+  ],
+  "status": "SUCCESS"
+}

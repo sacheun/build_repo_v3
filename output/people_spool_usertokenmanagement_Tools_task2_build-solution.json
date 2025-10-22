@@ -1,0 +1,14 @@
+{
+  "repo_name": "people_spool_usertokenmanagement",
+  "solution_name": "Tools",
+  "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Manual test tools\\Tools\\Tools.sln",
+  "exit_code": 1,
+  "error_tokens": [
+    "CS0234",
+    "CS1998",
+    "CS8795",
+    "NU1605",
+    "CS0618"
+  ],
+  "status": "FAIL"
+}

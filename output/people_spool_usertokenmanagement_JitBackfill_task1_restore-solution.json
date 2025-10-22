@@ -1,0 +1,10 @@
+{
+  "repo_name": "people_spool_usertokenmanagement",
+  "solution_name": "JitBackfill",
+  "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\scripts\\Cosmos\\JitBackfill\\JitBackfill.sln",
+  "exit_code": 1,
+  "error_tokens": [
+    "MSB3644"
+  ],
+  "status": "FAIL"
+}

@@ -1,0 +1,12 @@
+{
+  "input_file": "./repositories_full.txt",
+  "clone_destination": "C:\\Users\\sacheu\\speckit_repos",
+  "results_dir": "./results",
+  "output_dir": "./output",
+  "knowledge_base_dir": "./knowledge_base_markdown",
+  "git_command": "git",
+  "msbuild_command": "msbuild",
+  "max_parallel_clones": 3,
+  "build_timeout_minutes": 30,
+  "log_level": "INFO"
+}

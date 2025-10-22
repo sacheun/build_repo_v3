@@ -1,0 +1,12 @@
+{
+  "repo_name": "ic3_spool_cosine-dep-spool",
+  "solution_name": "AcsAdminConsoleApp",
+  "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\samples\\External\\samples\\TurnWebRTCApps\\AcsAdminConsoleApp.sln",
+  "exit_code": 0,
+  "error_tokens": [
+    "NU1605"
+  ],
+  "error_count": 7,
+  "warning_count": 5,
+  "status": "SUCCESS"
+}

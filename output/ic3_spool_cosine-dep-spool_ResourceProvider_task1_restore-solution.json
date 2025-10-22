@@ -1,0 +1,20 @@
+{
+  "repo_name": "ic3_spool_cosine-dep-spool",
+  "solution_name": "ResourceProvider",
+  "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\ResourceProvider.sln",
+  "exit_code": 0,
+  "error_tokens": [
+    "MSB3270",
+    "MSB3277",
+    "CS0618",
+    "CS8632",
+    "NU1605",
+    "MSB4011",
+    "CS8002",
+    "CS0649",
+    "CS1587"
+  ],
+  "error_count": 722,
+  "warning_count": 949,
+  "status": "SUCCESS"
+}

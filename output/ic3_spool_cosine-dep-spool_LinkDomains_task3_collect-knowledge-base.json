@@ -1,0 +1,16 @@
+{
+  "repo_name": "ic3_spool_cosine-dep-spool",
+  "solution_name": "LinkDomains",
+  "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Email\\tools\\azure-cli\\LinkDomains\\LinkDomains.sln",
+  "build_status": "SUCCESS",
+  "error_tokens": [
+    "CS8618",
+    "CS8603",
+    "NU1605",
+    "CS8604",
+    "CS8600"
+  ],
+  "kb_articles_count": 0,
+  "kb_articles": [],
+  "status": "SKIPPED"
+}

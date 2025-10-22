@@ -1,0 +1,27 @@
+{
+  "repositories": [
+    {
+      "repo_url": "https://skype.visualstudio.com/SCC/_git/ic3_spool_cosine-dep-spool",
+      "repo_name": "ic3_spool_cosine-dep-spool"
+    },
+    {
+      "repo_url": "https://skype.visualstudio.com/SCC/_git/people_spool_usertokenmanagement",
+      "repo_name": "people_spool_usertokenmanagement"
+    },
+    {
+      "repo_url": "https://skype.visualstudio.com/SCC/_git/sync_calling_concore-conversation",
+      "repo_name": "sync_calling_concore-conversation"
+    },
+    {
+      "repo_url": "https://skype.visualstudio.com/SCC/_git/async_messaging_chatentityservice",
+      "repo_name": "async_messaging_chatentityservice"
+    },
+    {
+      "repo_url": "https://skype.visualstudio.com/SCC/_git/async_calling_recorder",
+      "repo_name": "async_calling_recorder"
+    }
+  ],
+  "total_count": 5,
+  "clone_base_path": "C:\\Users\\sacheu\\speckit_repos",
+  "timestamp": "2025-10-22 11:28:49"
+}

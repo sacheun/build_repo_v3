@@ -1,0 +1,12 @@
+{
+  "repo_name": "ic3_spool_cosine-dep-spool",
+  "solution_name": "MigrateCosmosDb",
+  "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Management\\Deployment\\Tools\\MigrateCosmosDb\\MigrateCosmosDb.sln",
+  "exit_code": 1,
+  "error_tokens": [
+    "NU1008"
+  ],
+  "error_count": 3,
+  "warning_count": 1,
+  "status": "FAIL"
+}

@@ -1,0 +1,6 @@
+# Azure DevOps Git clone URLs (one per line)
+https://skype.visualstudio.com/SCC/_git/ic3_spool_cosine-dep-spool
+https://skype.visualstudio.com/SCC/_git/people_spool_usertokenmanagement
+https://skype.visualstudio.com/SCC/_git/sync_calling_concore-conversation
+https://skype.visualstudio.com/SCC/_git/async_messaging_chatentityservice
+https://skype.visualstudio.com/SCC/_git/async_calling_recorder

@@ -1,0 +1,33 @@
+{
+  "repo_directory": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement",
+  "repo_name": "people_spool_usertokenmanagement",
+  "solutions_count": 5,
+  "solutions": [
+    {
+      "solution_name": "people_spool_usertokenmanagement",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\people_spool_usertokenmanagement.sln",
+      "relative_path": "people_spool_usertokenmanagement.sln"
+    },
+    {
+      "solution_name": "JitBackfill",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\scripts\\Cosmos\\JitBackfill\\JitBackfill.sln",
+      "relative_path": "scripts\\Cosmos\\JitBackfill\\JitBackfill.sln"
+    },
+    {
+      "solution_name": "WebJob1",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Backfill WebJob\\WebJob1.sln",
+      "relative_path": "tools\\Backfill WebJob\\WebJob1.sln"
+    },
+    {
+      "solution_name": "Tools",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Manual test tools\\Tools\\Tools.sln",
+      "relative_path": "tools\\Manual test tools\\Tools\\Tools.sln"
+    },
+    {
+      "solution_name": "GetToken",
+      "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Manual test tools\\Tools\\GetCiamToken\\GetToken.sln",
+      "relative_path": "tools\\Manual test tools\\Tools\\GetCiamToken\\GetToken.sln"
+    }
+  ],
+  "status": "SUCCESS"
+}
