@@ -20,11 +20,11 @@ Behavior:
 3. Create and initialize a repository progress markdown file:
       - results/repo-progress.md (Repository Progress tracking table)
       - Parse all repository URLs from input file to get friendly repo names
-      - Parse repo_tasks_list.md to extract ALL task directive names (e.g., @task-clone-repo, @task-find-solutions, @task-process-solutions, etc.)
-      - Create table with columns: Repository | task-clone-repo | task-find-solutions | task-process-solutions | [additional tasks...]
+      - Parse repo_tasks_list.md to extract ALL task directive names (e.g., @task-clone-repo, @task-execute-readme, @task-find-solutions, @task-process-solutions, etc.)
+      - Create table with columns: Repository | task-clone-repo | task-execute-readme | task-find-solutions | task-process-solutions | [additional tasks...]
       - **IMPORTANT**: Include a column for EVERY task found in repo_tasks_list.md
       - Initialize all task cells with [ ] (empty checkboxes)
-      - Example header: `| Repository | task-clone-repo | task-find-solutions | task-process-solutions |`
+      - Example header: `| Repository | task-clone-repo | task-execute-readme | task-find-solutions | task-process-solutions |`
 
 4. Initialize results files:
       - results/repo-results.md (Repository Markdown table)

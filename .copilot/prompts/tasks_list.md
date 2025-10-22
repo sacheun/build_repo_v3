@@ -6,8 +6,9 @@ Tasks should report success/fail, which will be appended to results files (Markd
 
 Current Tasks List:
 1. @task-clone-repo
-2. @task-find-solutions
-3. @task-process-solutions
+2. @task-execute-readme
+3. @task-find-solutions
+4. @task-process-solutions
 
 Behavior:
 - Execute tasks in pipeline sequence where each task's output becomes the next task's input:
@@ -17,13 +18,19 @@ Behavior:
       - Output: absolute path to cloned repository directory
       - Mark success/fail in repo-results.md and repo-results.csv
 
-   2. **Second Task (@task-find-solutions):**
+   2. **Second Task (@task-execute-readme):**
       - Input: repository directory path from previous task
-      - Execute: @task-find-solutions repo_directory={{previous_output}}
+      - Execute: @task-execute-readme repo_directory={{previous_output}} repo_name={{repo_name}}
+      - Output: JSON object with repo_directory, readme_content, readme_filename, and status
+      - Mark success/fail in repo-results.md and repo-results.csv
+
+   3. **Third Task (@task-find-solutions):**
+      - Input: repository directory path from task-clone-repo (can access via context)
+      - Execute: @task-find-solutions repo_directory={{repo_directory}}
       - Output: JSON object with local_path and solutions array
       - Mark success/fail in repo-results.md and repo-results.csv
 
-   3. **Third Task (@task-process-solutions):**
+   4. **Fourth Task (@task-process-solutions):**
       - Input: JSON object from previous task
       - Execute: @task-process-solutions solutions_json={{previous_output}} repo_name={{repo_name}}
       - Output: summary of processed solutions
@@ -42,5 +49,6 @@ Variables available:
 - {{clone_path}} → Root folder where repositories are cloned.
 - {{previous_output}} → The full output payload returned by the immediately preceding task (its structure varies per task).
 - {{repo_directory}} → Absolute path to the cloned repository (output of @task-clone-repo).
+- {{readme_content}} → README file content (output of @task-execute-readme).
 - {{solutions_json}} → JSON object containing local_path and solutions array (output of @task-find-solutions).
 - {{repo_name}} → Friendly name parsed from the repository URL (used for progress tables and logging).
