@@ -1,13 +1,12 @@
 {
-  "repo_name": "people_spool_usertokenmanagement",
-  "solution_name": "people_spool_usertokenmanagement",
+  "task": "build-solution",
+  "repository": "people_spool_usertokenmanagement",
+  "solution": "people_spool_usertokenmanagement",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\people_spool_usertokenmanagement.sln",
-  "exit_code": 0,
-  "error_tokens": [
-    "CS0618",
-    "NU1605",
-    "NU1608",
-    "CS8795"
-  ],
-  "status": "SUCCESS"
+  "status": "SUCCESS",
+  "timestamp": "2025-10-22T14:07:28",
+  "duration_seconds": 168.77,
+  "warnings_count": 0,
+  "errors_count": 0,
+  "notes": "Clean build with no issues"
 }

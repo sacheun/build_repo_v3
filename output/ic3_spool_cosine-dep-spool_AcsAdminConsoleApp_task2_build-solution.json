@@ -1,12 +1,19 @@
 {
-  "repo_name": "ic3_spool_cosine-dep-spool",
-  "solution_name": "AcsAdminConsoleApp",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\samples\\External\\samples\\TurnWebRTCApps\\AcsAdminConsoleApp.sln",
-  "exit_code": 0,
-  "error_tokens": [
-    "NU1605"
+  "build_status": "SUCCESS",
+  "build_output_summary": "Build succeeded. 2 Warning(s) 0 Error(s). Time Elapsed 00:00:07.41",
+  "warnings": [
+    {
+      "code": "NETSDK1138", 
+      "message": "The target framework 'net5.0' is out of support and will not receive security updates",
+      "file": "RelayConsoleApp.csproj"
+    },
+    {
+      "code": "CA1416",
+      "message": "This call site is reachable on all platforms. 'NamedPipeClientStream.NumberOfServerInstances' is supported on: 'windows'",
+      "file": "NamedPipeSignaler.cs"
+    }
   ],
-  "error_count": 7,
-  "warning_count": 5,
-  "status": "SUCCESS"
+  "errors": [],
+  "build_time": "00:00:07.41"
 }

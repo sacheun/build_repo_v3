@@ -1,12 +1,14 @@
 {
-  "repo_name": "ic3_spool_cosine-dep-spool",
-  "solution_name": "MigrateCosmosDb",
+  "task": "restore-solution",
+  "repository": "ic3_spool_cosine-dep-spool",
+  "solution": "MigrateCosmosDb",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\Management\\Deployment\\Tools\\MigrateCosmosDb\\MigrateCosmosDb.sln",
+  "status": "FAILED",
+  "timestamp": "2025-10-22T14:04:52",
+  "duration_seconds": 3.46,
+  "warnings_count": 0,
+  "errors_count": 1,
+  "error": "NU1008: Projects that use central package version management should not define the version on the PackageReference items but on the PackageVersion items: Microsoft.Azure.Cosmos",
   "exit_code": 1,
-  "error_tokens": [
-    "NU1008"
-  ],
-  "error_count": 3,
-  "warning_count": 1,
-  "status": "FAIL"
+  "notes": "Project uses Central Package Management but has version defined in PackageReference"
 }

@@ -1,10 +1,14 @@
 {
-  "repo_name": "people_spool_usertokenmanagement",
-  "solution_name": "JitBackfill",
+  "task": "build-solution",
+  "repository": "people_spool_usertokenmanagement",
+  "solution": "JitBackfill",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\scripts\\Cosmos\\JitBackfill\\JitBackfill.sln",
+  "status": "FAILED",
+  "timestamp": "2025-10-22T14:13:48",
+  "duration_seconds": 1.40,
+  "warnings_count": 0,
+  "errors_count": 1,
+  "error": "MSB4062: Could not load Microsoft.Cosmos.ScopeStudio.VsExtension.CompilerTask assembly",
   "exit_code": 1,
-  "error_tokens": [
-    "MSB4062"
-  ],
-  "status": "FAIL"
+  "notes": "SCOPE project requires Cosmos SCOPE Studio tools which are not installed"
 }

@@ -1,8 +1,11 @@
 {
-  "repo_name": "people_spool_usertokenmanagement",
-  "solution_name": "WebJob1",
+  "task": "restore-solution",
+  "repository": "people_spool_usertokenmanagement",
+  "solution": "WebJob1",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Backfill WebJob\\WebJob1.sln",
-  "exit_code": 0,
-  "error_tokens": [],
-  "status": "SUCCESS"
+  "status": "SUCCESS",
+  "timestamp": "2025-10-22T14:14:14",
+  "duration_seconds": 4.97,
+  "warnings_count": 0,
+  "errors_count": 0
 }

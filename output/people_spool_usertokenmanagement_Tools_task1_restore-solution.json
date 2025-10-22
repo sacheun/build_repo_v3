@@ -1,12 +1,13 @@
 {
-  "repo_name": "people_spool_usertokenmanagement",
-  "solution_name": "Tools",
+  "task": "restore-solution",
+  "repository": "people_spool_usertokenmanagement",
+  "solution": "Tools",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Manual test tools\\Tools\\Tools.sln",
-  "exit_code": 1,
-  "error_tokens": [
-    "CS1998",
-    "NU1605",
-    "CS0234"
-  ],
-  "status": "FAIL"
+  "status": "SUCCESS",
+  "timestamp": "2025-10-22T14:14:41",
+  "duration_seconds": 4.19,
+  "warnings_count": 2,
+  "errors_count": 0,
+  "projects_count": 6,
+  "notes": "Warnings NETSDK1138: net6.0 is out of support"
 }

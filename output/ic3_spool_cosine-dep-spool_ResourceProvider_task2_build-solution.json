@@ -1,20 +1,12 @@
 {
-  "repo_name": "ic3_spool_cosine-dep-spool",
+  "repository": "ic3_spool_cosine-dep-spool",
+  "task": "task-build-solution",
   "solution_name": "ResourceProvider",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\src\\ResourceProvider.sln",
-  "exit_code": 0,
-  "error_tokens": [
-    "MSB3270",
-    "MSB3277",
-    "CS0618",
-    "CS8632",
-    "NU1605",
-    "MSB4011",
-    "CS8002",
-    "CS0649",
-    "CS1587"
-  ],
-  "error_count": 732,
-  "warning_count": 941,
-  "status": "SUCCESS"
+  "status": "FAIL",
+  "timestamp": "2025-01-16T_TIMESTAMP_",
+  "error": "Build failed - Service Fabric project (Microsoft.Azure.Communication.ResourceProvider.SF.sfproj) requires specific Platform configuration. Error: The BaseOutputPath/OutputPath property is not set for project. Configuration='Release' Platform='x64'",
+  "warnings": 76,
+  "errors": 1,
+  "time_elapsed": "00:00:13.04"
 }

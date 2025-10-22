@@ -1,47 +1,31 @@
-| Timestamp | Repository | Solution | Task | Status | Symbol |
-|---|---|---|---|---|---|
-| 2025-10-22 11:32:04 | ic3_spool_cosine-dep-spool | SDKTestApp | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:32:06 | ic3_spool_cosine-dep-spool | SDKTestApp | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:32:06 | ic3_spool_cosine-dep-spool | SDKTestApp | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:32:10 | ic3_spool_cosine-dep-spool | AcsAdminConsoleApp | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:32:12 | ic3_spool_cosine-dep-spool | AcsAdminConsoleApp | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:32:12 | ic3_spool_cosine-dep-spool | AcsAdminConsoleApp | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:33:45 | ic3_spool_cosine-dep-spool | ResourceProvider | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:34:28 | ic3_spool_cosine-dep-spool | ResourceProvider | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:34:28 | ic3_spool_cosine-dep-spool | ResourceProvider | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:39:38 | ic3_spool_cosine-dep-spool | Microsoft.Azure.Communication.Email | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:42:43 | ic3_spool_cosine-dep-spool | Microsoft.Azure.Communication.Email | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:42:43 | ic3_spool_cosine-dep-spool | Microsoft.Azure.Communication.Email | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:42:46 | ic3_spool_cosine-dep-spool | LinkDomains | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:42:48 | ic3_spool_cosine-dep-spool | LinkDomains | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:42:48 | ic3_spool_cosine-dep-spool | LinkDomains | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:42:54 | ic3_spool_cosine-dep-spool | MigrateCosmosDb | task-restore-solution | FAIL | ✗ |
-| 2025-10-22 11:42:56 | ic3_spool_cosine-dep-spool | MigrateCosmosDb | task-build-solution | FAIL | ✗ |
-| 2025-10-22 11:42:56 | ic3_spool_cosine-dep-spool | MigrateCosmosDb | task-collect-knowledge-base | SUCCESS | ✓ |
-| 2025-10-22 11:42:59 | ic3_spool_cosine-dep-spool | codereview | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:43:01 | ic3_spool_cosine-dep-spool | codereview | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:43:01 | ic3_spool_cosine-dep-spool | codereview | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:43:40 | ic3_spool_cosine-dep-spool | RPClientSampleService | task-restore-solution | FAIL | ✗ |
-| 2025-10-22 11:43:53 | ic3_spool_cosine-dep-spool | RPClientSampleService | task-build-solution | FAIL | ✗ |
-| 2025-10-22 11:43:53 | ic3_spool_cosine-dep-spool | RPClientSampleService | task-collect-knowledge-base | SUCCESS | ✓ |
-| 2025-10-22 11:47:24 | people_spool_usertokenmanagement | people_spool_usertokenmanagement | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:48:48 | people_spool_usertokenmanagement | people_spool_usertokenmanagement | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:48:48 | people_spool_usertokenmanagement | people_spool_usertokenmanagement | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:48:51 | people_spool_usertokenmanagement | JitBackfill | task-restore-solution | FAIL | ✗ |
-| 2025-10-22 11:48:51 | people_spool_usertokenmanagement | JitBackfill | task-build-solution | FAIL | ✗ |
-| 2025-10-22 11:48:51 | people_spool_usertokenmanagement | JitBackfill | task-collect-knowledge-base | SUCCESS | ✓ |
-| 2025-10-22 11:48:53 | people_spool_usertokenmanagement | WebJob1 | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:48:55 | people_spool_usertokenmanagement | WebJob1 | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:48:55 | people_spool_usertokenmanagement | WebJob1 | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:49:08 | people_spool_usertokenmanagement | Tools | task-restore-solution | FAIL | ✗ |
-| 2025-10-22 11:49:14 | people_spool_usertokenmanagement | Tools | task-build-solution | FAIL | ✗ |
-| 2025-10-22 11:49:14 | people_spool_usertokenmanagement | Tools | task-collect-knowledge-base | SUCCESS | ✓ |
-| 2025-10-22 11:49:16 | people_spool_usertokenmanagement | GetToken | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:49:18 | people_spool_usertokenmanagement | GetToken | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:49:18 | people_spool_usertokenmanagement | GetToken | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:49:57 | sync_calling_concore-conversation | Microsoft.Skype.Calling.Conversation.CodeSign | task-restore-solution | SUCCESS | ✓ |
-| 2025-10-22 11:50:40 | sync_calling_concore-conversation | Microsoft.Skype.Calling.Conversation.CodeSign | task-build-solution | SUCCESS | ✓ |
-| 2025-10-22 11:50:40 | sync_calling_concore-conversation | Microsoft.Skype.Calling.Conversation.CodeSign | task-collect-knowledge-base | SKIPPED | ○ |
-| 2025-10-22 11:50:57 | sync_calling_concore-conversation | Microsoft.Skype.Calling.ConversationCache | task-restore-solution | FAIL | ✗ |
-| 2025-10-22 11:50:57 | sync_calling_concore-conversation | Microsoft.Skype.Calling.ConversationCache | task-build-solution | FAIL | ✗ |
-| 2025-10-22 11:50:58 | sync_calling_concore-conversation | Microsoft.Skype.Calling.ConversationCache | task-collect-knowledge-base | SUCCESS | ✓ |
+# Solution Processing Results
+
+Started at: 2025-10-22 13:41:00
+
+| Repository | Solution | Task | Status | Timestamp |
+|---|---|---|---|---|
+| ic3_spool_cosine-dep-spool | SDKTestApp | task-restore-solution | SUCCESS | 2025-10-22 13:48:13 |
+| ic3_spool_cosine-dep-spool | SDKTestApp | task-build-solution | SUCCESS | 2025-10-22 13:49:30 |
+| ic3_spool_cosine-dep-spool | AcsAdminConsoleApp | task-restore-solution | SUCCESS | 2025-10-22 13:50:09 |
+| ic3_spool_cosine-dep-spool | AcsAdminConsoleApp | task-build-solution | SUCCESS | 2025-10-22 13:50:22 |
+| ic3_spool_cosine-dep-spool | ResourceProvider | task-restore-solution | SUCCESS | 2025-10-22 13:51:45 |
+| ic3_spool_cosine-dep-spool | ResourceProvider | task-build-solution | FAIL | 2025-10-22 13:52:10 |
+| ic3_spool_cosine-dep-spool | Microsoft.Azure.Communication.Email | task-restore-solution | SUCCESS | 2025-10-22 13:55:17 |
+| ic3_spool_cosine-dep-spool | Microsoft.Azure.Communication.Email | task-build-solution | FAIL | 2025-10-22 13:57:46 |
+| ic3_spool_cosine-dep-spool | LinkDomains | task-restore-solution | SUCCESS | 2025-10-22 14:02:36 |
+| ic3_spool_cosine-dep-spool | LinkDomains | task-build-solution | SUCCESS | 2025-10-22 14:02:46 |
+| ic3_spool_cosine-dep-spool | MigrateCosmosDb | task-restore-solution | FAIL | 2025-10-22 14:04:52 |
+| ic3_spool_cosine-dep-spool | codereview | task-restore-solution | SUCCESS | 2025-10-22 14:05:36 |
+| ic3_spool_cosine-dep-spool | codereview | task-build-solution | SUCCESS | 2025-10-22 14:05:48 |
+| ic3_spool_cosine-dep-spool | RPClientSampleService | task-restore-solution | FAIL | 2025-10-22 14:06:04 |
+| people_spool_usertokenmanagement | people_spool_usertokenmanagement | task-restore-solution | SUCCESS | 2025-10-22 14:07:12 |
+| people_spool_usertokenmanagement | people_spool_usertokenmanagement | task-build-solution | SUCCESS | 2025-10-22 14:07:28 |
+| people_spool_usertokenmanagement | JitBackfill | task-restore-solution | SUCCESS | 2025-10-22 14:13:36 |
+| people_spool_usertokenmanagement | JitBackfill | task-build-solution | FAIL | 2025-10-22 14:13:48 |
+| people_spool_usertokenmanagement | WebJob1 | task-restore-solution | SUCCESS | 2025-10-22 14:14:14 |
+| people_spool_usertokenmanagement | WebJob1 | task-build-solution | SUCCESS | 2025-10-22 14:14:27 |
+| people_spool_usertokenmanagement | Tools | task-restore-solution | SUCCESS | 2025-10-22 14:14:41 |
+| people_spool_usertokenmanagement | Tools | task-build-solution | FAIL | 2025-10-22 14:14:57 |
+| people_spool_usertokenmanagement | GetToken | task-restore-solution | SUCCESS | 2025-10-22 14:16:00 |
+| people_spool_usertokenmanagement | GetToken | task-build-solution | SUCCESS | 2025-10-22 14:16:08 |
+| sync_calling_concore-conversation | Microsoft.Skype.Calling.Conversation | task-restore-solution | SUCCESS | 2025-10-22 14:17:34 |

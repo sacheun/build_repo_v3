@@ -1,13 +1,14 @@
 {
-  "repo_name": "ic3_spool_cosine-dep-spool",
-  "solution_name": "RPClientSampleService",
+  "task": "restore-solution",
+  "repository": "ic3_spool_cosine-dep-spool",
+  "solution": "RPClientSampleService",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\tools\\testing\\RPClientSampleService\\RPClientSampleService.sln",
+  "status": "FAILED",
+  "timestamp": "2025-10-22T14:06:04",
+  "duration_seconds": 7.37,
+  "warnings_count": 1,
+  "errors_count": 6,
+  "error": "NU1605: Package downgrade errors - Microsoft.Extensions.Http, Microsoft.Extensions.Configuration.Abstractions, Microsoft.Extensions.Options.ConfigurationExtensions, Microsoft.Extensions.Logging.Abstractions, Microsoft.Extensions.Options",
   "exit_code": 1,
-  "error_tokens": [
-    "NU1605",
-    "NU1603"
-  ],
-  "error_count": 65,
-  "warning_count": 27,
-  "status": "FAIL"
+  "notes": "Package dependency conflicts between Microsoft.Extensions packages at different versions"
 }

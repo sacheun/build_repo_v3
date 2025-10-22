@@ -1,4 +1,8 @@
 @task-collect-knowledge-base solution_path={{solution_path}} build_status={{build_status}} build_stderr={{build_stderr}}
+---
+temperature: 0.1
+model: gpt-4
+---
 
 Description:
 This task analyzes build failures and manages a knowledge base of known build errors. It extracts "Detection Tokens" from build error output, searches for existing knowledge base articles, and creates new ones when novel errors are encountered.

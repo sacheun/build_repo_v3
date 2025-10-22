@@ -1,10 +1,12 @@
 {
-  "repo_name": "people_spool_usertokenmanagement",
-  "solution_name": "GetToken",
+  "task": "build-solution",
+  "repository": "people_spool_usertokenmanagement",
+  "solution": "GetToken",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\people_spool_usertokenmanagement\\tools\\Manual test tools\\Tools\\GetCiamToken\\GetToken.sln",
-  "exit_code": 0,
-  "error_tokens": [
-    "NU1605"
-  ],
-  "status": "SUCCESS"
+  "status": "SUCCESS",
+  "timestamp": "2025-10-22T14:16:08",
+  "duration_seconds": 4.00,
+  "warnings_count": 4,
+  "errors_count": 0,
+  "notes": "Warnings: NETSDK1138, CA2234, CA1031, CA1303 (code analysis warnings)"
 }

@@ -1,6 +1,11 @@
 @solution-tasks-list solution_path={{solution_path}}
 @task-restore-solution solution_path={{solution_path}}
 @task-build-solution solution_path={{solution_path}}
+@task-collect-knowledge-base solution_path={{solution_path}}
+---
+temperature: 0.1
+model: gpt-4
+---
 
 Description:
 This prompt executes a sequence of tasks for a single solution file (.sln). Each task receives the output of the previous one.
@@ -24,13 +29,14 @@ Behavior:
       - Tracking: update solution-results.* with restore outcome.
 
    2. **Build Task (@task-build-solution):**
-      - Prerequisite: Normally only runs if restore_status == SUCCESS (or orchestrator override).
+      - Prerequisite: Runs after restore task regardless of restore outcome.
       - Action: Conceptual MSBuild Clean+Build Release capture + diagnostics extraction.
       - Output: build_status, errors[], warnings[] plus solution_path, solution_name.
       - Tracking: append build outcome row (avoiding duplicates) to solution-results.*
+      - Note: Build will attempt even if restore fails (may fail quickly, but ensures full diagnostics).
 
    3. **Knowledge Base Collection Task (@task-collect-knowledge-base):**
-      - Prerequisite: Runs after build task, processes build failures only.
+      - Prerequisite: ALWAYS runs after build task - processes both successes and failures.
       - Input: build_status, build_stderr (error output from build task).
       - Action: Extract detection tokens from build errors, search/create knowledge base markdown files.
       - Output: kb_status (SUCCESS | SKIPPED), kb_file_path (if created/found).
@@ -48,9 +54,11 @@ Behavior:
            - Example solution path
         f. Generate meaningful filename based on error signature.
 
-- If any task fails, subsequent tasks are SKIPPED and pipeline_status=FAIL.
+- ALL tasks execute in sequence: restore → build → collect-knowledge-base.
+- Tasks do NOT skip based on prior failures - each task attempts execution.
+- If any task fails, pipeline_status=FAIL, but subsequent tasks still execute.
 - On success of all tasks pipeline_status=SUCCESS.
-- Note: @task-collect-knowledge-base runs even if build fails (it processes failures).
+- Note: @task-collect-knowledge-base ALWAYS runs to process build outcomes.
 
 Variables available:
 - {{solution_path}} → Absolute path to the .sln file being processed.
@@ -67,10 +75,12 @@ Execution Semantics:
 0. Set DEBUG=1 in the execution environment (e.g., $env:DEBUG="1" or export DEBUG=1) prior to any task.
 1. Parser reads lines starting with `@task-` (excluding @solution-tasks-list header) preserving order.
 2. Substitute placeholders (e.g., {{solution_path}}, {{solution_name}}) per directive.
-3. Execute restore directive; record restore_status.
-4. If restore failed, mark build_status=SKIPPED; else execute build directive.
-5. Merge outputs (last key wins) forming cumulative pipeline output.
-6. On first failure, halt remaining directives; pipeline_status=FAIL. Else pipeline_status=SUCCESS.
+3. Execute restore directive; record restore_status (SUCCESS or FAIL).
+4. Execute build directive regardless of restore outcome; record build_status.
+5. Execute knowledge base collection directive; record kb_status.
+6. Merge outputs (last key wins) forming cumulative pipeline output.
+7. If any task status == FAIL, set pipeline_status=FAIL; else pipeline_status=SUCCESS.
+8. ALL tasks execute - no tasks are skipped based on prior failures.
 
 Extensibility Guidelines:
 - Append new tasks (e.g., test, package) as additional @task-* lines after build.
@@ -94,7 +104,9 @@ Implementation Notes (conceptual):
 1. Ordering is source-of-truth; do not auto-sort directives.
 2. Environment DEBUG=1 is a global flag; tasks may inspect it to increase verbosity.
 3. Idempotency: Each task responsible for avoiding duplicate result rows in tracking artifacts.
-4. Error Propagation: Failure sets pipeline_status=FAIL; subsequent tasks marked SKIPPED.
-5. Diagnostics: errors/warnings arrays derived only from build task; restore does not populate them.
-6. Extensibility: Additional tasks append status + optional diagnostics keys without altering prior arrays.
-7. Merging: Later tasks should avoid deleting earlier keys; only add or update their own status fields.
+4. Error Propagation: Individual task failures set their status to FAIL but do NOT prevent subsequent tasks from executing.
+5. ALL THREE TASKS ALWAYS EXECUTE - no skipping based on prior failures.
+6. Diagnostics: errors/warnings arrays derived only from build task; restore does not populate them.
+7. Extensibility: Additional tasks append status + optional diagnostics keys without altering prior arrays.
+8. Merging: Later tasks should avoid deleting earlier keys; only add or update their own status fields.
+9. Pipeline Status: pipeline_status=FAIL if ANY task fails; pipeline_status=SUCCESS only if ALL tasks succeed.

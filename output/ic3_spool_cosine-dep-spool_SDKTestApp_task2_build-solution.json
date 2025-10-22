@@ -1,12 +1,14 @@
 {
-  "repo_name": "ic3_spool_cosine-dep-spool",
-  "solution_name": "SDKTestApp",
   "solution_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool\\samples\\External\\samples\\SDKTestApp\\SDKTestApp.sln",
-  "exit_code": 0,
-  "error_tokens": [
-    "NU1605"
+  "build_status": "SUCCESS",
+  "build_output_summary": "Build succeeded. 1 Warning(s) 0 Error(s). Time Elapsed 00:00:11.41",
+  "warnings": [
+    {
+      "code": "NETSDK1138",
+      "message": "The target framework 'net6.0' is out of support and will not receive security updates in the future",
+      "file": "SDKTestApp.csproj"
+    }
   ],
-  "error_count": 4,
-  "warning_count": 3,
-  "status": "SUCCESS"
+  "errors": [],
+  "build_time": "00:00:11.41"
 }

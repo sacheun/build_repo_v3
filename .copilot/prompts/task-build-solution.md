@@ -1,4 +1,8 @@
  @task-build-solution solution_path={{solution_path}}
+---
+temperature: 0.1
+model: gpt-4
+---
 
 Task name: task-build-solution
 
