@@ -208,7 +208,6 @@ Output Contract:
 - detection_tokens: array[string] (extracted error signatures)
 
 Implementation Notes:
-1. **NON-SCRIPTABLE**: Do NOT create a Python script. Use direct tool calls (run_in_terminal, read_file, create_file).
 2. **AI REASONING REQUIRED**: Each error analysis requires understanding context, not pattern matching.
 3. Always create ./knowledge_base_markdown/ directory if it doesn't exist (use create_directory tool).
 4. Use safe filenames (lowercase, alphanumeric + underscore/hyphen only).
@@ -219,14 +218,3 @@ Implementation Notes:
 9. The task focuses on identifying error patterns AND providing helpful guidance, not just cataloging errors.
 10. **CRITICAL**: Use read_file to examine existing KB articles - don't just check filenames.
 11. **CRITICAL**: Use create_file to write new KB articles with synthesized helpful content.
-12. **IGNORE** the "Programming Language: Python" section below - this task is NON-SCRIPTABLE.
-   - Log the result object type and attributes: "[KB-DEBUG] result object: type={type(result)}, has_stderr={hasattr(result, 'stderr')}"
-   - Log captured stderr vs stdout: "[KB-DEBUG] stderr length: {len(stderr)}, stdout length: {len(stdout) if has stdout else 'N/A'}"
-   - Log whether build_stderr is empty: "[KB-DEBUG] build_stderr is {'empty' if not build_stderr else 'populated'}"
-   - Log regex pattern matches count: "[KB-DEBUG] Property errors: {len(property_errors)}, MSBuild: {len(msbuild_errors)}, CS: {len(cs_errors)}, NuGet: {len(nuget_errors)}"
-
-Programming Language:
-- **DEPRECATED - DO NOT USE**: This section is obsolete. This task is NON-SCRIPTABLE.
-- **DO NOT** create task_collect_knowledge_base.py
-- **USE** direct tool calls instead: run_in_terminal, read_file, create_file, create_directory
-- **REASON**: AI structural reasoning is required to analyze errors and create meaningful KB articles

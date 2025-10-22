@@ -1,7 +1,7 @@
 @task-process-solutions solutions_json={{solutions_json}} repo_name={{repo_name}}
 ---
 temperature: 0.1
-model: gpt-4
+model: gpt-5
 ---
 
 ** ⚠️ CRITICAL WARNING - READ BEFORE IMPLEMENTING ⚠️ **

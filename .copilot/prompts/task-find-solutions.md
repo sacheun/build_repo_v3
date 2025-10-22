@@ -1,7 +1,7 @@
 @task-find-solutions repo_directory={{repo_directory}}
 ---
 temperature: 0.1
-model: gpt-4
+model: gpt-5
 ---
 
 Task name: task-find-solutions

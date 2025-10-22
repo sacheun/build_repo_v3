@@ -4,7 +4,7 @@
 @task-collect-knowledge-base solution_path={{solution_path}}
 ---
 temperature: 0.1
-model: gpt-4
+model: gpt-5
 ---
 
 Description:
