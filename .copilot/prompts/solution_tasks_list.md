@@ -12,6 +12,7 @@ Environment Initialization:
 Current Solution Tasks List:
 1. @task-restore-solution
 2. @task-build-solution
+3. @task-collect-knowledge-base
 
 Behavior:
 - Execute tasks in pipeline sequence where each task's output becomes the next task's input.
@@ -28,8 +29,28 @@ Behavior:
       - Output: build_status, errors[], warnings[] plus solution_path, solution_name.
       - Tracking: append build outcome row (avoiding duplicates) to solution-results.*
 
+   3. **Knowledge Base Collection Task (@task-collect-knowledge-base):**
+      - Prerequisite: Runs after build task, processes build failures only.
+      - Input: build_status, build_stderr (error output from build task).
+      - Action: Extract detection tokens from build errors, search/create knowledge base markdown files.
+      - Output: kb_status (SUCCESS | SKIPPED), kb_file_path (if created/found).
+      - Tracking: Creates or updates markdown files in ./knowledge_base_markdown/ directory.
+      - Behavior:
+        a. If build_status == SUCCESS, return kb_status=SKIPPED (no action needed).
+        b. If build_status == FAIL, extract "Detection Tokens" from stderr.
+        c. Search existing .md files in ./knowledge_base_markdown/ for matching tokens.
+        d. If match found, return kb_status=SUCCESS with kb_file_path.
+        e. If no match, create new .md file with standardized format including:
+           - Issue description
+           - Diagnostic hints
+           - Detection tokens
+           - Fix instructions
+           - Example solution path
+        f. Generate meaningful filename based on error signature.
+
 - If any task fails, subsequent tasks are SKIPPED and pipeline_status=FAIL.
 - On success of all tasks pipeline_status=SUCCESS.
+- Note: @task-collect-knowledge-base runs even if build fails (it processes failures).
 
 Variables available:
 - {{solution_path}} → Absolute path to the .sln file being processed.
@@ -62,8 +83,11 @@ Output Contract (aggregate pipeline output):
 - solution_name: string
 - restore_status: SUCCESS | FAIL
 - build_status: SUCCESS | FAIL | SKIPPED
+- build_stderr: string (error output from build, empty if success)
 - errors: array[string] (build diagnostic error codes; empty if none or skipped)
 - warnings: array[string] (build diagnostic warning codes; empty if none or skipped)
+- kb_status: SUCCESS | SKIPPED (knowledge base collection status)
+- kb_file_path: string (path to knowledge base file if created/found)
 - pipeline_status: SUCCESS | FAIL
 
 Implementation Notes (conceptual):
