@@ -12,9 +12,11 @@ Behavior:
 2. Check if target directory exists: {{clone_path}}/{{repo_name}}
 
 3. If target directory does NOT exist:
-   - Execute shell command: git clone {{repo_url}} {{clone_path}}/{{repo_name}}
+   - If DEBUG environment is set to 1, print: `[debug][task-clone-repo] performing fresh clone: git clone --depth 1 {{repo_url}} {{clone_path}}/{{repo_name}}`
+   - Execute shell command: git clone --depth 1 {{repo_url}} {{clone_path}}/{{repo_name}}
 
 4. If target directory already exists:
+   - If DEBUG environment is set to 1, print: `[debug][task-clone-repo] repository exists, refreshing: reverting local changes and pulling latest`
    - Navigate to the directory: cd {{clone_path}}/{{repo_name}}
    - Revert all local changes: git reset --hard HEAD
    - Remove all untracked files: git clean -fd

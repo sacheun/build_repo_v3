@@ -1,35 +1,76 @@
 @solution-tasks-list solution_path={{solution_path}}
+@task-restore-solution solution_path={{solution_path}}
+@task-build-solution solution_path={{solution_path}}
 
 Description:
 This prompt executes a sequence of tasks for a single solution file (.sln). Each task receives the output of the previous one.
 
+Environment Initialization:
+- Before executing any task directives set environment variable DEBUG=1.
+- This enables verbose logging or additional diagnostics for all subsequent task prompts.
+
 Current Solution Tasks List:
 1. @task-restore-solution
+2. @task-build-solution
 
 Behavior:
 - Execute tasks in pipeline sequence where each task's output becomes the next task's input.
 
-   1. **First Task (@task-restore-solution):**
+   1. **Restore Task (@task-restore-solution):**
       - Input: solution_path (absolute path to .sln)
-      - Action: Print solution file path and attempt restore (dotnet restore)
-      - Output: JSON summary with solution_path, solution_name, restore_status
-      - Mark success/fail in solution-results.md and solution-results.csv
+      - Action: Conceptual restore (dotnet restore) validation + status capture.
+      - Output: solution_path, solution_name, restore_status.
+      - Tracking: update solution-results.* with restore outcome.
 
-- If any task fails, stop further execution and return failure status.
-- After all tasks complete successfully, return a dictionary (or JSON blob) of all task outputs.
+   2. **Build Task (@task-build-solution):**
+      - Prerequisite: Normally only runs if restore_status == SUCCESS (or orchestrator override).
+      - Action: Conceptual MSBuild Clean+Build Release capture + diagnostics extraction.
+      - Output: build_status, errors[], warnings[] plus solution_path, solution_name.
+      - Tracking: append build outcome row (avoiding duplicates) to solution-results.*
+
+- If any task fails, subsequent tasks are SKIPPED and pipeline_status=FAIL.
+- On success of all tasks pipeline_status=SUCCESS.
 
 Variables available:
 - {{solution_path}} → Absolute path to the .sln file being processed.
 - {{previous_output}} → Output from the last executed task (not used yet, reserved for future tasks).
 - {{solution_name}} → Friendly solution name derived from the file name without extension.
 
-Output Contract (per successful pipeline run):
+Task name: solution-tasks-list
+
+Directive Format:
+- Each pipeline directive appears as: `@task-<task-name> key=value key2=value2`
+- Placeholders like `{{solution_path}}`, `{{solution_name}}` are substituted before execution.
+
+Execution Semantics:
+0. Set DEBUG=1 in the execution environment (e.g., $env:DEBUG="1" or export DEBUG=1) prior to any task.
+1. Parser reads lines starting with `@task-` (excluding @solution-tasks-list header) preserving order.
+2. Substitute placeholders (e.g., {{solution_path}}, {{solution_name}}) per directive.
+3. Execute restore directive; record restore_status.
+4. If restore failed, mark build_status=SKIPPED; else execute build directive.
+5. Merge outputs (last key wins) forming cumulative pipeline output.
+6. On first failure, halt remaining directives; pipeline_status=FAIL. Else pipeline_status=SUCCESS.
+
+Extensibility Guidelines:
+- Append new tasks (e.g., test, package) as additional @task-* lines after build.
+- Each task defines distinct status key (test_status, package_status, etc.).
+- Avoid destructive overwrites of prior task diagnostic arrays.
+- Prefer additive keys to maintain clarity in merged output.
+
+Output Contract (aggregate pipeline output):
 - solution_path: string
 - solution_name: string
-- restore_status: SUCCESS | FAIL (from @task-restore-solution)
+- restore_status: SUCCESS | FAIL
+- build_status: SUCCESS | FAIL | SKIPPED
+- errors: array[string] (build diagnostic error codes; empty if none or skipped)
+- warnings: array[string] (build diagnostic warning codes; empty if none or skipped)
+- pipeline_status: SUCCESS | FAIL
 
 Implementation Notes (conceptual):
-1. Pipeline Sequencing: Each task consumes prior output; maintain consistent JSON shape for chaining.
-2. Error Propagation: First failing task halts pipeline; emit partial output with failure status.
-3. Extensibility: Add tasks by appending to Current Solution Tasks List; ensure each task documents its output fields.
-4. Idempotency: Tasks should check existing result rows before writing duplicates.
+1. Ordering is source-of-truth; do not auto-sort directives.
+2. Environment DEBUG=1 is a global flag; tasks may inspect it to increase verbosity.
+3. Idempotency: Each task responsible for avoiding duplicate result rows in tracking artifacts.
+4. Error Propagation: Failure sets pipeline_status=FAIL; subsequent tasks marked SKIPPED.
+5. Diagnostics: errors/warnings arrays derived only from build task; restore does not populate them.
+6. Extensibility: Additional tasks append status + optional diagnostics keys without altering prior arrays.
+7. Merging: Later tasks should avoid deleting earlier keys; only add or update their own status fields.

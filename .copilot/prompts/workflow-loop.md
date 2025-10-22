@@ -13,14 +13,17 @@ Behavior:
       clean_results = true
 2. If clean_results is true (default):
       - Remove all files in results/ directory to start from scratch
+      - Remove all files in output/ directory to start from scratch
 3. Ensure the clone directory exists; create if it does not.
 
 3. Create and initialize a repository progress markdown file:
       - results/repo-progress.md (Repository Progress tracking table)
       - Parse all repository URLs from input file to get friendly repo names
-      - Parse repo_tasks_list.md to get all task names
-      - Create table with repo names as rows and task names as columns
-      - Initialize all cells with [ ] (empty checkboxes)
+      - Parse repo_tasks_list.md to extract ALL task directive names (e.g., @task-clone-repo, @task-find-solutions, @task-process-solutions, etc.)
+      - Create table with columns: Repository | task-clone-repo | task-find-solutions | task-process-solutions | [additional tasks...]
+      - **IMPORTANT**: Include a column for EVERY task found in repo_tasks_list.md
+      - Initialize all task cells with [ ] (empty checkboxes)
+      - Example header: `| Repository | task-clone-repo | task-find-solutions | task-process-solutions |`
 
 4. Initialize results files:
       - results/repo-results.md (Repository Markdown table)
@@ -48,6 +51,8 @@ Output Contract:
 Implementation Notes (conceptual):
 1. Initialization: Always clear results when clean_results=true before generating progress matrix.
 2. Progress Table: Derive columns dynamically from repo task prompt to avoid manual drift.
-3. Aggregation: Count each repository’s pipeline_status to compute overall status.
+3. Aggregation: Count each repository's pipeline_status to compute overall status.
 4. Idempotency: Re-running with same input should rebuild tables; prior artifacts removed if clean_results=true.
 5. Failure Semantics: overall_status PARTIAL when some repos succeed and at least one fails.
+6. **Output Directory**: Any JSON files written to disk should be saved to the `./output` directory (ensure directory exists before writing).
+7. **Programming Language**: All code generated and executed by this prompt or any prompts triggered by this prompt MUST be written in Python.
