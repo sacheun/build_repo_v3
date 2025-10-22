@@ -105,7 +105,6 @@ Conditional Verbose Output (DEBUG):
 
 Output Contract:
 - repo_directory: string (absolute path to repository root, echoed from input)
-- readme_content: string | null (full text content of README file if found, null otherwise)
 - readme_filename: string | null (name of matched README file, null if not found)
 - setup_commands_executed: array of objects (each with: command, exit_code, stdout, stderr)
 - setup_commands_skipped: array of objects (each with: command, reason for skipping)

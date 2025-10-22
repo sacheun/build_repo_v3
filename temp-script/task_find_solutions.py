@@ -5,40 +5,39 @@ from datetime import datetime
 
 repo_dir = r'C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool'
 repo_name = 'ic3_spool_cosine-dep-spool'
+DEBUG = os.environ.get('DEBUG', '0') == '1'
 
-print(f'[debug][task-find-solutions] START repo_directory="{repo_dir}"')
+if DEBUG:
+    print(f'[debug][task-find-solutions] START repo_directory="{repo_dir}"')
 
 # Find all .sln files recursively
 solutions = []
-for sln_file in Path(repo_dir).rglob('*.sln'):
-    solutions.append(str(sln_file.absolute()))
+for sln_path in Path(repo_dir).rglob('*.sln'):
+    solution_name = sln_path.stem
+    solutions.append({
+        'name': solution_name,
+        'path': str(sln_path.relative_to(repo_dir)).replace('\\', '/')
+    })
+    if DEBUG:
+        print(f'[debug][task-find-solutions] found solution: {solution_name} at {sln_path.relative_to(repo_dir)}')
 
-solution_count = len(solutions)
-print(f'[debug][task-find-solutions] discovered {solution_count} solutions')
-
-# Save solutions to output directory
-os.makedirs('output', exist_ok=True)
-output_data = {
-    'solutions': solutions
-}
-
+# Write to output/solutions.json
+os.chdir(r'C:\Users\sacheu\source\build_repo_v3')
 with open('output/solutions.json', 'w', encoding='utf-8') as f:
-    json.dump(output_data, f, indent=2)
+    json.dump(solutions, f, indent=2)
 
-status = 'SUCCESS' if solution_count > 0 else 'FAIL'
+status = 'SUCCESS' if solutions else 'FAIL'
 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-print(f'[debug][task-find-solutions] END solution_count={solution_count} status={status}')
-
-# Update repo-progress.md
+# Update tracking files
 with open('results/repo-progress.md', 'r', encoding='utf-8') as f:
     lines = f.readlines()
 
 for i, line in enumerate(lines):
     if repo_name in line:
         parts = line.split('|')
-        if len(parts) >= 4 and '[ ]' in parts[3]:
-            parts[3] = parts[3].replace('[ ]', '[x]', 1)
+        if len(parts) >= 5 and '[ ]' in parts[4]:
+            parts[4] = parts[4].replace('[ ]', '[x]', 1)
             lines[i] = '|'.join(parts)
             break
 
@@ -51,4 +50,7 @@ with open('results/repo-results.md', 'a', encoding='utf-8') as f:
 with open('results/repo-results.csv', 'a', encoding='utf-8') as f:
     f.write(f'{repo_name},task-find-solutions,{status},{timestamp}\n')
 
-print(f'[run9][find-solutions] found {solution_count} solutions, saved to output/solutions.json')
+if DEBUG:
+    print(f'[debug][task-find-solutions] END solutions_count={len(solutions)} status={status}')
+
+print(f'[run10][find-solutions] found {len(solutions)} solution(s)')

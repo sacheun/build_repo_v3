@@ -1,20 +1,31 @@
-# Run 9 - Solution Task Results - 2025-10-21 21:55:41
+# Solution Results
 
-| Solution | Task | Status | Timestamp |
-|----------|------|--------|-----------|
-| SDKTestApp | task-restore-solution | SUCCESS | 2025-10-21 21:56:23 |
-| SDKTestApp | task-build-solution | SUCCESS | 2025-10-21 21:56:25 |
-| AcsAdminConsoleApp | task-restore-solution | SUCCESS | 2025-10-21 21:56:28 |
-| AcsAdminConsoleApp | task-build-solution | SUCCESS | 2025-10-21 21:56:31 |
-| ResourceProvider | task-restore-solution | SUCCESS | 2025-10-21 21:59:06 |
-| ResourceProvider | task-build-solution | SUCCESS | 2025-10-21 21:59:45 |
-| Microsoft.Azure.Communication.Email | task-restore-solution | SUCCESS | 2025-10-21 22:09:10 |
-| Microsoft.Azure.Communication.Email | task-build-solution | SUCCESS | 2025-10-21 22:11:54 |
-| LinkDomains | task-restore-solution | SUCCESS | 2025-10-21 22:11:56 |
-| LinkDomains | task-build-solution | SUCCESS | 2025-10-21 22:11:58 |
-| MigrateCosmosDb | task-restore-solution | FAIL | 2025-10-21 22:12:04 |
-| MigrateCosmosDb | task-build-solution | SKIP | 2025-10-21 22:12:04 |
-| codereview | task-restore-solution | SUCCESS | 2025-10-21 22:12:07 |
-| codereview | task-build-solution | SUCCESS | 2025-10-21 22:12:09 |
-| RPClientSampleService | task-restore-solution | FAIL | 2025-10-21 22:12:40 |
-| RPClientSampleService | task-build-solution | SKIP | 2025-10-21 22:12:40 |
+| Repository | Solution | Task | Result | Timestamp |
+|------------|----------|------|--------|----------|
+| ic3_spool_cosine-dep-spool | SDKTestApp | task-restore-solution | SUCCESS | 2025-10-21 23:02:12 |
+| ic3_spool_cosine-dep-spool | ResourceProvider | task-build-solution | FAIL | 2025-10-21 23:02:13 |
+| ic3_spool_cosine-dep-spool | SDKTestApp | task-build-solution | SUCCESS | 2025-10-21 23:02:13 |
+| ic3_spool_cosine-dep-spool | AcsAdminConsoleApp | task-restore-solution | SUCCESS | 2025-10-21 23:02:16 |
+| ic3_spool_cosine-dep-spool | AcsAdminConsoleApp | task-build-solution | SUCCESS | 2025-10-21 23:02:18 |
+| ic3_spool_cosine-dep-spool | ResourceProvider | task-restore-solution | SUCCESS | 2025-10-21 23:02:24 |
+| ic3_spool_cosine-dep-spool | Microsoft.Azure.Communication.Email | task-restore-solution | SUCCESS | 2025-10-21 23:02:27 |
+| ic3_spool_cosine-dep-spool | ResourceProvider | task-build-solution | FAIL | 2025-10-21 23:02:56 |
+| ic3_spool_cosine-dep-spool | Microsoft.Azure.Communication.Email | task-restore-solution | SUCCESS | 2025-10-21 23:03:00 |
+| ic3_spool_cosine-dep-spool | Microsoft.Azure.Communication.Email | task-build-solution | FAIL | 2025-10-21 23:04:28 |
+| ic3_spool_cosine-dep-spool | LinkDomains | task-restore-solution | SUCCESS | 2025-10-21 23:04:29 |
+| ic3_spool_cosine-dep-spool | LinkDomains | task-build-solution | SUCCESS | 2025-10-21 23:04:30 |
+| ic3_spool_cosine-dep-spool | MigrateCosmosDb | task-restore-solution | FAIL | 2025-10-21 23:04:35 |
+| ic3_spool_cosine-dep-spool | MigrateCosmosDb | task-build-solution | SKIP | 2025-10-21 23:04:35 |
+| ic3_spool_cosine-dep-spool | codereview | task-restore-solution | SUCCESS | 2025-10-21 23:04:36 |
+| ic3_spool_cosine-dep-spool | codereview | task-build-solution | SUCCESS | 2025-10-21 23:04:38 |
+| ic3_spool_cosine-dep-spool | RPClientSampleService | task-restore-solution | FAIL | 2025-10-21 23:04:58 |
+| ic3_spool_cosine-dep-spool | RPClientSampleService | task-build-solution | SKIP | 2025-10-21 23:04:58 |
+| ic3_spool_cosine-dep-spool | Microsoft.Azure.Communication.Email | task-build-solution | FAIL | 2025-10-21 23:05:00 |
+| ic3_spool_cosine-dep-spool | LinkDomains | task-restore-solution | SUCCESS | 2025-10-21 23:05:01 |
+| ic3_spool_cosine-dep-spool | LinkDomains | task-build-solution | SUCCESS | 2025-10-21 23:05:02 |
+| ic3_spool_cosine-dep-spool | MigrateCosmosDb | task-restore-solution | FAIL | 2025-10-21 23:05:06 |
+| ic3_spool_cosine-dep-spool | MigrateCosmosDb | task-build-solution | SKIP | 2025-10-21 23:05:06 |
+| ic3_spool_cosine-dep-spool | codereview | task-restore-solution | SUCCESS | 2025-10-21 23:05:07 |
+| ic3_spool_cosine-dep-spool | codereview | task-build-solution | SUCCESS | 2025-10-21 23:05:09 |
+| ic3_spool_cosine-dep-spool | RPClientSampleService | task-restore-solution | FAIL | 2025-10-21 23:05:20 |
+| ic3_spool_cosine-dep-spool | RPClientSampleService | task-build-solution | SKIP | 2025-10-21 23:05:20 |

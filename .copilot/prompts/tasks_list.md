@@ -21,7 +21,7 @@ Behavior:
    2. **Second Task (@task-execute-readme):**
       - Input: repository directory path from previous task
       - Execute: @task-execute-readme repo_directory={{previous_output}} repo_name={{repo_name}}
-      - Output: JSON object with repo_directory, readme_content, readme_filename, and status
+      - Output: JSON object with repo_directory, readme_filename, and status
       - Mark success/fail in repo-results.md and repo-results.csv
 
    3. **Third Task (@task-find-solutions):**
