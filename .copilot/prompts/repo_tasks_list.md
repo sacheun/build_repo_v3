@@ -25,7 +25,7 @@ Behavior:
 
    3. **Third Task (@task-process-solutions):**
       - Input: JSON object from previous task
-      - Execute: @task-process-solutions solutions_json={{previous_output}}
+      - Execute: @task-process-solutions solutions_json={{previous_output}} repo_name={{repo_name}}
       - Output: summary of processed solutions
       - Mark success/fail in repo-results.md and repo-results.csv
 

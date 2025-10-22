@@ -1,12 +1,17 @@
-Repository,Solution,Task,Status,Timestamp
-ic3_spool_cosine-dep-spool,SDKTestApp,task-restore-solution,SUCCESS,2025-10-21 21:07:38
-ic3_spool_cosine-dep-spool,AcsAdminConsoleApp,task-restore-solution,SUCCESS,2025-10-21 21:07:42
-ic3_spool_cosine-dep-spool,ResourceProvider,task-restore-solution,FAIL,2025-10-21 21:09:19
-ic3_spool_cosine-dep-spool,Microsoft.Azure.Communication.Email,task-restore-solution,FAIL,2025-10-21 21:14:41
-ic3_spool_cosine-dep-spool,LinkDomains,task-restore-solution,SUCCESS,2025-10-21 21:14:44
-ic3_spool_cosine-dep-spool,MigrateCosmosDb,task-restore-solution,FAIL,2025-10-21 21:14:46
-ic3_spool_cosine-dep-spool,codereview,task-restore-solution,SUCCESS,2025-10-21 21:14:51
-ic3_spool_cosine-dep-spool,RPClientSampleService,task-restore-solution,FAIL,2025-10-21 21:14:57
-ic3_spool_cosine-dep-spool,SDKTestApp,task-build-solution,SUCCESS,2025-10-21 21:15:55
-ic3_spool_cosine-dep-spool,AcsAdminConsoleApp,task-build-solution,SUCCESS,2025-10-21 21:15:58
-ic3_spool_cosine-dep-spool,LinkDomains,task-build-solution,SUCCESS,2025-10-21 21:16:00
+Solution,Task,Status,Timestamp
+SDKTestApp,task-restore-solution,SUCCESS,2025-10-21 21:56:23
+SDKTestApp,task-build-solution,SUCCESS,2025-10-21 21:56:25
+AcsAdminConsoleApp,task-restore-solution,SUCCESS,2025-10-21 21:56:28
+AcsAdminConsoleApp,task-build-solution,SUCCESS,2025-10-21 21:56:31
+ResourceProvider,task-restore-solution,SUCCESS,2025-10-21 21:59:06
+ResourceProvider,task-build-solution,SUCCESS,2025-10-21 21:59:45
+Microsoft.Azure.Communication.Email,task-restore-solution,SUCCESS,2025-10-21 22:09:10
+Microsoft.Azure.Communication.Email,task-build-solution,SUCCESS,2025-10-21 22:11:54
+LinkDomains,task-restore-solution,SUCCESS,2025-10-21 22:11:56
+LinkDomains,task-build-solution,SUCCESS,2025-10-21 22:11:58
+MigrateCosmosDb,task-restore-solution,FAIL,2025-10-21 22:12:04
+MigrateCosmosDb,task-build-solution,SKIP,2025-10-21 22:12:04
+codereview,task-restore-solution,SUCCESS,2025-10-21 22:12:07
+codereview,task-build-solution,SUCCESS,2025-10-21 22:12:09
+RPClientSampleService,task-restore-solution,FAIL,2025-10-21 22:12:40
+RPClientSampleService,task-build-solution,SKIP,2025-10-21 22:12:40

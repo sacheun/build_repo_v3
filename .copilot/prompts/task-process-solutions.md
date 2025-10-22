@@ -1,4 +1,4 @@
-@task-process-solutions solutions_json={{solutions_json}}
+@task-process-solutions solutions_json={{solutions_json}} repo_name={{repo_name}}
 
 Task name: task-process-solutions
 
@@ -65,7 +65,7 @@ Behavior:
    This line marks task completion and provides aggregate status visibility.
 
 Invocation Pattern:
-- Repository pipeline calls: `@task-process-solutions solutions_json={{previous_output}}`
+- Repository pipeline calls: `@task-process-solutions solutions_json={{previous_output}} repo_name={{repo_name}}`
 - This task internally invokes: `@solution-tasks-list solution_path={{solution_path}}`
 - The solution task list expands into concrete task directives actually executed per solution.
 - ** Important ** Execute each step individually. Pass the output from one task to the next. Do not create a single monolithic script that runs all tasks at once.
@@ -101,5 +101,5 @@ Variables available:
 - {{local_path}} → Repository directory extracted from solutions_json
 - {{solution_path}} → Absolute path of current solution being processed
 - {{solution_name}} → Friendly name of current solution file
-- {{repo_name}} → Friendly repository name derived separately (provided by caller)
+- {{repo_name}} → Friendly repository name (passed as input argument from caller)
 - {{solution_task_output}} → Output returned by @solution-tasks-list for the current solution

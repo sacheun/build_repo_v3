@@ -18,16 +18,20 @@ Behavior:
    - **Execute the command synchronously and wait for process completion** before proceeding.
    - **CRITICAL**: After process completes, capture the exit code (e.g., `$LASTEXITCODE` in PowerShell, `$?` in Bash).
    - Captures stdout/stderr without throwing exceptions.
-   - **Check exit code**: If command fails with error code 9009 (Windows "command not found") or stderr contains "not recognized", switches to `dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
-   - If DEBUG=1 and fallback triggered, print to console: `[debug][task-restore-solution] executing: dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
-   - **Execute the fallback command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
+   - **Special Case - MSBuild Not Found**: If command fails with error code 9009 (Windows "command not found") or stderr contains "not recognized", switches to `dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
+   - If DEBUG=1 and dotnet fallback triggered, print to console: `[debug][task-restore-solution] executing: dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
+   - **Execute the dotnet msbuild fallback command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
+   - **IMPORTANT**: Proceed to step 3 (NuGet fallback) if the final MSBuild exit code (msbuild or dotnet msbuild) is non-zero, regardless of the specific error code.
 
-3. NuGet Fallback (on failure): 
-   - **Check the exit code from step 2**: If MSBuild restore exits with non-zero code, invokes `nuget restore {{solution_path}}` in the solution's parent directory.
+3. NuGet Fallback (executed when step 2 MSBuild fails with ANY non-zero exit code): 
+   - **Trigger Condition**: If the exit code from step 2 (msbuild or dotnet msbuild) is non-zero (any failure, not just command-not-found).
+   - **Action**: Invoke `nuget restore {{solution_path}}` in the solution's parent directory.
+   - If DEBUG=1, print to console: `[debug][task-restore-solution] NuGet fallback triggered (msbuild exitCode={exitCode})`
    - If DEBUG=1, print to console: `[debug][task-restore-solution] executing: nuget restore {{solution_path}}`
    - **Execute the nuget command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
    - **Check NuGet exit code**: If NuGet succeeds (return code 0), re-runs the original MSBuild restore command once (with DEBUG command print if enabled), **wait for completion and capture exit code**, then aggregates all outputs (NuGet + retry) with labeled sections (=== NuGet Restore Output ===, etc.).
-   - If NuGet fails, appends its output but skips retry.
+   - If NuGet fails (non-zero exit code), appends its output but skips MSBuild retry.
+   - If DEBUG=1 and NuGet failed, print to console: `[debug][task-restore-solution] NuGet restore failed with exitCode={nugetExitCode}, skipping MSBuild retry`
 
 4. Success Determination: **Sets success=true only if the final MSBuild exit code is 0** (after NuGet retry if applicable). The success flag is based on the actual exit code, not assumed.
 
