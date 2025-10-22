@@ -1,18 +1,22 @@
+"""
+Task: Restore NuGet packages for solution
+Executed via exec() from task_process_solutions.py
+Variables from parent scope: sol, repo_name, DEBUG
+"""
+
 import subprocess
 from datetime import datetime
 
-# This script is executed via exec() from task_process_solutions.py
-# Variables available from parent scope: sol, repo_name, DEBUG
-
 solution_name = sol['name']
 solution_path = sol['path']
-timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-if DEBUG == '1':
-    print(f'[run12][restore-solution] DEBUG: Restoring {solution_name} at {solution_path}')
+print(f"\n--- Task: task-restore-solution ---")
+print(f"Solution: {solution_name}")
+
+restore_result = "SUCCESS"
 
 try:
-    # Try dotnet restore first
+    print("Running: dotnet restore...")
     result = subprocess.run(
         ['dotnet', 'restore', solution_path],
         capture_output=True,
@@ -20,54 +24,45 @@ try:
         timeout=120
     )
     
-    if result.returncode == 0:
-        print(f'[run12][restore-solution] {solution_name}: SUCCESS')
-        restore_result = 'SUCCESS'
+    if result.returncode != 0:
+        print(f"Restore FAILED (exit code {result.returncode})")
+        if DEBUG:
+            print(f"stderr: {result.stderr}")
+        restore_result = "FAIL"
     else:
-        # Fallback to NuGet restore
-        if DEBUG == '1':
-            print(f'[run12][restore-solution] DEBUG: dotnet restore failed, trying nuget')
-        
-        result = subprocess.run(
-            ['nuget', 'restore', solution_path],
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
-        
-        if result.returncode == 0:
-            print(f'[run12][restore-solution] {solution_name}: SUCCESS (nuget)')
-            restore_result = 'SUCCESS'
-        else:
-            print(f'[run12][restore-solution] {solution_name}: FAIL')
-            if DEBUG == '1':
-                print(f'[run12][restore-solution] DEBUG: {result.stderr}')
-            restore_result = 'FAIL'
-
+        print("Restore SUCCESS")
+        if DEBUG and result.stdout:
+            print(f"stdout: {result.stdout[:500]}")
+    
 except subprocess.TimeoutExpired:
-    print(f'[run12][restore-solution] {solution_name}: FAIL (timeout)')
-    restore_result = 'FAIL'
+    print("Restore TIMEOUT (120 seconds)")
+    restore_result = "FAIL"
 except Exception as e:
-    print(f'[run12][restore-solution] {solution_name}: FAIL ({str(e)})')
-    restore_result = 'FAIL'
+    print(f"Restore ERROR: {e}")
+    restore_result = "FAIL"
 
-# Record result
-with open('results/solution-results.csv', 'a') as f:
-    f.write(f'{repo_name},{solution_name},task-restore-solution,{restore_result},{timestamp}\n')
+# Update tracking files
+timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# Add to solution progress if not exists
-with open('results/solution-progress.md', 'r') as f:
-    progress_content = f.read()
+# Update solution-results.csv
+with open('results/solution-results.csv', 'a', encoding='utf-8') as f:
+    f.write(f"{repo_name},{solution_name},task-restore-solution,{restore_result},{timestamp}\n")
 
-if f'| {repo_name} | {solution_name} |' not in progress_content:
-    with open('results/solution-progress.md', 'a') as f:
-        checkbox = '[x]' if restore_result == 'SUCCESS' else '[ ]'
-        f.write(f'| {repo_name} | {solution_name} | {checkbox} | [ ] |\n')
-else:
-    # Update existing row
-    import re
-    pattern = f'(\\| {re.escape(repo_name)} \\| {re.escape(solution_name)} \\| )\\[ \\]'
-    if restore_result == 'SUCCESS':
-        progress_content = re.sub(pattern, r'\1[x]', progress_content, count=1)
-        with open('results/solution-progress.md', 'w') as f:
-            f.write(progress_content)
+# Update solution-progress.md checkbox
+with open('results/solution-progress.md', 'r', encoding='utf-8') as f:
+    lines = f.readlines()
+
+for i, line in enumerate(lines):
+    if f"| {repo_name} | {solution_name} |" in line:
+        parts = line.split('|')
+        parts[3] = ' [x] ' if restore_result == "SUCCESS" else ' [ ] '
+        lines[i] = '|'.join(parts)
+        break
+
+with open('results/solution-progress.md', 'w', encoding='utf-8') as f:
+    f.writelines(lines)
+
+print(f"Restore Result: {restore_result}")
+
+# Export for next task
+restore_status = restore_result

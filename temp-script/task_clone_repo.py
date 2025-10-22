@@ -1,9 +1,14 @@
+"""
+Task: Clone or refresh repository
+Input: repo_url, clone_path (command-line arguments)
+Output: absolute path to repository directory
+"""
+
+import sys
 import os
 import subprocess
-import sys
 from datetime import datetime
 
-# Accept parameters
 if len(sys.argv) < 3:
     print("Usage: task_clone_repo.py <repo_url> <clone_path>")
     sys.exit(1)
@@ -11,79 +16,62 @@ if len(sys.argv) < 3:
 repo_url = sys.argv[1]
 clone_path = sys.argv[2]
 repo_name = repo_url.rstrip('/').split('/')[-1]
+repo_dir = os.path.join(clone_path, repo_name)
 
-# Ensure clone directory exists
+print(f"Task: task-clone-repo")
+print(f"Repository: {repo_name}")
+print(f"URL: {repo_url}")
+print(f"Target: {repo_dir}")
+
+# Ensure clone_path exists
 os.makedirs(clone_path, exist_ok=True)
 
-repo_dir = os.path.join(clone_path, repo_name)
-timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+# Clone or pull
+result_status = "SUCCESS"
+try:
+    if os.path.exists(repo_dir):
+        print(f"Repository exists, pulling latest...")
+        result = subprocess.run(['git', 'pull'], cwd=repo_dir, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            print(f"Git pull failed: {result.stderr}")
+            result_status = "FAIL"
+        else:
+            print("Git pull successful")
+    else:
+        print(f"Cloning repository...")
+        result = subprocess.run(['git', 'clone', repo_url, repo_dir], capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            print(f"Git clone failed: {result.stderr}")
+            result_status = "FAIL"
+        else:
+            print("Git clone successful")
+except Exception as e:
+    print(f"Error: {e}")
+    result_status = "FAIL"
 
-# Check if repository already exists
-if os.path.exists(repo_dir):
-    # Repository exists, refresh it
-    print(f'[run12][clone] Repository already exists, refreshing: {repo_name}')
-    
-    result = subprocess.run(
-        ['git', 'fetch', '--all'],
-        cwd=repo_dir,
-        capture_output=True,
-        text=True,
-        timeout=120
-    )
-    
-    if result.returncode != 0:
-        print(f'[run12][clone] FAIL - git fetch failed: {result.stderr}')
-        with open('results/repo-results.csv', 'a') as f:
-            f.write(f'{repo_name},task-clone-repo,FAIL,{timestamp}\n')
-        sys.exit(1)
-    
-    result = subprocess.run(
-        ['git', 'reset', '--hard', 'origin/HEAD'],
-        cwd=repo_dir,
-        capture_output=True,
-        text=True,
-        timeout=120
-    )
-    
-    if result.returncode != 0:
-        print(f'[run12][clone] FAIL - git reset failed: {result.stderr}')
-        with open('results/repo-results.csv', 'a') as f:
-            f.write(f'{repo_name},task-clone-repo,FAIL,{timestamp}\n')
-        sys.exit(1)
-    
-    print(f'[run12][clone] repo_directory="{repo_dir}" (REFRESHED)')
-else:
-    # Clone the repository
-    print(f'[run12][clone] Cloning repository: {repo_name}')
-    
-    result = subprocess.run(
-        ['git', 'clone', repo_url, repo_dir],
-        capture_output=True,
-        text=True,
-        timeout=300
-    )
-    
-    if result.returncode != 0:
-        print(f'[run12][clone] FAIL - git clone failed: {result.stderr}')
-        with open('results/repo-results.csv', 'a') as f:
-            f.write(f'{repo_name},task-clone-repo,FAIL,{timestamp}\n')
-        sys.exit(1)
-    
-    print(f'[run12][clone] repo_directory="{repo_dir}" (CLONED)')
+# Update tracking files
+timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# Record success
-with open('results/repo-results.csv', 'a') as f:
-    f.write(f'{repo_name},task-clone-repo,SUCCESS,{timestamp}\n')
+# Update repo-results.csv
+with open('results/repo-results.csv', 'a', encoding='utf-8') as f:
+    f.write(f"{repo_name},task-clone-repo,{result_status},{timestamp}\n")
 
-# Update progress
-import re
-with open('results/repo-progress.md', 'r') as f:
-    content = f.read()
+# Update repo-progress.md
+with open('results/repo-progress.md', 'r', encoding='utf-8') as f:
+    lines = f.readlines()
 
-pattern = f'(\\| {re.escape(repo_name)} \\| )\\[ \\]'
-content = re.sub(pattern, r'\1[x]', content, count=1)
+for i, line in enumerate(lines):
+    if f"| {repo_name} |" in line:
+        parts = line.split('|')
+        parts[2] = ' [x] ' if result_status == "SUCCESS" else ' [ ] '
+        lines[i] = '|'.join(parts)
+        break
 
-with open('results/repo-progress.md', 'w') as f:
-    f.write(content)
+with open('results/repo-progress.md', 'w', encoding='utf-8') as f:
+    f.writelines(lines)
 
-print(f'[run12][clone] SUCCESS')
+print(f"Result: {result_status}")
+print(f"Output: {repo_dir}")
+
+if result_status == "FAIL":
+    sys.exit(1)

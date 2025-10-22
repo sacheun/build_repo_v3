@@ -1,10 +1,14 @@
-import os
+"""
+Task: Find all solution (.sln) files in repository
+Input: repo_directory, repo_name (command-line arguments)
+Output: JSON file with solutions array
+"""
+
 import sys
+import os
 import json
-import re
 from datetime import datetime
 
-# Accept parameters
 if len(sys.argv) < 3:
     print("Usage: task_find_solutions.py <repo_directory> <repo_name>")
     sys.exit(1)
@@ -12,39 +16,60 @@ if len(sys.argv) < 3:
 repo_dir = sys.argv[1]
 repo_name = sys.argv[2]
 
-timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+print(f"Task: task-find-solutions")
+print(f"Repository: {repo_name}")
+print(f"Directory: {repo_dir}")
 
-# Find all .sln files recursively
+result_status = "SUCCESS"
 solutions = []
-for root, dirs, files in os.walk(repo_dir):
-    for file in files:
-        if file.endswith('.sln'):
-            full_path = os.path.join(root, file)
-            solutions.append({
-                'name': os.path.splitext(file)[0],
-                'path': full_path
-            })
 
-# Ensure output directory exists
-os.makedirs('output', exist_ok=True)
+# Recursively search for .sln files
+try:
+    for root, dirs, files in os.walk(repo_dir):
+        for file in files:
+            if file.endswith('.sln'):
+                solution_path = os.path.join(root, file)
+                solutions.append({
+                    'name': file,
+                    'path': solution_path
+                })
+                print(f"Found solution: {file}")
+    
+    print(f"Total solutions found: {len(solutions)}")
+    
+    # Save solutions to JSON file
+    output_file = f'output/solutions_{repo_name}.json'
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(solutions, f, indent=2)
+    
+    print(f"Saved solutions to {output_file}")
+    
+except Exception as e:
+    print(f"Error finding solutions: {e}")
+    result_status = "FAIL"
 
-# Save solutions to JSON (will be used by next task)
-output_file = f'output/solutions_{repo_name}.json'
-with open(output_file, 'w') as f:
-    json.dump(solutions, f, indent=2)
+# Update tracking files
+timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-print(f'[run12][find-solutions] found {len(solutions)} solution(s)')
+# Update repo-results.csv
+with open('results/repo-results.csv', 'a', encoding='utf-8') as f:
+    f.write(f"{repo_name},task-find-solutions,{result_status},{timestamp}\n")
 
-# Record success
-with open('results/repo-results.csv', 'a') as f:
-    f.write(f'{repo_name},task-find-solutions,SUCCESS,{timestamp}\n')
+# Update repo-progress.md
+with open('results/repo-progress.md', 'r', encoding='utf-8') as f:
+    lines = f.readlines()
 
-# Update progress
-with open('results/repo-progress.md', 'r') as f:
-    content = f.read()
+for i, line in enumerate(lines):
+    if f"| {repo_name} |" in line:
+        parts = line.split('|')
+        parts[4] = ' [x] ' if result_status == "SUCCESS" else ' [ ] '
+        lines[i] = '|'.join(parts)
+        break
 
-pattern = f'(\\| {re.escape(repo_name)} \\| \\[x\\] \\| \\[x\\] \\| )\\[ \\]'
-content = re.sub(pattern, r'\1[x]', content, count=1)
+with open('results/repo-progress.md', 'w', encoding='utf-8') as f:
+    f.writelines(lines)
 
-with open('results/repo-progress.md', 'w') as f:
-    f.write(content)
+print(f"Result: {result_status}")
+
+if result_status == "FAIL":
+    sys.exit(1)
