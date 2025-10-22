@@ -24,9 +24,11 @@ Behavior:
    If operation fails → return FAIL
 
 6. Append the result to:
-   - results/results.md (Markdown table row)
-   - results/results.csv (CSV row)
+   - results/repo-results.md (Markdown table row)
+   - results/repo-results.csv (CSV row)
 
 7. Update the progress table:
-   - In results/progress.md, find the row for {{repo_name}} and column for "task-clone-repo"
+   - In results/repo-progress.md, find the row for {{repo_name}} and column for "task-clone-repo"
    - Change [ ] to [x] to mark task as completed
+
+8. Return  the absolute path to the directory where the repository was successfully cloned.

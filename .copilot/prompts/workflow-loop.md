@@ -15,16 +15,16 @@ Behavior:
       - Remove all files in results/ directory to start from scratch
 3. Ensure the clone directory exists; create if it does not.
 
-3. Create and initialize a progress markdown file:
-      - results/progress.md (Progress tracking table)
+3. Create and initialize a repository progress markdown file:
+      - results/repo-progress.md (Repository Progress tracking table)
       - Parse all repository URLs from input file to get friendly repo names
-      - Parse tasks_list.md to get all task names
+      - Parse repo_tasks_list.md to get all task names
       - Create table with repo names as rows and task names as columns
       - Initialize all cells with [ ] (empty checkboxes)
 
 4. Initialize results files:
-      - results/results.md (Markdown table)
-      - results/results.csv (CSV table)
+      - results/repo-results.md (Repository Markdown table)
+      - results/repo-results.csv (Repository CSV table)
     
 5. Read the text file line by line:
    For each line (repo_url):
