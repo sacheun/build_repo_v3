@@ -1,8 +1,8 @@
 {
-  "repo_url": "https://skype.visualstudio.com/SCC/_git/ic3_spool_cosine-dep-spool",
   "repo_name": "ic3_spool_cosine-dep-spool",
-  "clone_path": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool",
+  "repo_directory": "C:\\Users\\sacheu\\speckit_repos\\ic3_spool_cosine-dep-spool",
+  "clone_status": "SUCCESS",
   "operation": "REFRESH",
   "exit_code": 0,
-  "status": "SUCCESS"
+  "timestamp": "2025-10-22T12:39:47.795880"
 }
