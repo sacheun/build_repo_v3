@@ -13,29 +13,38 @@ Behavior:
 
 2. For each solution file in the solutions array:
    - Extract solution_name from the solution path (e.g., "C:\path\to\MyApp.sln" → "MyApp")
-   - Execute the task list for this solution:
-     * @task-restore-solution solution_path={{solution_path}}
+   - Invoke solution task pipeline:
+     * Call `@solution-tasks-list solution_path={{solution_path}}`
+   - Capture output from @solution-tasks-list (store as {{solution_task_output}})
 
-3. Create and initialize a solutions progress markdown file:
-      - results/solution-progress.md (Repository Progress tracking table)
-      - Parse all repository URLs from input file to get friendly repo names
-      - Parse all task names for a solution (see step #2 above)
-      - Create table with solution names and its repo name as rows and task names as columns
-      - Initialize all cells with [ ] (empty checkboxes)
+3. Initialize solution tracking artifacts if not present:
+      - results/solution-progress.md (table: Repository | Solution | task-restore-solution)
+      - results/solution-results.md (Markdown table: Repository | Solution | Task | Status | Timestamp)
+      - results/solution-results.csv (CSV with same columns)
+      - For each solution row initialize task-restore-solution cell with [ ]
 
 4. Track progress for each solution processed:
-   - Log each solution processing attempt
-   - Count successful vs failed operations
+   - Log processing attempt and @solution-tasks-list status
+   - Count successes vs failures
 
-5. If all solutions process successfully → return SUCCESS
-   If any solution fails → return FAIL
+5. On success of task-restore-solution for a solution:
+   - Update results/solution-results.* with a row
+   - In solution-progress.md set task-restore-solution cell to [x]
 
-6. Append the result to:
-   - results/solution-results.md (Markdown table row)
-   - results/solution-results.csv (CSV row)
+6. If any solution fails → overall status = FAIL; continue logging remaining solutions but do not mark [x] for failed ones.
+   If all succeed → overall status = SUCCESS
 
+7. Append aggregate summary row (repository-level) to solution-results.* if desired (optional extension).
 
-7. Return summary of processed solutions:
+8. Return summary of processed solutions:
    - Total solutions found
    - Successfully processed count
    - Failed processing count
+
+Variables available:
+- {{solutions_json}} → Raw JSON input containing local_path and solutions array
+- {{local_path}} → Repository directory extracted from solutions_json
+- {{solution_path}} → Absolute path of current solution being processed
+- {{solution_name}} → Friendly name of current solution file
+- {{repo_name}} → Friendly repository name derived separately (provided by caller)
+- {{solution_task_output}} → Output returned by @solution-tasks-list for the current solution
