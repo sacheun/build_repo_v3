@@ -104,7 +104,58 @@ Good detection tokens are:
 - Keep detection tokens current
 - Document new error patterns as discovered
 
+## ⚠️ CRITICAL WORKFLOW REQUIREMENT
+
+**ALWAYS READ SOLUTION PATHS FROM JSON - DO NOT ASSUME PATHS!**
+
+### Common Mistake That Causes "Solution File Missing" Errors
+
+❌ **WRONG APPROACH** - Assuming solution paths:
+```
+Assume solutions are in: "src/Email/tools/MigrateCosmosDb/MigrateCosmosDb.sln"
+Build command: msbuild "src/Email/tools/codereview/codereview.sln"
+Result: ERROR - File does not exist
+```
+
+✅ **CORRECT APPROACH** - Reading from task-find-solutions JSON:
+```json
+{
+  "solutions": [
+    "C:\\Users\\sacheu\\speckit_repos\\repo\\src\\Management\\Deployment\\Tools\\MigrateCosmosDb\\MigrateCosmosDb.sln",
+    "C:\\Users\\sacheu\\speckit_repos\\repo\\tools\\codereview\\codereview.sln"
+  ]
+}
+```
+Build command: Use the EXACT path from JSON array
+Result: ✓ Solution found and built
+
+### Why This Matters
+
+The `task-find-solutions` workflow:
+1. Recursively scans the repository for `*.sln` files
+2. Returns **absolute paths** to all discovered solutions
+3. Paths can be in ANY subdirectory structure (not predictable)
+
+The `task-process-solutions` workflow MUST:
+1. Read the solutions array from the JSON output
+2. Use the **exact absolute path** for each solution
+3. **Never construct or assume** solution file paths
+4. Validate file exists before running msbuild
+
+### Validation Checklist
+
+Before running msbuild on any solution:
+- [ ] Did you read the path from task-find-solutions JSON output?
+- [ ] Are you using the absolute path exactly as provided?
+- [ ] Did you verify the file exists at that path?
+- [ ] Are you avoiding path assumptions (e.g., "it's probably in Email/tools")?
+
+If you get "Project file does not exist" errors, you likely:
+1. Hardcoded or assumed a path pattern
+2. Did not read the actual JSON output
+3. Modified the path from what was discovered
+
 ---
 
-**Last Updated**: 2025-10-21
-**Workflow Version**: Run 12+
+**Last Updated**: 2025-10-22
+**Workflow Version**: Run 13+ (Path validation added)

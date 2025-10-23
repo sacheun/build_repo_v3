@@ -26,6 +26,7 @@ Behavior:
    - Command: `msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m`
    - If DEBUG=1, print to console: `[debug][task-build-solution] executing: msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m`
    - Multi-processor build enabled via /m.
+   - Assumes packages already restored by @task-restore-solution.
    - Capture full stdout and stderr streams.
 
 3. Success Determination:

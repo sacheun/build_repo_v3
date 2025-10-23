@@ -10,6 +10,19 @@ This task is **NON-SCRIPTABLE** because it includes @task-collect-knowledge-base
 
 DO NOT create a single Python/PowerShell script that processes all solutions!
 
+** ⚠️ MANDATORY WORKFLOW - DO NOT SKIP STEPS ⚠️ **
+
+After processing each solution, if the build FAILS:
+1. ✅ Search for KB article matching the error (MANDATORY)
+2. ✅ If KB found: APPLY the fix using @task-apply-knowledge-base-fix (MANDATORY)
+3. ✅ If KB not found: CREATE KB article (MANDATORY)
+4. ✅ After creating KB: APPLY the fix (MANDATORY)
+5. ✅ RETRY the build after applying fix (MANDATORY)
+6. ✅ DO NOT move to next solution until retry is complete
+
+** THIS IS A RETRY LOOP - NOT LINEAR PROCESSING **
+You must loop back and retry builds after applying fixes!
+
 ** ⚠️ PATH VALIDATION CRITICAL ⚠️ **
 READ THIS FIRST: knowledge_base_markdown/WORKFLOW_PATH_VALIDATION.md
 
