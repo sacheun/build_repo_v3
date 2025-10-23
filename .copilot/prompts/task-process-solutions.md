@@ -8,6 +8,30 @@ model: gpt-5
 
 This task is **NON-SCRIPTABLE** - DO NOT CREATE ANY SCRIPT FOR THIS TASK.
 
+** ⚠️ VALIDATION REQUIREMENT - ABSOLUTELY MANDATORY ⚠️ **
+
+**ROW COUNT VALIDATION RULE - ZERO TOLERANCE:**
+- solution-progress.md row count MUST EQUAL the number of solutions found
+- Example: task-find-solutions finds 8 .sln files → solution-progress.md MUST have exactly 8 rows
+- **IF ROW COUNT MISMATCH**: Validation FAILS → You MUST restart from scratch
+- **NO PARTIAL PROCESSING**: "Time constraints" / "Skipped 3 solutions" = VALIDATION FAILURE
+- **CONSEQUENCE OF FAILURE**: Delete all rows for this repo, restart task-process-solutions for ALL solutions
+
+**WHY THIS MATTERS:**
+- Missing rows = Incomplete workflow execution = Unreliable results
+- Validation ensures 100% solution coverage across all repositories  
+- Partial processing corrupts the tracking system and invalidates reports
+- Starting from scratch ensures consistency and prevents cascading failures
+
+**VALIDATION EXAMPLE - YOUR WORK WILL BE REJECTED IF:**
+```
+❌ task-find-solutions output: 8 solutions found
+❌ solution-progress.md: Only 5 rows exist
+❌ Your excuse: "3 solutions not tested due to time constraints"
+❌ Validation result: FAIL
+❌ Required action: DELETE the 5 rows, START OVER, process ALL 8 solutions
+```
+
 ❌ **NEVER DO THIS - CRITICAL MISTAKE:**
 ```python
 # DO NOT CREATE SCRIPTS FOR NON-SCRIPTABLE TASKS!
@@ -255,25 +279,60 @@ Behavior:
    - After processing ALL solutions in the array (step 3 complete), execute validation
    - **CRITICAL**: This step is MANDATORY before marking task-process-solutions as complete
    - Call: @task-validate-all-solution-tasks-completed repo_name={{repo_name}} repo_path={{local_path}}
-   - This validates that all mandatory tasks (restore-solution, build-solution) are marked [x] in solution-progress.md
-   - **ALSO validates KB workflow was executed** for all failed builds:
-     * Each FAIL build must have: task-search-knowledge-base logged
-     * If NOT_FOUND: Must have task-create-knowledge-base logged
-     * If FOUND or after creation: Must have task-apply-knowledge-base-fix logged
-     * Must have retry build attempts logged
-   - If validation finds incomplete solutions, it will automatically re-execute @task-process-solutions for those solutions
-   - If validation_status == SUCCESS, proceed to step 5 (Return summary)
-   - If validation_status == INCOMPLETE and reprocessing_triggered == true, validation already re-processed incomplete solutions
-   - If validation_status == ERROR, log the error but continue to step 5 (to return partial results)
+   - **VALIDATION REQUIREMENTS - ALL MUST BE TRUE**:
+     a. **Row Count Check**: solution-progress.md MUST have EXACTLY the same number of rows as solutions found
+        - Example: If task-find-solutions found 8 .sln files, solution-progress.md MUST have 8 rows for this repository
+        - **FAILURE CONDITION**: If solution-progress.md has fewer rows (e.g., 5 rows when 8 solutions exist), validation FAILS
+        - **CONSEQUENCE**: If row count mismatch, you MUST start task-process-solutions FROM SCRATCH and process ALL solutions
+        - Missing rows means you skipped solutions - this is NOT ALLOWED
+     b. **Task Completion Check**: Each row must have restore [x] and build [x] OR [!]
+        - Every solution MUST be attempted (success [x] or failure [!])
+        - Empty checkboxes [ ] indicate incomplete processing
+     c. **KB Workflow Validation** for all failed builds:
+        * Each FAIL build must have: task-search-knowledge-base logged
+        * If NOT_FOUND: Must have task-create-knowledge-base logged
+        * If FOUND or after creation: Must have task-apply-knowledge-base-fix logged
+        * Must have retry build attempts logged
+   - **VALIDATION FAILURE HANDLING**:
+     * If validation_status == INCOMPLETE (row count mismatch OR incomplete tasks):
+       - **YOU MUST START FROM SCRATCH** - Delete solution-progress.md rows for this repo
+       - Re-run task-process-solutions processing ALL solutions (not just missing ones)
+       - This ensures consistency and prevents partial/corrupted tracking
+     * If validation_status == SUCCESS, proceed to step 5 (Return summary)
+     * If validation_status == ERROR, log the error but continue to step 5 (to return partial results)
    - **DO NOT proceed to next repository until validation_status == SUCCESS**
    - **This ensures all solutions are fully processed before moving to the next repository**
    
    **VIOLATION EXAMPLE - DO NOT DO THIS:**
    ```
-   ❌ Repository 1: task-process-solutions [x]
-   ❌ Repository 2: task-clone-repo [x] (WRONG - started too early!)
-   ❌ Missing: task-validate-all-solution-tasks-completed
+   ❌ Solutions found: 8 (task-find-solutions output)
+   ❌ Rows in solution-progress.md: 5 (3 solutions missing!)
+   ❌ Validation result: FAIL - Row count mismatch
+   ❌ Action required: START FROM SCRATCH, process all 8 solutions
    ```
+   
+   **CORRECT EXAMPLE:**
+   ```
+   ✅ Solutions found: 8 (task-find-solutions output)
+   ✅ Rows in solution-progress.md: 8 (all solutions present)
+   ✅ Each row: restore [x] or [!], build [x] or [!]
+   ✅ Validation result: SUCCESS
+   ✅ Can now proceed to next repository
+   ```
+   
+   **PARTIAL COMPLETION VIOLATION - NEVER ACCEPTABLE:**
+   ```
+   ❌ "I processed 5 of 8 solutions due to time constraints"
+   ❌ "3 solutions marked as 'Not tested'"
+   ❌ solution-progress.md has 5 rows but 8 solutions exist
+   ❌ This is a VALIDATION FAILURE - must restart from scratch
+   ```
+   
+   **CRITICAL RULE - NO PARTIAL PROCESSING:**
+   - You MUST process ALL solutions found by task-find-solutions
+   - "Time constraints" is NOT a valid reason to skip solutions
+   - Partial completion = Validation failure = Start from scratch
+   - solution-progress.md row count MUST EQUAL solutions found count
    
    **CORRECT EXAMPLE:**
    ```
@@ -296,6 +355,25 @@ Behavior:
       - Example row: `| ic3_spool_cosine-dep-spool | ResourceProvider | [ ] | [ ] |`
       - **REMEMBER**: Each repository can have multiple solutions, and all solutions from all repositories must be visible in this single table
 
+5a. **⚠️ CRITICAL PRE-PROCESSING VALIDATION - MANDATORY STEP ⚠️**:
+   - **IMMEDIATELY after creating/appending rows in Step 5**, execute validation:
+     ```
+     @task-validate-all-solution-tasks-completed repo_name={{repo_name}} repo_path={{local_path}} checked=false
+     ```
+   - **Purpose**: Verify all cells for this repository are EMPTY [ ] before processing begins
+   - **Expected Result**: validation_status = SUCCESS (all cells [ ])
+   - **IF VALIDATION FAILS** (validation_status = INCOMPLETE or ERROR):
+     * Some cells already have [x] or [!] from a previous incomplete run
+     * **REQUIRED ACTION**: Delete ALL rows for {{repo_name}} from solution-progress.md
+     * **GO BACK TO STEP 5**: Recreate the rows with empty cells [ ]
+     * **RE-RUN THIS VALIDATION** (Step 5a) until validation_status = SUCCESS
+     * **DO NOT PROCEED** to Step 6 until validation passes
+   - **Log to Decision Log:**
+     ```
+     "{{timestamp}},{{repo_name}},,task-process-solutions,Pre-processing validation: {validation_status},INFO"
+     ```
+   - **CRITICAL**: This step is NON-NEGOTIABLE - it prevents processing solutions with corrupted/partial state
+
 6. Initialize solution tracking artifacts if not present:
       - results/solution-results.md (Markdown table: Repository | Solution | Task | Status | Timestamp)
       - results/solution-results.csv (CSV with same columns)
@@ -314,13 +392,42 @@ Behavior:
    - On partial failure, mark failed tasks with [!] and leave remaining task columns with [ ] (future multi-task support)
    - **This ensures real-time progress visibility across all repositories and solutions**
 
-8. Return summary of processed solutions:
+8. **⚠️ CRITICAL POST-PROCESSING VALIDATION - MANDATORY STEP ⚠️**:
+   - **BEFORE exiting this task**, execute final validation:
+     ```
+     @task-validate-all-solution-tasks-completed repo_name={{repo_name}} repo_path={{local_path}} checked=true
+     ```
+   - **Purpose**: Verify all cells for this repository are COMPLETED [x] or FAILED [!] after processing
+   - **Expected Result**: validation_status = SUCCESS (all cells [x] or [!])
+   - **IF VALIDATION FAILS** (validation_status = INCOMPLETE or ERROR):
+     * Some cells still have [ ] (empty) - solutions were not fully processed
+     * **REQUIRED ACTION - ONE RETRY ONLY**:
+       1. Log warning: "Post-processing validation FAILED. Attempting ONE reprocess of all solutions for {{repo_name}}"
+       2. **GO BACK TO STEP 3**: Reprocess ALL solutions in the solutions array
+       3. After reprocessing completes, **RE-RUN THIS VALIDATION** (Step 8) one more time
+       4. **IF VALIDATION STILL FAILS** after retry:
+          - Log error: "Post-processing validation FAILED after retry. Moving on from {{repo_name}}"
+          - **PROCEED TO STEP 9** (do not retry again - only one retry attempt allowed)
+       5. **IF VALIDATION SUCCEEDS** after retry:
+          - Log success: "Post-processing validation SUCCESS after retry for {{repo_name}}"
+          - **PROCEED TO STEP 9**
+   - **IF VALIDATION SUCCEEDS** on first attempt:
+     * Log success: "Post-processing validation SUCCESS for {{repo_name}}"
+     * **PROCEED TO STEP 9**
+   - **Log to Decision Log:**
+     ```
+     "{{timestamp}},{{repo_name}},,task-process-solutions,Post-processing validation: {validation_status},INFO"
+     ```
+   - **CRITICAL**: This step ensures all solutions were fully processed before moving to next repository
+
+9. Return summary of processed solutions:
    - Total solutions found
    - Successfully processed count
    - Failed processing count
+   - Post-processing validation status
 
-9. DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), emit a final line to stdout (or terminal) after all solutions processed:
-   "[debug][task-process-solutions] END total={{total_solutions}} success={{success_count}} fail={{failure_count}}"
+10. DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), emit a final line to stdout (or terminal) after all solutions processed:
+   "[debug][task-process-solutions] END total={{total_solutions}} success={{success_count}} fail={{failure_count}} validation={{validation_status}}"
    This line marks task completion and provides aggregate status visibility.
 
 Invocation Pattern:
