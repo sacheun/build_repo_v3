@@ -10,6 +10,15 @@ This task is **NON-SCRIPTABLE** because it includes @task-collect-knowledge-base
 
 DO NOT create a single Python/PowerShell script that processes all solutions!
 
+** ⚠️ PATH VALIDATION CRITICAL ⚠️ **
+READ THIS FIRST: knowledge_base_markdown/WORKFLOW_PATH_VALIDATION.md
+
+Common fatal mistake: Assuming solution paths instead of reading them from task-find-solutions JSON output.
+- ❌ WRONG: Using "src/Email/tools/codereview/codereview.sln" (assumed path)
+- ✅ CORRECT: Reading exact path from JSON: "tools/codereview/codereview.sln"
+- If you get "Project file does not exist", YOU ARE USING ASSUMED PATHS!
+- ALWAYS read the solutions array from task-find-solutions JSON output and use EXACT absolute paths.
+
 YOU MUST:
 ✓ Process each solution individually using direct tool calls
 ✓ For EACH solution, execute the 3 tasks from solution_tasks_list.md:
@@ -84,6 +93,22 @@ Behavior:
 
 3. **For each solution file in the solutions array (process one solution completely before moving to the next)**:
    
+   ** CRITICAL - READ THE ACTUAL SOLUTION PATHS FROM JSON **:
+   - The solutions_json contains an array of ABSOLUTE PATHS discovered by task-find-solutions
+   - **YOU MUST USE THE EXACT PATHS** from the JSON array - DO NOT construct or assume paths
+   - Example JSON structure:
+     ```json
+     {
+       "solutions": [
+         "C:\\Users\\sacheu\\speckit_repos\\repo\\src\\Management\\Deployment\\Tools\\MigrateCosmosDb\\MigrateCosmosDb.sln",
+         "C:\\Users\\sacheu\\speckit_repos\\repo\\tools\\codereview\\codereview.sln"
+       ]
+     }
+     ```
+   - **WRONG**: Assuming paths like `src/Email/tools/codereview/codereview.sln`
+   - **CORRECT**: Reading exact path from JSON: `tools/codereview/codereview.sln`
+   - **VALIDATION**: Before running msbuild, verify the solution file exists at the path from JSON
+   
    ** MANDATORY - YOU MUST ACTUALLY PROCESS THE SOLUTION **:
    - Run `msbuild` restore command and wait for completion
    - Run `msbuild` build command and wait for completion  
@@ -92,14 +117,19 @@ Behavior:
    - You should see actual msbuild output with compilation messages, errors, warnings
    - Processing takes time (30s-5min per solution) - this is EXPECTED and REQUIRED
    
-   a. Derive solution_name from the file name (e.g., MyApp.sln → MyApp)
-   b. Initialize a per-solution context object with: solution_path, solution_name
-   c. **CRITICAL - Add solution to progress table FIRST**: Before executing any tasks for this solution:
+   a. **Extract solution_path from JSON array** (do NOT construct the path yourself)
+   b. Derive solution_name from the file name (e.g., MyApp.sln → MyApp)
+   c. **VALIDATION - Verify solution file exists**:
+      - Use the EXACT path from the JSON array (do not modify or reconstruct)
+      - If file doesn't exist, log error and skip to next solution
+      - Common mistake: Using assumed paths instead of JSON paths
+   d. Initialize a per-solution context object with: solution_path, solution_name
+   e. **CRITICAL - Add solution to progress table FIRST**: Before executing any tasks for this solution:
       - Check if a row for {{repo_name}} + {{solution_name}} exists in solution-progress.md
       - If NOT found, append a new row: `| {{repo_name}} | {{solution_name}} |  [ ]  |  [ ]  |  [ ]  |`
       - This ensures the solution appears in the progress table even if task execution fails
-   d. If environment variable DEBUG=1 emit a debug line: `[debug][task-process-solutions] starting pipeline for solution='MyApp' path='C:\full\path\MyApp.sln'`
-   e. **Execute ALL tasks from solution_tasks_list sequentially for this solution**:
+   f. If environment variable DEBUG=1 emit a debug line: `[debug][task-process-solutions] starting pipeline for solution='MyApp' path='C:\full\path\MyApp.sln'`
+   g. **Execute ALL tasks from solution_tasks_list sequentially for this solution**:
       
       ** YOU MUST USE DIRECT TOOL CALLS - NOT SCRIPTS **:
       - Use `run_in_terminal` to execute msbuild restore/build commands
@@ -120,8 +150,8 @@ Behavior:
         vi. **IMMEDIATELY Update solution-progress.md**: Find the row for {{repo_name}} + {{solution_name}} and update the specific task column ([ ] → [x] for success, [ ] → [!] for failure)
         vii. Append task result to solution-results.md and solution-results.csv - include {{repo_name}} in the Repository column
         viii. Merge returned fields into the per-solution context
-   f. **After ALL tasks complete for this solution**, accumulate the solution's overall status into aggregate counts
-   g. **IMPORTANT**: Only after finishing all tasks for the current solution, move to the next solution in the array and repeat steps a-g
+   h. **After ALL tasks complete for this solution**, accumulate the solution's overall status into aggregate counts
+   i. **IMPORTANT**: Only after finishing all tasks for the current solution, move to the next solution in the array and repeat steps a-i
 
 4. Create and initialize a solution progress markdown file:
       - results/solution-progress.md (Solution Progress tracking table)
@@ -210,6 +240,22 @@ Implementation Notes (conceptual):
     - Read relevant KB articles
     - Synthesize a KB report explaining how to fix the errors
     - This is why task-process-solutions is NON-SCRIPTABLE
+14. **PATH VALIDATION - CRITICAL**: Before processing ANY solution:
+    - Read the solutions array from solutions_json input
+    - Extract the EXACT absolute path for each solution
+    - DO NOT construct paths based on assumptions (e.g., assuming "Email/tools/...")
+    - DO NOT modify paths from the JSON (they are already absolute)
+    - VALIDATE the file exists before running msbuild
+    - If file doesn't exist, it means you're using the wrong path
+    - Common error: Using hardcoded path patterns instead of JSON values
+    - Example correct usage:
+      ```
+      Read solutions_json → Get solutions[0] → Use that exact path in msbuild command
+      ```
+    - Example incorrect usage:
+      ```
+      Assume solution is in "src/Email/tools/..." → Construct path → File not found ❌
+      ```
 
 Variables available:
 - {{solutions_json}} → Raw JSON input containing local_path and solutions array

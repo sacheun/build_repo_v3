@@ -1,7 +1,7 @@
 @task-collect-knowledge-base solution_path={{solution_path}} build_status={{build_status}} build_stderr={{build_stderr}}
 ---
 temperature: 0.1
-model: gpt-4
+model: gpt-5
 ---
 
 ** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
@@ -14,16 +14,23 @@ WHY NON-SCRIPTABLE:
 ✓ Reading and understanding existing KB articles requires AI comprehension
 ✓ Synthesizing a new KB article with meaningful diagnostic hints requires AI reasoning
 ✓ Determining which error patterns are "distinctive" requires judgment
+✓ **Researching fixes using Microsoft Docs MCP server requires structural reasoning**
+✓ **Querying documentation with contextual understanding of the error**
+✓ **Synthesizing fix instructions from multiple Microsoft Docs sources**
 ✓ Creating helpful fix instructions requires understanding the problem domain
 
 YOU MUST USE DIRECT TOOL CALLS:
 ✓ Use AI reasoning to analyze build_stderr and identify error patterns
 ✓ Use AI reasoning to understand what type of error occurred
+✓ **Use mcp_microsoftdocs_microsoft_docs_search to research error codes and concepts**
+✓ **Use mcp_microsoftdocs_microsoft_code_sample_search to find fix code examples**
+✓ **Use mcp_microsoftdocs_microsoft_docs_fetch to get comprehensive documentation**
+✓ Use AI reasoning to synthesize information from Microsoft Docs into actionable fixes
 ✓ Use read_file to examine existing KB articles in knowledge_base_markdown/
 ✓ Use AI reasoning to determine if existing KB matches the current error
 ✓ Use AI reasoning to synthesize meaningful Detection Tokens
-✓ Use create_file to generate new KB article with helpful content (not templates)
-✓ Use AI reasoning to write diagnostic hints and fix instructions
+✓ Use create_file to generate new KB article with helpful content based on Microsoft Docs research
+✓ Use AI reasoning to write diagnostic hints and fix instructions from official documentation
 
 DO NOT:
 ✗ Create a Python script that uses regex/string matching to find errors
@@ -101,19 +108,111 @@ Behavior:
       - DEBUG: Log "[KB-DEBUG] No matching KB article found, creating new one"
       - DEBUG: Log "[KB-DEBUG] Error signature: {error_signature}"
       - DEBUG: Log "[KB-DEBUG] Filename: {kb_filename}"
-   b. Generate meaningful filename based on error type (e.g., "sf_baseoutputpath_missing.md").
+   
+   b. **RESEARCH THE ERROR USING MICROSOFT DOCS MCP SERVER**:
+      
+      ** USE STRUCTURAL REASONING TO QUERY MICROSOFT DOCUMENTATION **:
+      - Use the `microsoftdocs/mcp` MCP server to research the error
+      - Query for error codes (e.g., "NU1008", "MSB3644", "CS0246")
+      - Query for related concepts (e.g., "Central Package Management", "Service Fabric", ".NET build errors")
+      - Use AI reasoning to formulate effective search queries
+      - DEBUG: Log "[KB-DEBUG] Querying Microsoft Docs for error: {error_code}"
+      
+      Steps:
+      i. **Extract error code/type** from build_stderr using AI reasoning:
+         - NuGet errors: NU#### (e.g., NU1008, NU1605)
+         - MSBuild errors: MSB#### (e.g., MSB3644, MSB4019)
+         - C# compiler errors: CS#### (e.g., CS0246, CS0234)
+         - Platform-specific errors (Service Fabric, .sfproj, etc.)
+         - DEBUG: Log "[KB-DEBUG] Identified error type: {error_type}, code: {error_code}"
+      
+      ii. **Use mcp_microsoftdocs_microsoft_docs_search** to find relevant documentation:
+          ```
+          Tool: mcp_microsoftdocs_microsoft_docs_search
+          Parameters:
+            query: "[error_code] [error_type] [key_technology]"
+          Example: "NU1008 central package management NuGet"
+          ```
+          - DEBUG: Log "[KB-DEBUG] Microsoft Docs search query: {search_query}"
+          - DEBUG: Log "[KB-DEBUG] Found {num_results} documentation results"
+      
+      iii. **Use mcp_microsoftdocs_microsoft_code_sample_search** to find code examples:
+           ```
+           Tool: mcp_microsoftdocs_microsoft_code_sample_search
+           Parameters:
+             query: "[error_type] fix [technology]"
+             language: "csharp" | "powershell" | "xml" (based on error context)
+           Example: "Central Package Management Directory.Packages.props", language: "xml"
+           ```
+           - DEBUG: Log "[KB-DEBUG] Code sample search query: {code_query}"
+           - DEBUG: Log "[KB-DEBUG] Found {num_samples} code samples"
+      
+      iv. **If search results are insufficient, use mcp_microsoftdocs_microsoft_docs_fetch**:
+          - Identify the most relevant documentation URL from search results
+          - Fetch full documentation content for comprehensive understanding
+          ```
+          Tool: mcp_microsoftdocs_microsoft_docs_fetch
+          Parameters:
+            url: "[microsoft_docs_url_from_search]"
+          ```
+          - DEBUG: Log "[KB-DEBUG] Fetching full documentation from: {doc_url}"
+      
+      v. **Use AI structural reasoning to analyze Microsoft Docs results**:
+         - Understand the root cause explanation from official docs
+         - Identify recommended fixes from Microsoft documentation
+         - Extract relevant configuration examples from code samples
+         - Synthesize the information into actionable fix steps
+         - DEBUG: Log "[KB-DEBUG] Analyzed Microsoft Docs, identified fix approach: {fix_approach}"
+   
+   c. **SYNTHESIZE FIX INSTRUCTIONS USING MICROSOFT DOCS RESEARCH**:
+      
+      ** USE AI REASONING TO DRAFT HELPFUL FIX CONTENT **:
+      - Based on Microsoft Docs research, create fix instructions that are:
+        * Accurate (aligned with official Microsoft guidance)
+        * Actionable (specific commands/steps developers can execute)
+        * Complete (include all necessary context and prerequisites)
+        * Safe (warn about potential breaking changes)
+      
+      Steps:
+      i. **Draft diagnostic hints** based on Microsoft Docs understanding:
+         - How to identify this error in build output
+         - What configuration/files to check
+         - Common scenarios where this error occurs
+         - DEBUG: Log "[KB-DEBUG] Drafted diagnostic hints (length: {len(diagnostic_hints)} chars)"
+      
+      ii. **Draft fix instructions** from Microsoft Docs research:
+          - Option 1: Recommended fix (from Microsoft Docs)
+          - Option 2: Alternative approaches (if applicable)
+          - Option 3: Workarounds (if fix is complex)
+          - Include code snippets from Microsoft code samples
+          - Include PowerShell/MSBuild commands if applicable
+          - DEBUG: Log "[KB-DEBUG] Drafted {num_fix_options} fix options"
+      
+      iii. **Draft notes section** with contextual information:
+           - When/why this error occurs (from Microsoft Docs explanation)
+           - Related technologies or dependencies
+           - Version-specific information (e.g., ".NET 6+", "NuGet 6.2+")
+           - Breaking change warnings
+           - DEBUG: Log "[KB-DEBUG] Drafted notes section (length: {len(notes)} chars)"
+      
+      iv. **Draft safety section** based on fix impact:
+          - What files/configurations will be modified
+          - Potential side effects or breaking changes
+          - Recommendation on testing after fix
+          - Reversibility of changes
+          - DEBUG: Log "[KB-DEBUG] Drafted safety warnings"
+   
+   d. Generate meaningful filename based on error type (e.g., "sf_baseoutputpath_missing.md").
       - **USE AI**: Create a descriptive filename that indicates the error type
-   c. Use standardized template format (see Template section below), but FILL IT WITH REAL CONTENT.
-      - **USE AI**: Write actual diagnostic hints, not placeholders
-      - **USE AI**: Write actual fix instructions based on understanding the error
-   d. Include:
-      - Issue title and description (REAL description of what's wrong)
-      - Diagnostic hints (REAL hints on how to identify this error)
-      - Detection tokens (extracted from stderr using AI understanding)
-      - Fix instructions (REAL instructions, not "TODO" placeholders)
-      - Example solution path (the actual solution that failed)
+   
+   e. Use standardized template format (see Template section below), but FILL IT WITH REAL CONTENT from Microsoft Docs research.
+      - **USE AI**: Write actual diagnostic hints based on Microsoft Docs
+      - **USE AI**: Write actual fix instructions from Microsoft guidance
+      - **USE AI**: Include code examples from Microsoft code samples
+      - Include reference links to Microsoft Docs articles used
       - DEBUG: Log "[KB-DEBUG] Article content length: {len(kb_article)} chars"
-   e. Save to ./knowledge_base_markdown/
+   
+   f. Save to ./knowledge_base_markdown/
       - DEBUG: Log "[KB-DEBUG] Created KB article: {kb_file_path}"
       - **USE create_file**: Save the synthesized KB article
 
@@ -161,46 +260,87 @@ You must understand the error context and extract meaningful tokens using AI jud
 Knowledge Base Article Template:
 ```markdown
 ## Issue: [Brief Description of Error]
-[1-2 sentence summary of what causes this build failure]
+[1-2 sentence summary of what causes this build failure based on Microsoft Docs research]
 
 ### Diagnostic Hints
-- [How to identify this specific error in build output]
-- [What files/projects to check]
-- [Key indicators or patterns to look for]
+- [How to identify this specific error in build output - from Microsoft Docs]
+- [What files/projects to check - based on official guidance]
+- [Key indicators or patterns to look for - from error analysis]
 
 ### Detection Tokens
-- [Error message pattern 1]
-- [Error message pattern 2]
-- [Error code or property name]
+- [Error message pattern 1 - extracted from build_stderr]
+- [Error message pattern 2 - distinctive error signature]
+- [Error code or property name - e.g., NU1008, MSB3644]
 
-## Fix:
-```pwsh
-# [Brief description of what the fix does]
-pwsh -Command "[diagnostic command to identify affected files]"
+## How to Fix
 
-# [Command to apply the fix]
-pwsh -File scripts/[fix_script_name].ps1 -RepoRoot <repo_root>
+### Option 1: [Recommended Fix Name] (Recommended)
+[Brief description of the recommended approach from Microsoft Docs]
 
-# [Note about workflow integration]
+**Steps:**
+1. [Step 1 from Microsoft guidance]
+2. [Step 2 with specific commands/configuration]
+3. [Step 3 with code examples]
+
+**Example (from Microsoft Docs code samples):**
+```xml
+<!-- Or other language based on fix context -->
+[Code snippet from Microsoft code sample search]
 ```
 
-### Notes
-- [Important details about the fix]
-- [When/why this error occurs]
-- [Any prerequisites or warnings]
+### Option 2: [Alternative Fix Name]
+[Alternative approach if recommended fix is not suitable]
 
-### Safety
-- [What the fix modifies]
-- [Reversibility or backup recommendations]
-- [Review steps before committing]
+**Steps:**
+1. [Alternative step 1]
+2. [Alternative step 2]
 
-### Expected Outcome
+### Option 3: [Workaround Name]
+[Workaround if fix is complex or breaking]
+
+**Note:** [Warning about limitations of workaround]
+
+## Root Cause
+[Explanation from Microsoft Docs of WHY this error occurs]
+- [Technical detail 1 from documentation]
+- [Technical detail 2 from research]
+- [Version or dependency information]
+
+## Notes
+- [Important details about the fix from Microsoft Docs]
+- [When/why this error occurs - contextual information]
+- [Prerequisites or version requirements - e.g., "NuGet 6.2+", ".NET SDK 6.0.300+"]
+- [Related technologies or features]
+
+## Safety
+- **What changes:** [Files/configurations modified by the fix]
+- **Breaking change risk:** [LOW | MEDIUM | HIGH] - [Explanation]
+- **Reversibility:** [How to undo the fix if needed]
+- **Testing:** [Recommendation on testing after applying fix]
+- **Recommendation:** [Specific guidance on when to use this fix]
+
+## Expected Outcome
+After applying the fix:
 - [What should happen after fix is applied]
-- [How to verify the fix worked]
+- [How to verify the fix worked - specific validation steps]
+- [Expected build output or behavior]
 
-### Example Solutions
-- {{solution_path}}
+## References
+- [Microsoft Docs URL 1 - main documentation article]
+- [Microsoft Docs URL 2 - related guidance]
+- [Code sample URL - if used from Microsoft samples]
+
+## Example Solutions Affected
+- {{solution_path}} ({{solution_name}})
 ```
+
+**IMPORTANT**: The template above shows the STRUCTURE. You must fill it with REAL CONTENT from:
+1. Microsoft Docs research (using MCP server queries)
+2. AI structural reasoning about the error
+3. Code examples from Microsoft code sample searches
+4. Your understanding of the build failure context
+
+DO NOT use placeholder text like "[TODO]" or "[Brief Description]" - synthesize actual helpful content.
 
 Output Contract:
 - kb_status: SUCCESS | SKIPPED
@@ -208,6 +348,13 @@ Output Contract:
 - detection_tokens: array[string] (extracted error signatures)
 
 Implementation Notes:
+1. **CRITICAL - USE MICROSOFT DOCS MCP SERVER FOR RESEARCH**:
+   - Always query Microsoft Docs when creating new KB articles
+   - Use `mcp_microsoftdocs_microsoft_docs_search` for initial error research
+   - Use `mcp_microsoftdocs_microsoft_code_sample_search` for code examples and fixes
+   - Use `mcp_microsoftdocs_microsoft_docs_fetch` for comprehensive documentation when needed
+   - Synthesize fix instructions from official Microsoft guidance, not assumptions
+   - Include Microsoft Docs URLs in the References section of KB articles
 2. **AI REASONING REQUIRED**: Each error analysis requires understanding context, not pattern matching.
 3. Always create ./knowledge_base_markdown/ directory if it doesn't exist (use create_directory tool).
 4. Use safe filenames (lowercase, alphanumeric + underscore/hyphen only).
