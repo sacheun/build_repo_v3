@@ -22,7 +22,14 @@ Service Fabric application projects (.sfproj) require the Platform property to b
 
 ## Fix
 
-### Option 1: Specify Platform in MSBuild Command (Recommended)
+### Option 1: Run NuGet Restore (Recommended)
+Run NuGet restore to ensure all packages are properly restored:
+
+```powershell
+nuget restore "path\to\solution.sln"
+```
+
+### Option 2: Specify Platform in MSBuild Command
 Add `/p:Platform=x64` to your msbuild command:
 
 ```powershell
@@ -30,7 +37,7 @@ msbuild /t:restore "path\to\solution.sln" /v:minimal
 msbuild /t:Clean,Build "path\to\solution.sln" /p:Platform=x64 /v:minimal
 ```
 
-### Option 2: Modify .sfproj File to Set Default Platform
+### Option 3: Modify .sfproj File to Set Default Platform
 Add a conditional PropertyGroup to the .sfproj file to set a default platform:
 
 ```xml
@@ -38,9 +45,6 @@ Add a conditional PropertyGroup to the .sfproj file to set a default platform:
   <Platform>x64</Platform>
 </PropertyGroup>
 ```
-
-### Option 3: Exclude Service Fabric Projects from Solution Build
-If the Service Fabric project is not needed for your build scenario, exclude it from the solution build configuration.
 
 ## PowerShell Fix Script
 ```powershell
