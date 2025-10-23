@@ -17,6 +17,14 @@ Behavior:
 
 3. Output: Returns JSON object with two fields: local_path (echoed input) and solutions (array of absolute .sln file paths in discovery order, which may vary by filesystem); writes to stdout for workflow consumption.
 
+3a. Log to Decision Log:
+   - For EACH solution file discovered, append to: results/decision-log.csv
+   - Append row with: "{{timestamp}},{{repo_name}},,task-find-solutions,Found solution: {{solution_name}},SUCCESS"
+   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+   - {{solution_name}}: Extract from solution file path (e.g., "MyApp.sln" → "MyApp") - used only in the Message field
+   - The solution_name column (third column) should be blank (empty) since this is a repository-level discovery task
+   - If no solutions found, append single row: "{{timestamp}},{{repo_name}},,task-find-solutions,No solutions found,SUCCESS"
+
 4. Logging: Emits debug messages showing input payload and count of discovered solutions
 
 5. Error Handling: Throws ContractError for invalid input (missing or nonexistent path), which the caller must handle; does not validate solution file contents or accessibility.

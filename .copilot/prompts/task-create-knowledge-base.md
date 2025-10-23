@@ -225,6 +225,18 @@ Behavior:
 
 5. **Output**: Return creation results.
    - DEBUG: Log "[KB-CREATE-DEBUG] Final status: kb_create_status={status}, kb_file_path={path}"
+   - **Log to Decision Log:**
+     * Append to: results/decision-log.csv
+     * Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,{{message}},{{status}}"
+     * Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+     * Message format:
+       - If kb_create_status == SUCCESS: "Created KB: {{kb_filename}}" (e.g., "Created KB: nu1008_central_package_management.md")
+       - If kb_create_status == SKIPPED and kb_search_status == FOUND: "KB already exists - creation skipped"
+       - If kb_create_status == SKIPPED and kb_search_status == SKIPPED: "Build succeeded - KB not needed"
+     * {{kb_filename}}: Extract filename from kb_file_path (e.g., "nu1008_central_package_management.md")
+     * Status:
+       - "SUCCESS" if kb_create_status == SUCCESS
+       - "SKIPPED" if kb_create_status == SKIPPED
    - **DEBUG Exit Trace:**
      * If environment variable DEBUG=1, emit a line to stdout before returning:
      * `[debug][task-create-knowledge-base] END kb_create_status='{{kb_create_status}}' kb_file_created={{kb_file_created}}`

@@ -127,6 +127,15 @@ Behavior:
    - status: SUCCESS if commands extracted, SKIPPED if no README, FAIL if error
    - timestamp: ISO 8601 format datetime
 
+8a. Log to Decision Log:
+   - Append to: results/decision-log.csv
+   - For each section identified, append row with: "{{timestamp}},{{repo_name}},,task-scan-readme,Found setup section: {{section_heading}},SUCCESS"
+   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+   - The solution_name column (third column) is blank since this is a repository-level task
+   - If no sections found but README exists, append: "{{timestamp}},{{repo_name}},,task-scan-readme,No setup sections found in README,SUCCESS"
+   - If README not found (status=SKIPPED), append: "{{timestamp}},{{repo_name}},,task-scan-readme,README not found - scan skipped,SKIPPED"
+   - If scan failed (status=FAIL), append: "{{timestamp}},{{repo_name}},,task-scan-readme,Scan failed: {{error_reason}},FAIL"
+
 9. Result Tracking:
    - Use create_file or replace_string_in_file to append the result to:
      - results/repo-results.md (Markdown table row)

@@ -236,6 +236,21 @@ error_type: "NuGet"
    - `[debug][task-search-knowledge-base] END kb_search_status='{{kb_search_status}}' error_code='{{error_code}}'`
    - This helps trace when the task completes and its outcome.
 
-2. **Return JSON Output:**
+2. **Log to Decision Log:**
+   - Append to: results/decision-log.csv
+   - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-search-knowledge-base,{{message}},{{status}}"
+   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+   - Message format:
+     * If build_status == SUCCESS: "Build succeeded - search skipped"
+     * If kb_search_status == FOUND: "Searching for: {{error_signature}} - KB found: {{kb_filename}}"
+     * If kb_search_status == NOT_FOUND: "Searching for: {{error_signature}} - No KB found"
+   - {{error_signature}}: The error signature generated in step 2 (e.g., "nu1008_central_package_management")
+   - {{kb_filename}}: Extract filename from kb_file_path if found (e.g., "nu1008_central_package_management.md")
+   - Status:
+     * "SKIPPED" if build_status == SUCCESS
+     * "FOUND" if kb_search_status == FOUND
+     * "NOT_FOUND" if kb_search_status == NOT_FOUND
+
+3. **Return JSON Output:**
 
 Output the following JSON structure to the output file.

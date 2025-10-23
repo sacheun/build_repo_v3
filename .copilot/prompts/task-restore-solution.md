@@ -23,10 +23,14 @@ Behavior:
    - If DEBUG=1, print to console: `[debug][task-restore-solution] executing: msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
    - **Execute the command synchronously and wait for process completion** before proceeding.
    - **CRITICAL**: After process completes, capture the exit code (e.g., `$LASTEXITCODE` in PowerShell, `$?` in Bash).
+   - **Log to Decision Log**: Append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild {{solution_path}} /restore /p:Configuration=Release /nologo,{{status}}"
+     * timestamp: ISO 8601 format (e.g., "2025-10-22T14:30:45Z")
+     * status: "SUCCESS" if exit code is 0, "FAIL" if non-zero
    - Captures stdout/stderr without throwing exceptions.
    - **Special Case - MSBuild Not Found**: If command fails with error code 9009 (Windows "command not found") or stderr contains "not recognized", switches to `dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
    - If DEBUG=1 and dotnet fallback triggered, print to console: `[debug][task-restore-solution] executing: dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
    - **Execute the dotnet msbuild fallback command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
+   - **Log to Decision Log**: If dotnet msbuild was executed, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo,{{status}}"
    - **IMPORTANT**: Proceed to step 3 (NuGet fallback) if the final MSBuild exit code (msbuild or dotnet msbuild) is non-zero, regardless of the specific error code.
 
 3. NuGet Fallback (executed when step 2 MSBuild fails with ANY non-zero exit code): 
@@ -35,7 +39,11 @@ Behavior:
    - If DEBUG=1, print to console: `[debug][task-restore-solution] NuGet fallback triggered (msbuild exitCode={exitCode})`
    - If DEBUG=1, print to console: `[debug][task-restore-solution] executing: nuget restore {{solution_path}}`
    - **Execute the nuget command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
+   - **Log to Decision Log**: Append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,nuget restore {{solution_path}},{{status}}"
+     * timestamp: ISO 8601 format
+     * status: "SUCCESS" if exit code is 0, "FAIL" if non-zero
    - **Check NuGet exit code**: If NuGet succeeds (return code 0), re-runs the original MSBuild restore command once (with DEBUG command print if enabled), **wait for completion and capture exit code**, then aggregates all outputs (NuGet + retry) with labeled sections (=== NuGet Restore Output ===, etc.).
+   - **Log MSBuild Retry to Decision Log**: If MSBuild retry was executed after successful NuGet, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild {{solution_path}} /restore (retry after nuget),{{status}}"
    - If NuGet fails (non-zero exit code), appends its output but skips MSBuild retry.
    - If DEBUG=1 and NuGet failed, print to console: `[debug][task-restore-solution] NuGet restore failed with exitCode={nugetExitCode}, skipping MSBuild retry`
 

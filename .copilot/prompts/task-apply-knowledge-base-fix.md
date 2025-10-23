@@ -164,7 +164,14 @@ Use these tools:
    - `[debug][task-apply-knowledge-base-fix] END fix_status='{{fix_status}}' files_modified={{files_modified}}`
    - This helps trace when the task completes and its outcome.
 
-2. **Return JSON Output:**
+2. **Log to Decision Log:**
+   - Append to: results/decision-log.csv
+   - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-apply-knowledge-base-fix,Applied KB fix: {{kb_file_name}},{{status}}"
+   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+   - {{kb_file_name}}: Extract filename from kb_file_path (e.g., "nu1008_central_package_management.md")
+   - Status: "SUCCESS" if fix_status is SUCCESS, "FAIL" if fix_status is FAIL, "SKIPPED" if fix_status is SKIPPED
+
+3. **Return JSON Output:**
 
 Return JSON output with the following structure:
 

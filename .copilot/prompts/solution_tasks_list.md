@@ -17,19 +17,23 @@ This is NOT a simple linear pipeline. Tasks execute conditionally based on build
 
 When a build FAILS and KB is FOUND or CREATED, you MUST:
 1. ✅ Execute @task-apply-knowledge-base-fix (MANDATORY - never skip)
-2. ✅ Retry the build after applying fix (MANDATORY - loop back to Step 1)
-3. ✅ DO NOT move to next solution/repository until retry is complete
+2. ✅ Retry RESTORE + BUILD after applying fix (MANDATORY - loop back to Step 1)
+   - ⚠️ RESTORE happens FIRST (Step 1), then BUILD (Step 2)
+3. ✅ DO NOT move to next solution/repository until retry RESTORE + BUILD is complete
+
+Note: Each build attempt includes BOTH restore and build steps (restore FIRST, then build).
 
 WORKFLOW OVERVIEW:
-1. Build solution (attempt 1 of max 3)
-2. If SUCCESS → Done
-3. If FAIL → Search KB for fix
-4. If KB FOUND → **APPLY FIX** (MANDATORY) → **RETRY BUILD** (MANDATORY - attempt 2)
-5. If KB NOT FOUND → Create KB → Search KB → **APPLY FIX** (MANDATORY) → **RETRY BUILD** (MANDATORY)
-6. Maximum 3 build attempts total
+1. Restore solution (restore NuGet packages)
+2. Build solution (attempt 1 of max 3)
+3. If Build SUCCESS → Done
+4. If Build FAIL → Search Knowledge Base for fix
+5. If Knowledge Base FOUND → **APPLY FIX in Knowledge Base** (MANDATORY) → **RETRY RESTORE + BUILD** (MANDATORY - attempt 2)
+6. If Knowledge Base NOT FOUND → Create Knowledge Base → Search Knowledge Base → **APPLY FIX in Knowledge Base** (MANDATORY) → **RETRY RESTORE + BUILD** (MANDATORY)
+7. Maximum 3 build attempts total (each with restore)
 
-** YOU MUST USE CONDITIONAL LOGIC - NOT LINEAR EXECUTION **
-** AFTER CREATING KB, YOU MUST APPLY THE FIX AND RETRY THE BUILD **
+** ⚠️ CRITICAL - YOU MUST USE CONDITIONAL LOGIC - NOT LINEAR EXECUTION ⚠️ **
+** ⚠️ AFTER CREATING KB, YOU MUST APPLY THE FIX AND RETRY THE BUILD  ⚠️ **
 
 Description:
 This prompt executes a conditional workflow for a single solution file (.sln) with automatic retry logic. Build failures trigger KB search, fix application, and rebuild - up to 3 times maximum.
@@ -60,6 +64,7 @@ Initialize counters:
    - DEBUG: Log "[WORKFLOW-DEBUG] Restore attempt for build {build_attempt} of {max_build_attempts}"
    - Execute: @task-restore-solution solution_path={{solution_path}}
    - Input: solution_path
+   - Scriptable: Generate a Python script
    - Output: restore_status (SUCCESS | FAIL), restore_stderr, restore_warnings[]
    - Tracking: Update solution-progress.md, solution-results.md
    - Note: Restore failures are logged but do NOT stop the workflow (build will attempt)
@@ -69,6 +74,7 @@ Initialize counters:
    - DEBUG: Log "[WORKFLOW-DEBUG] Build attempt {build_attempt} of {max_build_attempts}"
    - Execute: @task-build-solution solution_path={{solution_path}}
    - Input: solution_path
+   - Scriptable: Generate a Python script
    - Output: build_status (SUCCESS | FAIL), build_stderr, errors[], warnings[]
    - Tracking: Update solution-progress.md, solution-results.md
    
@@ -93,6 +99,7 @@ Initialize counters:
    - Execute: @task-search-knowledge-base solution_path={{solution_path}} solution_name={{solution_name}} build_status={{build_status}} build_stderr={{build_stderr}} errors={{errors}} warnings={{warnings}}
    - Input: solution_path, solution_name, build_status, build_stderr, errors (from build task), warnings (from build task)
    - Output: kb_search_status (FOUND | NOT_FOUND), kb_file_path, detection_tokens, error_signature, error_code, error_type
+   - Scriptable: Generate a Python script
    - Tracking: Update solution-progress.md, solution-results.md
    - Note: Receives errors[] and warnings[] arrays from Step 2 (Build Solution)
    
@@ -114,15 +121,16 @@ Initialize counters:
    - Output: fix_status (SUCCESS | FAIL | SKIPPED), fix_applied, changes_made[]
    - Tracking: Update solution-progress.md, solution-results.md
    - Record: Append fix to fixes_applied array
+   - Non-scriptable: Uses AI reasoning to classify command from the fix is safe and execute safe commands individually
    - Note: kb_file_path is provided by task-search-knowledge-base output
    - ⚠️ **YOU MUST EXECUTE @task-apply-knowledge-base-fix - DO NOT JUST DISPLAY THE KB CONTENT**
    
    **Branch based on fix_status:**
    
    **If fix_status == SUCCESS:**
-   - DEBUG: Log "[WORKFLOW-DEBUG] Fix applied successfully, retrying build"
-   - ⚠️ **MANDATORY: LOOP BACK to Step 1** (restore + retry build with fix applied)
-   - **DO NOT MOVE TO NEXT REPOSITORY UNTIL BUILD IS RETRIED**
+   - DEBUG: Log "[WORKFLOW-DEBUG] Fix applied successfully, retrying restore + build"
+   - ⚠️ **MANDATORY: LOOP BACK to Step 1** (RESTORE solution first, then retry build with fix applied)
+   - **DO NOT MOVE TO NEXT REPOSITORY UNTIL RESTORE + BUILD IS RETRIED**
    
    **If fix_status == FAIL or SKIPPED:**
    - DEBUG: Log "[WORKFLOW-DEBUG] Fix could not be applied, marking workflow as failed"
@@ -134,6 +142,7 @@ Initialize counters:
    - Execute: @task-create-knowledge-base solution_path={{solution_path}} solution_name={{solution_name}} kb_search_status=NOT_FOUND detection_tokens={{detection_tokens}} error_signature={{error_signature}} error_code={{error_code}} error_type={{error_type}} build_stderr={{build_stderr}} errors={{errors}} warnings={{warnings}}
    - Input: solution_path, solution_name, kb_search_status, detection_tokens, error_signature, error_code, error_type, build_stderr, errors (from build task), warnings (from build task)
    - Output: kb_create_status (SUCCESS | SKIPPED), kb_file_path, kb_file_created, microsoft_docs_urls[]
+   - Non-scriptable: Leverage AI reasoning to execute an MCP query for resolve this issue.
    - Tracking: Update solution-progress.md, solution-results.md
    - Note: Receives errors[] and warnings[] arrays from Step 2 (Build Solution) for additional context
    
@@ -147,7 +156,7 @@ Initialize counters:
      - Use kb_file_path from search result
      - ⚠️ **MANDATORY STEP B: Continue to Step 4** (Apply the fix from newly created KB)
      - ⚠️ **YOU MUST EXECUTE @task-apply-knowledge-base-fix - DO NOT SKIP THIS**
-     - ⚠️ **YOU MUST RETRY THE BUILD AFTER APPLYING THE FIX**
+     - ⚠️ **YOU MUST RETRY RESTORE + BUILD AFTER APPLYING THE FIX**
    - If kb_search_status == NOT_FOUND (should not happen):
      - DEBUG: Log "[WORKFLOW-DEBUG] ERROR: Created KB but search failed, marking workflow as failed"
      - Set pipeline_status = FAIL

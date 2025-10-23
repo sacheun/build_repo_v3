@@ -280,6 +280,11 @@ Behavior:   "[debug][task-execute-readme] START repo_directory='{{repo_directory
       - If DEBUG=1, print: `[debug][task-execute-readme] command exit_code={{exit_code}}`
       - If exit_code != 0 and DEBUG=1, print: `[debug][task-execute-readme] command failed, stderr: {{stderr[:200]}}`
       - Record result in executed_commands array
+      - **Log to Decision Log**: Append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},,task-execute-readme,{{command}},{{status}}"
+        * timestamp: ISO 8601 format (e.g., "2025-10-22T14:30:45Z")
+        * solution_name column (third column) is blank since this is a repository-level task
+        * command: the actual command that was executed
+        * status: "SUCCESS" if exit_code is 0, "FAIL" if exit_code is non-zero, "TIMEOUT" if command timed out, "ERROR" if execution failed
    
    d. Error Handling:
       - If command times out: record as executed with status="TIMEOUT"

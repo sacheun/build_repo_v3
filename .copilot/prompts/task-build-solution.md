@@ -33,6 +33,12 @@ Behavior:
    - success = (return_code == 0)
    - Non-zero exit sets success=false but still parse output for diagnostics.
 
+3a. Log to Decision Log:
+   - Append to: results/decision-log.csv
+   - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-build-solution,msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m,{{status}}"
+   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+   - Status: "SUCCESS" if return_code is 0, "FAIL" if non-zero
+
 4. Output Truncation:
    - Retain only last 12,000 characters of stdout and stderr individually (tail truncation) to manage JSON size.
    - Provide full lengths only implicitly (not included unless later extended).

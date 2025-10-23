@@ -17,6 +17,9 @@ Current Tasks List:
 6. @task-process-solutions
 
 Behavior:
+
+** ⚠️ CRITICAL - Execute these steps sequentially, one at a time, in the exact order provided below—do not skip, reorder, summarize, or parallelize any part. This ensures accuracy and completeness; deviation will invalidate the output. ⚠️ **
+
 - Execute tasks in pipeline sequence where each task's output becomes the next task's input:
 
    1. **First Task (@task-clone-repo):**
@@ -28,7 +31,7 @@ Behavior:
       - Input: repository directory path from previous task
       - Execute: @task-search-readme repo_directory={{previous_output}} repo_name={{repo_name}}
       - Output: JSON object with repo_directory, repo_name, readme_content, readme_filename, and status
-      - Scriptable: Generate a Python/PowerShell/Bash script
+      - Scriptable: Generate a Python script
       - Mark success/fail in repo-results.md and repo-results.csv
 
    3. **Third Task (@task-scan-readme):**
@@ -49,20 +52,15 @@ Behavior:
       - Input: repository directory path from task-clone-repo (can access via context)
       - Execute: @task-find-solutions repo_directory={{repo_directory}}
       - Output: JSON object with local_path and solutions array
-      - Scriptable: Generate a Python/PowerShell/Bash script
+      - Scriptable: Generate a Python script
       - Mark success/fail in repo-results.md and repo-results.csv
 
    6. **Sixth Task (@task-process-solutions):**
       - Input: JSON object from previous task
       - Execute: @task-process-solutions solutions_json={{previous_output}} repo_name={{repo_name}}
       - Output: summary of processed solutions
-      - Scriptable: Generate a Python/PowerShell/Bash script
+      - Scriptable: Generate a Python script
       - Mark success/fail in repo-results.md and repo-results.csv
-
-   7. **Additional Tasks (if any):**
-      - Follow same pattern: input = previous task's output
-      - Execute with appropriate parameters
-      - Pass output to next task
 
 - If any task fails, stop the pipeline and return failure status
 - After all tasks complete successfully, return a dictionary of all task results for this repo

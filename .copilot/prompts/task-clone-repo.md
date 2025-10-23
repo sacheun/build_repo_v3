@@ -29,15 +29,24 @@ Behavior:
 5. If operation succeeds → return SUCCESS
    If operation fails → return FAIL
 
-6. Append the result to:
+6. Log the decision to Decision Log:
+   - Append to: results/decision-log.csv
+   - Append row with: "{{current_timestamp}},{{repo_name}},,task-clone-repo,{{message}},{{clone_status}}"
+   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+   - The solution_name column (third column) should be blank (empty) since this is a repository-level task
+   - Message should contain the git command(s) executed:
+     * If fresh clone: "git clone --depth 1 {{repo_url}} {{clone_path}}/{{repo_name}}"
+     * If refresh: "git reset --hard HEAD && git clean -fd && git pull"
+
+7. Append the result to:
    - results/repo-results.md (Markdown table row)
    - results/repo-results.csv (CSV row)
 
-7. Update the progress table:
+8. Update the progress table:
    - In results/repo-progress.md, find the row for {{repo_name}} and column for "task-clone-repo"
    - Change [ ] to [x] to mark task as completed
 
-8. Return  the absolute path to the directory where the repository was successfully cloned.
+9. Return  the absolute path to the directory where the repository was successfully cloned.
 
 Output Contract:
 - repo_name: string (friendly name parsed from URL)
