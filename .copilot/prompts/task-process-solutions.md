@@ -6,9 +6,39 @@ model: gpt-5
 
 ** ⚠️ CRITICAL WARNING - READ BEFORE IMPLEMENTING ⚠️ **
 
-This task is **NON-SCRIPTABLE** because it includes @task-collect-knowledge-base which requires AI structural reasoning.
+This task is **NON-SCRIPTABLE** - DO NOT CREATE ANY SCRIPT FOR THIS TASK.
 
-DO NOT create a single Python/PowerShell script that processes all solutions!
+❌ **NEVER DO THIS - CRITICAL MISTAKE:**
+```python
+# DO NOT CREATE SCRIPTS FOR NON-SCRIPTABLE TASKS!
+# This task requires AI reasoning and cannot be automated
+for sln_path, sln_name in solutions:
+    subprocess.run(f'msbuild "{sln_path}" /restore /t:Clean,Build')
+    # This skips the KB workflow entirely! ❌
+```
+
+✅ **YOU MUST DO THIS - CORRECT APPROACH:**
+For EACH solution individually using direct tool calls:
+1. run_in_terminal: msbuild restore → Check status
+2. run_in_terminal: msbuild build → Check status
+3. **IF BUILD FAILS:**
+   a. Use AI reasoning to analyze errors
+   b. @task-search-knowledge-base → Get kb_search_status
+   c. **IF kb_search_status == NOT_FOUND:**
+      - @task-create-knowledge-base (research with Microsoft Docs MCP)
+      - Search again (kb_search_status will be FOUND now)
+   d. **IF kb_search_status == FOUND:**
+      - @task-apply-knowledge-base-fix → Apply the fix
+      - run_in_terminal: msbuild restore (RETRY)
+      - run_in_terminal: msbuild build (RETRY)
+      - Log retry results
+4. Only then move to next solution
+
+** WHY NON-SCRIPTABLE: **
+- Requires AI structural reasoning to analyze build errors
+- Requires AI understanding to match errors to KB articles
+- Requires conditional logic based on KB search results
+- Cannot be automated - each solution needs human-like understanding
 
 ** ⚠️ MANDATORY WORKFLOW - DO NOT SKIP STEPS ⚠️ **
 
@@ -23,6 +53,46 @@ After processing each solution, if the build FAILS:
 ** THIS IS A RETRY LOOP - NOT LINEAR PROCESSING **
 You must loop back and retry builds after applying fixes!
 
+** ⚠️ COMMON MISTAKE EXAMPLES - DO NOT DO THESE ⚠️ **
+
+❌ **MISTAKE 1: Creating ANY script for this NON-SCRIPTABLE task**
+```python
+# DO NOT CREATE SCRIPTS - THIS TASK IS NON-SCRIPTABLE!
+# You must use direct tool calls (run_in_terminal, read_file, etc.)
+for solution in solutions:
+    msbuild restore
+    msbuild build
+    # Missing: KB search, KB create, KB apply, retry ❌
+    # Missing: AI reasoning for error analysis ❌
+```
+
+❌ **MISTAKE 2: Marking tasks complete without executing KB workflow**
+```
+- Solution builds: FAIL
+- KB search: SKIPPED ❌ (Should be FOUND or NOT_FOUND)
+- KB create: SKIPPED ❌ (Should be SUCCESS if NOT_FOUND)
+- KB apply: SKIPPED ❌ (Should be SUCCESS after create)
+- Retry build: SKIPPED ❌ (Should be executed after apply)
+```
+
+❌ **MISTAKE 3: Moving to next repository without validation**
+```
+Repository 1: task-process-solutions [x]
+Repository 2: task-clone-repo [x] ❌ (Should NOT start Repo 2 yet!)
+Missing: task-validate-all-solution-tasks-completed ❌
+```
+
+✅ **CORRECT PATTERN - ALL SOLUTIONS MUST SHOW:**
+```
+- Solution builds: SUCCESS or FAIL
+- IF FAIL:
+  - KB search: FOUND or NOT_FOUND (never SKIPPED)
+  - IF NOT_FOUND: KB create: SUCCESS
+  - KB apply: SUCCESS
+  - Retry build: SUCCESS or FAIL (must attempt)
+- Only then: Next solution or validation
+```
+
 ** ⚠️ PATH VALIDATION CRITICAL ⚠️ **
 READ THIS FIRST: knowledge_base_markdown/WORKFLOW_PATH_VALIDATION.md
 
@@ -34,23 +104,36 @@ Common fatal mistake: Assuming solution paths instead of reading them from task-
 
 YOU MUST:
 ✓ Process each solution individually using direct tool calls
-✓ For EACH solution, execute the 3 tasks from solution_tasks_list.md:
+✓ For EACH solution, execute tasks from solution_tasks_list.md in order:
   1. @task-restore-solution - Run msbuild restore, capture output
-  2. @task-build-solution - Run msbuild build, capture output  
-  3. @task-collect-knowledge-base - Use AI reasoning to match errors to KB files
+  2. @task-build-solution - Run msbuild build, capture output
+  3. **IF build_status == FAIL (MANDATORY KB WORKFLOW):**
+     a. @task-search-knowledge-base - AI reasoning to find matching KB
+     b. **IF kb_search_status == NOT_FOUND:**
+        - @task-create-knowledge-base - Research with Microsoft Docs MCP
+        - Search again (will be FOUND after creation)
+     c. @task-apply-knowledge-base-fix - Apply the fix from KB
+     d. **RETRY builds (loop back to step 1):**
+        - run_in_terminal: msbuild restore (retry attempt)
+        - run_in_terminal: msbuild build (retry attempt)
+        - Log retry results to decision-log and solution-results
+     e. Maximum 3 retry attempts per solution
+  4. @task-collect-knowledge-base - Generate KB summary report
 ✓ Use run_in_terminal tool to execute msbuild commands for each solution
 ✓ Use AI structural reasoning to analyze build errors and match KB articles
+✓ **NEVER skip KB workflow for failed builds** - This is the core purpose of the system
 ✓ Update solution-progress.md after EACH task for EACH solution
 ✓ Update solution-results.md/csv after EACH task for EACH solution
-✓ Process solutions sequentially (complete all 3 tasks for solution 1 before moving to solution 2)
-✓ Expect processing to take time (restore+build can take 30s-5min per solution)
+✓ Log ALL KB tasks (search, create, apply, retry) to decision-log.csv
+✓ Process solutions sequentially (complete ALL tasks for solution 1 before moving to solution 2)
+✓ Expect processing to take time (restore+build+KB can take 1-10min per solution)
 
 YOU MUST NOT:
-✗ Create a single script that processes all solutions at once
+✗ Create ANY script for this task (task-process-solutions is NON-SCRIPTABLE)
 ✗ Skip the AI reasoning step in task-collect-knowledge-base
 ✗ Mark task-process-solutions as SUCCESS without processing individual solutions
 ✗ Complete the task in 1-2 seconds (this indicates you skipped processing)
-✗ Use scripts for task-collect-knowledge-base (requires AI structural reasoning)
+✗ Use scripts for ANY part of this workflow (requires AI structural reasoning throughout)
 
 CORRECT IMPLEMENTATION PATTERN:
 For each solution in solutions array:
@@ -63,7 +146,8 @@ For each solution in solutions array:
   7. Move to next solution and repeat
 
 VALIDATION CHECKLIST after execution:
-□ Did you use run_in_terminal for each msbuild command? (NOT a Python script)
+□ Did you use DIRECT TOOL CALLS only? (NO scripts created - this is NON-SCRIPTABLE)
+□ Did you use run_in_terminal for each msbuild command individually?
 □ Did you use AI reasoning for task-collect-knowledge-base? (NOT regex/simple string matching)
 □ Does solution-progress.md show ALL solutions from this repository?
 □ Does solution-results.md/csv have 3 rows per solution (restore/build/kb)?
@@ -71,6 +155,7 @@ VALIDATION CHECKLIST after execution:
 □ Can you see actual msbuild output in run_in_terminal results?
 
 If you answer NO to any validation question, you did NOT complete this task correctly!
+If you created ANY script, you VIOLATED the NON-SCRIPTABLE requirement!
 
 ** END WARNING **
 
@@ -81,14 +166,14 @@ This task takes a JSON object returned by task-find-solutions.md and processes e
 For each solution, it executes a list of tasks to perform operations on the solution.
 
 ** CRITICAL REQUIREMENT **:
-- This task is **NON-SCRIPTABLE** because it includes @task-collect-knowledge-base
-- @task-collect-knowledge-base requires AI structural reasoning to analyze build errors
-- You MUST use direct tool calls (run_in_terminal, read_file, create_file, etc.)
-- DO NOT create a Python/PowerShell script that processes all solutions
+- This task is **NON-SCRIPTABLE** - DO NOT CREATE ANY SCRIPT
+- You MUST use direct tool calls ONLY (run_in_terminal, read_file, create_file, etc.)
+- DO NOT create a Python/PowerShell script for ANY part of this task
 - You MUST process each solution individually with AI reasoning at each step
 - Each solution MUST go through: restore → build → KB collection (if build fails)
 - The KB collection step requires reading error output and using AI to match KB articles
 - Processing takes time per solution (30s-5min each), NOT just seconds total
+- **WHY NON-SCRIPTABLE**: Requires AI structural reasoning to analyze errors, match KB articles, and make conditional decisions
 
 Behavior:
 0. DEBUG Entry Trace: If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
@@ -166,7 +251,38 @@ Behavior:
    h. **After ALL tasks complete for this solution**, accumulate the solution's overall status into aggregate counts
    i. **IMPORTANT**: Only after finishing all tasks for the current solution, move to the next solution in the array and repeat steps a-i
 
-4. Create and initialize a solution progress markdown file:
+4. **Validate All Solutions Completed (MANDATORY - DO NOT SKIP)**:
+   - After processing ALL solutions in the array (step 3 complete), execute validation
+   - **CRITICAL**: This step is MANDATORY before marking task-process-solutions as complete
+   - Call: @task-validate-all-solution-tasks-completed repo_name={{repo_name}} repo_path={{local_path}}
+   - This validates that all mandatory tasks (restore-solution, build-solution) are marked [x] in solution-progress.md
+   - **ALSO validates KB workflow was executed** for all failed builds:
+     * Each FAIL build must have: task-search-knowledge-base logged
+     * If NOT_FOUND: Must have task-create-knowledge-base logged
+     * If FOUND or after creation: Must have task-apply-knowledge-base-fix logged
+     * Must have retry build attempts logged
+   - If validation finds incomplete solutions, it will automatically re-execute @task-process-solutions for those solutions
+   - If validation_status == SUCCESS, proceed to step 5 (Return summary)
+   - If validation_status == INCOMPLETE and reprocessing_triggered == true, validation already re-processed incomplete solutions
+   - If validation_status == ERROR, log the error but continue to step 5 (to return partial results)
+   - **DO NOT proceed to next repository until validation_status == SUCCESS**
+   - **This ensures all solutions are fully processed before moving to the next repository**
+   
+   **VIOLATION EXAMPLE - DO NOT DO THIS:**
+   ```
+   ❌ Repository 1: task-process-solutions [x]
+   ❌ Repository 2: task-clone-repo [x] (WRONG - started too early!)
+   ❌ Missing: task-validate-all-solution-tasks-completed
+   ```
+   
+   **CORRECT EXAMPLE:**
+   ```
+   ✅ Repository 1: task-process-solutions [x]
+   ✅ Repository 1: task-validate-all-solution-tasks-completed [x]
+   ✅ Only then: Repository 2: task-clone-repo [ ] (Now safe to start)
+   ```
+
+5. Create and initialize a solution progress markdown file:
       - results/solution-progress.md (Solution Progress tracking table)
       - Parse solution_tasks_list.md to extract ALL task directive names (e.g., @task-restore-solution, @task-build-solution, etc.)
       - Get all the solution names from the solution array
@@ -180,13 +296,13 @@ Behavior:
       - Example row: `| ic3_spool_cosine-dep-spool | ResourceProvider | [ ] | [ ] |`
       - **REMEMBER**: Each repository can have multiple solutions, and all solutions from all repositories must be visible in this single table
 
-5. Initialize solution tracking artifacts if not present:
+6. Initialize solution tracking artifacts if not present:
       - results/solution-results.md (Markdown table: Repository | Solution | Task | Status | Timestamp)
       - results/solution-results.csv (CSV with same columns)
       - **Repository Column**: When appending rows to solution-results.md and solution-results.csv, fill in the Repository column with the value from the {{repo_name}} input argument
       - For each solution row initialize task-restore-solution cell with [ ]
 
-6. Track progress for each solution:
+7. Track progress for each solution:
    - **CRITICAL - Update solution-progress.md after EACH task completion**: When a task (restore/build/kb) completes for a solution, immediately update the corresponding cell in solution-progress.md
    - **Find the correct row**: Locate the row matching BOTH {{repo_name}} AND {{solution_name}}
    - **Update the correct column**: Change [ ] to [x] for success or [!] for failure in the appropriate task column
@@ -198,12 +314,12 @@ Behavior:
    - On partial failure, mark failed tasks with [!] and leave remaining task columns with [ ] (future multi-task support)
    - **This ensures real-time progress visibility across all repositories and solutions**
 
-7. Return summary of processed solutions:
+8. Return summary of processed solutions:
    - Total solutions found
    - Successfully processed count
    - Failed processing count
 
-8. DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), emit a final line to stdout (or terminal) after all solutions processed:
+9. DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), emit a final line to stdout (or terminal) after all solutions processed:
    "[debug][task-process-solutions] END total={{total_solutions}} success={{success_count}} fail={{failure_count}}"
    This line marks task completion and provides aggregate status visibility.
 
@@ -212,8 +328,8 @@ Invocation Pattern:
 - This task internally invokes: `@solution-tasks-list solution_path={{solution_path}}`
 - The solution task list expands into concrete task directives actually executed per solution.
 - ** Important ** Execute each step individually using direct tool calls (run_in_terminal, read_file, create_file, replace_string_in_file)
-- ** Important ** Do NOT create a monolithic script - use tool calls for each solution
-- ** CRITICAL ** This task is **NON-SCRIPTABLE** because @task-collect-knowledge-base requires AI structural reasoning
+- ** Important ** DO NOT CREATE ANY SCRIPT - this is a NON-SCRIPTABLE task
+- ** CRITICAL ** This task is **NON-SCRIPTABLE** - requires AI structural reasoning throughout, cannot be automated
 - ** VALIDATION ** After execution completes, verify that:
   * solution-progress.md has rows for ALL solutions from this repository
   * solution-results.md/csv has 3 entries per solution (restore, build, KB)

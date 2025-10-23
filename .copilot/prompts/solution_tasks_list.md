@@ -9,6 +9,73 @@ temperature: 0.1
 model: gpt-5
 ---
 
+** ⚠️⚠️⚠️ CRITICAL MISTAKES TO AVOID - READ THIS FIRST ⚠️⚠️⚠️ **
+
+**❌ MISTAKE #1: Creating ANY script for this NON-SCRIPTABLE task**
+```python
+# ❌ DO NOT CREATE ANY SCRIPT - THIS TASK IS NON-SCRIPTABLE
+# You must use direct tool calls only!
+for sln_path, sln_name in solutions:
+    subprocess.run(f'msbuild "{sln_path}" /restore')
+    result = subprocess.run(f'msbuild "{sln_path}" /t:Clean,Build')
+    if result.returncode == 0:
+        status = "SUCCESS"
+    else:
+        status = "FAIL"
+        # ❌ Missing: KB search, KB create, KB apply, retry build
+        # ❌ Missing: AI reasoning for error analysis
+```
+**Why wrong:** This task is NON-SCRIPTABLE. It requires AI reasoning to analyze errors, search KB articles, make conditional decisions, and apply fixes. Scripts cannot do this.
+
+**❌ MISTAKE #2: Processing all solutions without KB workflow**
+```
+Solution 1: Restore SUCCESS, Build FAIL → Move to Solution 2 ❌
+Solution 2: Restore SUCCESS, Build FAIL → Move to Solution 3 ❌
+Solution 3: Restore SUCCESS, Build SUCCESS ✓
+Result: 2 solutions failed, NO KB articles created/applied ❌
+```
+**Why wrong:** Failed builds MUST trigger KB workflow before moving to next solution.
+
+**❌ MISTAKE #3: Logging SKIPPED for KB tasks on build failures**
+```
+Solution: ResourceProvider
+- task-restore-solution: FAIL
+- task-build-solution: FAIL
+- task-search-knowledge-base: SKIPPED ❌ (Should be FOUND or NOT_FOUND!)
+- task-create-knowledge-base: SKIPPED ❌ (Should be SUCCESS if NOT_FOUND!)
+- task-apply-knowledge-base-fix: SKIPPED ❌ (Should be SUCCESS!)
+- task-build-solution-retry: SKIPPED ❌ (Should be attempted!)
+```
+**Why wrong:** Build failures REQUIRE KB workflow - these tasks must NEVER be SKIPPED.
+
+**✅ CORRECT PATTERN for each solution:**
+```
+1. run_in_terminal: msbuild /restore → restore_status
+2. run_in_terminal: msbuild /t:Clean,Build → build_status
+3. IF build_status == FAIL:
+   a. AI reasoning: Analyze errors → @task-search-knowledge-base → kb_search_status
+   b. IF kb_search_status == NOT_FOUND:
+      - @task-create-knowledge-base (use Microsoft Docs MCP) → kb_create_status
+      - Search again → kb_search_status = FOUND
+   c. @task-apply-knowledge-base-fix → fix_status
+   d. run_in_terminal: msbuild /restore (RETRY) → retry_restore_status
+   e. run_in_terminal: msbuild /t:Clean,Build (RETRY) → retry_build_status
+   f. Log all steps to decision-log.csv and solution-results.csv
+4. Only then: Move to next solution
+```
+
+**✅ CORRECT LOGGING for failed build:**
+```
+Solution: ResourceProvider
+- task-restore-solution: SUCCESS
+- task-build-solution: FAIL
+- task-search-knowledge-base: FOUND (or NOT_FOUND) ✓
+- task-create-knowledge-base: SUCCESS (if NOT_FOUND) ✓
+- task-apply-knowledge-base-fix: SUCCESS ✓
+- task-restore-solution-retry: SUCCESS ✓
+- task-build-solution-retry: FAIL or SUCCESS ✓
+```
+
 ** ⚠️ CRITICAL - CONDITIONAL WORKFLOW WITH RETRY LOGIC ⚠️ **
 
 This is NOT a simple linear pipeline. Tasks execute conditionally based on build results.

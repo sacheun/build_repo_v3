@@ -4,6 +4,46 @@ temperature: 0.1
 model: gpt-5
 ---
 
+** ⚠️⚠️⚠️ CRITICAL MISTAKES TO AVOID ⚠️⚠️⚠️ **
+
+**❌ MISTAKE: Processing Repository 1 without KB workflow, then starting Repository 2**
+```
+Repository 1:
+  ✓ task-process-solutions (4 solutions found, 4 build FAIL)
+  ❌ NO task-search-knowledge-base logged
+  ❌ NO task-create-knowledge-base logged  
+  ❌ NO task-apply-knowledge-base-fix logged
+  ❌ NO retry builds logged
+  ❌ SKIPPED: task-validate-all-solution-tasks-completed
+  
+Repository 2:
+  ✓ task-clone-repo ❌ (WRONG - Cannot start Repo 2 until Repo 1 validates!)
+```
+**Why wrong:** KB workflow was completely skipped, validation was skipped, moved to next repo prematurely.
+
+**✅ CORRECT: Complete KB workflow for all failures, validate, then move to next repo**
+```
+Repository 1:
+  ✓ task-process-solutions:
+    Solution 1 FAIL → Search KB → Create KB → Apply fix → Retry build ✓
+    Solution 2 FAIL → Search KB → Create KB → Apply fix → Retry build ✓
+    Solution 3 SUCCESS ✓
+    Solution 4 FAIL → Search KB → Apply fix → Retry build ✓
+  ✓ task-validate-all-solution-tasks-completed (validates KB workflow was executed) ✓
+  
+Repository 2: (Now safe to start)
+  ✓ task-clone-repo
+  ...
+```
+
+**MANDATORY REQUIREMENTS:**
+1. ✅ task-process-solutions MUST execute KB workflow for ALL build failures
+2. ✅ task-validate-all-solution-tasks-completed MUST run before next repository
+3. ✅ Validation MUST check that KB tasks are logged for all failures
+4. ✅ DO NOT start next repository until validation_status == SUCCESS
+
+---
+
 Description:
 This prompt reads a text file where each line is a repository URL.
 For each line, it executes a list of tasks defined in the `@tasks` prompt.
