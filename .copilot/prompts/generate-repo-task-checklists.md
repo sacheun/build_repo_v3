@@ -26,12 +26,14 @@ Behavior:
 2. Directory Preparation:
    
    **If append = false (default):**
-   - Remove all existing files in ./tasks directory if it exists
-   - Create ./tasks directory (if it doesn't exist)
-   - If DEBUG=1, print: `[debug][generate-repo-task-checklists] cleaned tasks directory (append=false)`
+   - **Remove the entire ./tasks directory if it exists** (including all files and subdirectories)
+   - Create a fresh ./tasks directory
+   - If DEBUG=1, print: `[debug][generate-repo-task-checklists] removed and recreated tasks directory (append=false)`
+   - **WARNING**: This will delete all existing checklists, solution checklists, and progress tracking files
    
    **If append = true:**
-   - Keep existing files in ./tasks directory
+   - Keep existing ./tasks directory and all its contents
+   - Create ./tasks directory if it doesn't exist
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] preserving existing tasks (append=true)`
 
 3. Read Input File: Read the input file to get all repository URLs

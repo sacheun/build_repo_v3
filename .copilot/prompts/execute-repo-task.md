@@ -7,6 +7,16 @@ Description:
 This prompt acts as an autonomous task executor that reads task checklists and executes tasks in a continuous loop.
 It processes ALL uncompleted tasks across ALL repositories until everything is complete or an error occurs.
 
+**CRITICAL - SEQUENTIAL EXECUTION REQUIREMENT:**
+- Tasks MUST be executed in STRICT SEQUENTIAL ORDER as they appear in the checklist
+- DO NOT skip CONDITIONAL tasks to prioritize MANDATORY tasks
+- DO NOT execute tasks out of order under any circumstances
+- Process each task in sequence: Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6
+- If a CONDITIONAL task's condition is met, EXECUTE it before proceeding
+- If a CONDITIONAL task's condition is NOT met, mark it SKIPPED and proceed to next task
+- The MANDATORY vs CONDITIONAL labels indicate importance, NOT execution order
+- Always execute the FIRST uncompleted [ ] task in the checklist, regardless of its label
+
 **CRITICAL: This prompt runs in a continuous loop. After completing each task, it immediately:**
 1. Updates the repository checklist (marking task as [x])
 2. Updates the Task Variables section with output from the completed task
@@ -58,6 +68,21 @@ Behavior:
    - Parse all variable values from previous task executions
    - Store these values for use in task parameter preparation
    - This allows resuming work from a previous run with all context preserved
+
+**CRITICAL - SEQUENTIAL EXECUTION REQUIREMENT:**
+- **Tasks MUST be completed in the EXACT order they appear in the checklist**
+- **DO NOT skip CONDITIONAL tasks to prioritize MANDATORY tasks**
+- **DO NOT execute tasks out of order, even if they are marked MANDATORY**
+- The sequence is: Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6
+- If a task is CONDITIONAL and its condition is met, it MUST be executed before moving to the next task
+- If a task is CONDITIONAL and its condition is NOT met, mark it as SKIPPED and move to the next task
+- Example sequence for ic3_spool_cosine-dep-spool:
+  1. [MANDATORY #1] @task-clone-repo ✅ Execute
+  2. [MANDATORY #2] @task-search-readme ✅ Execute
+  3. [CONDITIONAL] @task-scan-readme ✅ Execute (condition met: readme_content exists)
+  4. [CONDITIONAL] @task-execute-readme ✅ Execute (condition met: commands_extracted exists)
+  5. [MANDATORY #3] @task-find-solutions ✅ Execute (only after tasks 1-4 complete)
+  6. [MANDATORY #4] @generate-solution-task-checklists ✅ Execute (only after tasks 1-5 complete)
 
 **Step 3: Prepare Task Parameters**
 
