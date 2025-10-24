@@ -14,7 +14,8 @@ Current Tasks List:
 3. @task-scan-readme
 4. @task-execute-readme
 5. @task-find-solutions
-6. @task-process-solutions
+6. @generate-solution-task-checklists
+7. @task-process-solutions
 
 Behavior:
 
@@ -55,11 +56,18 @@ Behavior:
       - Scriptable: Generate a Python script
       - Mark success/fail in repo-results.md and repo-results.csv
 
-   6. **Sixth Task (@task-process-solutions):**
-      - Input: JSON object from previous task
-      - Execute: @task-process-solutions solutions_json={{previous_output}} repo_name={{repo_name}}
-      - Output: summary of processed solutions
+   6. **Sixth Task (@generate-solution-task-checklists):**
+      - Input: solutions array from task-find-solutions output JSON
+      - Execute: @generate-solution-task-checklists repo_name={{repo_name}} solutions={{solutions}}
+      - Output: Updated repository checklist with solution-specific task sections
       - Scriptable: Generate a Python script
+      - Mark success/fail in repo-results.md and repo-results.csv
+
+   7. **Seventh Task (@task-process-solutions):**
+      - Input: JSON object from task-find-solutions
+      - Execute: @task-process-solutions solutions_json={{solutions_json}} repo_name={{repo_name}}
+      - Output: summary of processed solutions
+      - Non-scriptable: Uses AI reasoning to analyze build errors and match KB articles
       - Mark success/fail in repo-results.md and repo-results.csv
 
 - If any task fails, stop the pipeline and return failure status
@@ -77,6 +85,7 @@ Variables available:
 - {{executed_commands}} → Array of commands that were executed (output of @task-execute-readme).
 - {{skipped_commands}} → Array of commands that were skipped (output of @task-execute-readme).
 - {{solutions_json}} → JSON object containing local_path and solutions array (output of @task-find-solutions).
+- {{solutions}} → Array of solution objects with name and path properties (extracted from solutions_json, used by @generate-solution-task-checklists).
 
 Output Contract (aggregate after pipeline completion):
 - repo_name: string
@@ -93,8 +102,8 @@ Output Contract (aggregate after pipeline completion):
 Implementation Notes (conceptual):
 1. Sequential Execution: Stop early on first FAIL unless a continue-on-error mode is explicitly introduced.
 2. Task Execution Model:
-   - Scriptable tasks (clone, search-readme, find-solutions, process-solutions): Generate Python/PowerShell/Bash scripts
-   - Non-scriptable tasks (scan-readme, execute-readme): Use direct tool calls with AI structural reasoning
+   - Scriptable tasks (clone, search-readme, find-solutions, generate-solution-task-checklists): Generate Python/PowerShell/Bash scripts
+   - Non-scriptable tasks (scan-readme, execute-readme, process-solutions): Use direct tool calls with AI structural reasoning
 3. Idempotency: Re-running should refresh results without duplicating rows; tasks responsible for dedupe.
-3. Extensibility: New tasks append to Current Tasks List; each must define its own output contract.
-4. Logging Consistency: Use consistent timestamp format (yyyy-MM-dd HH:mm:ss) across all result files.
+4. Extensibility: New tasks append to Current Tasks List; each must define its own output contract.
+5. Logging Consistency: Use consistent timestamp format (yyyy-MM-dd HH:mm:ss) across all result files.
