@@ -1,7 +1,6 @@
 @task-create-knowledge-base solution_path={{solution_path}} solution_name={{solution_name}} kb_search_status={{kb_search_status}} detection_tokens={{detection_tokens}} error_signature={{error_signature}} error_code={{error_code}} error_type={{error_type}} build_stderr={{build_stderr}} errors={{errors}} warnings={{warnings}}
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 ## Behavior

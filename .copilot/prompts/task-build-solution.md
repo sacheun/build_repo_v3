@@ -1,7 +1,6 @@
  @task-build-solution solution_path={{solution_path}}
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 Task name: task-build-solution
@@ -23,8 +22,8 @@ Behavior:
    - Derive solution_name from file name (e.g., Foo.sln → Foo).
 
 2. Build Invocation:
-   - Command: `msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m`
-   - If DEBUG=1, print to console: `[debug][task-build-solution] executing: msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m`
+   - Command: `msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m /verbosity:quiet`
+   - If DEBUG=1, print to console: `[debug][task-build-solution] executing: msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m /verbosity:quiet`
    - Multi-processor build enabled via /m.
    - Assumes packages already restored by @task-restore-solution.
    - Capture full stdout and stderr streams.
@@ -35,7 +34,7 @@ Behavior:
 
 3a. Log to Decision Log:
    - Append to: results/decision-log.csv
-   - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-build-solution,msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m,{{status}}"
+   - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-build-solution,msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m /verbosity:quiet,{{status}}"
    - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
    - Status: "SUCCESS" if return_code is 0, "FAIL" if non-zero
 

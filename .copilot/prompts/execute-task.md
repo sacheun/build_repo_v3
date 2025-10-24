@@ -1,7 +1,6 @@
 @execute-task clone=<required> clean_results=<optional>
 ---
 temperature: 0.1
-model: gpt-4
 ---
 
 Description:
@@ -148,19 +147,58 @@ For tasks that need output from previous tasks:
    - Repository tasks: Invoke task directive directly (e.g., @task-clone-repo)
    - Solution tasks: May be invoked via @solution-tasks-list or individual task directives
 
-3. Capture task output (status, result data)
+3. **SPECIAL HANDLING for @task-process-solutions (KB Workflow Enforcement):**
+   
+   When executing @task-process-solutions, the prompt MUST follow this workflow for EACH solution:
+   
+   a. Execute restore and build for the solution
+   
+   b. **IF restore OR build fails:**
+      - Execute @task-search-knowledge-base
+        - Input: solution_path, solution_name, build_status, build_stderr, errors, warnings
+        - Output: kb_search_status (FOUND or NOT_FOUND), kb_file_path (if FOUND)
+        - Log to decision-log.csv with status FOUND or NOT_FOUND
+      
+      - **IF kb_search_status == NOT_FOUND:**
+        - Execute @task-create-knowledge-base
+          - Input: solution_path, solution_name, error details
+          - Output: kb_create_status (SUCCESS or FAIL), new_kb_file_path
+          - Uses Microsoft Docs MCP for research
+          - Log to decision-log.csv with status SUCCESS or FAIL
+        - Execute @task-search-knowledge-base AGAIN (will be FOUND now)
+      
+      - Execute @task-apply-knowledge-base-fix (MANDATORY)
+        - Input: solution_path, kb_file_path, error_code
+        - Output: fix_status (SUCCESS or FAIL)
+        - Log to decision-log.csv with status SUCCESS or FAIL
+      
+      - RETRY restore + build after applying fix
+        - Log retry attempt to decision-log.csv
+        - Maximum 3 retry attempts per solution
+        - Log final retry result (SUCCESS or FAIL)
+   
+   c. Update checklist checkboxes for KB tasks:
+      - Mark "Search knowledge base" as [x] with status (FOUND/NOT_FOUND)
+      - Mark "Create KB entry" as [x] if NOT_FOUND (with SUCCESS/FAIL)
+      - Mark "Apply fix" as [x] with status (SUCCESS/FAIL)
+   
+   d. Only proceed to next solution after current solution's KB workflow completes
+   
+   **⚠️ CRITICAL: KB workflow is NOT optional! Never skip these steps for failed builds!**
 
-4. **If task execution fails:**
+4. Capture task output (status, result data)
+
+5. **If task execution fails:**
    - Log failure to decision-log.csv with status: FAIL
    - Set executor_status: FAIL
    - **EXIT LOOP** and proceed to Step 9 (Return Execution Summary with error details)
 
-5. **If task execution is blocked:**
+6. **If task execution is blocked:**
    - Log blocked status to decision-log.csv
    - Set executor_status: BLOCKED
    - **EXIT LOOP** and proceed to Step 9 (Return Execution Summary with blocking reason)
 
-6. Increment tasks_executed_count by 1
+7. Increment tasks_executed_count by 1
 
 **Step 6: Update Checklists and Save Variables**
 1. If task completed successfully:
@@ -315,10 +353,42 @@ Special Cases:
 - Solution path must be available in checklist or from @task-find-solutions output
 - Solution tasks may have conditional execution (e.g., KB tasks only run if build fails)
 
-**Case 4: Conditional tasks (solution workflow)**
-- Some solution tasks only execute based on previous task results
-- If a conditional task is marked `- [ ]` but conditions aren't met, skip to next task
-- Example: @task-search-knowledge-base only runs if @task-build-solution failed
+**Case 4: Conditional tasks (solution workflow) - KB WORKFLOW ENFORCEMENT**
+
+**⚠️ CRITICAL: KB Workflow is MANDATORY for ALL build/restore failures!**
+
+When processing solutions via @task-process-solutions:
+1. Execute @task-restore-solution and @task-build-solution
+2. **IF either restore OR build fails:**
+   - ✅ MUST execute @task-search-knowledge-base (search for existing KB article)
+   - ✅ IF search returns NOT_FOUND: MUST execute @task-create-knowledge-base (research + create new KB)
+   - ✅ MUST execute @task-apply-knowledge-base-fix (apply the fix from KB)
+   - ✅ MUST retry restore + build after applying fix
+   - ✅ Log ALL KB task executions to decision-log.csv
+   - ❌ NEVER mark KB tasks as "SKIPPED" - they are MANDATORY on failure
+
+**Conditional Execution Logic:**
+- @task-search-knowledge-base: Executes when build_status == FAIL or restore_status == FAIL
+- @task-create-knowledge-base: Executes when kb_search_status == NOT_FOUND (after search)
+- @task-apply-knowledge-base-fix: ALWAYS executes after search (or after create if NOT_FOUND)
+- Retry build: ALWAYS executes after applying fix (maximum 3 retry attempts)
+
+**Example Correct Flow for Failed Build:**
+```
+Solution 3: ResourceProvider.sln
+1. Restore → SUCCESS
+2. Build → FAIL (Service Fabric error)
+3. Search KB → FOUND (kb_file: sf_baseoutputpath_missing.md)
+4. Apply Fix → SUCCESS (modified .sfproj file)
+5. Retry Restore → SUCCESS
+6. Retry Build → SUCCESS (or FAIL after max retries)
+```
+
+**What NOT to do:**
+- ❌ Skip KB workflow and move to next solution
+- ❌ Mark KB tasks as "SKIPPED" in checklist
+- ❌ Process all builds first, then try to fix them later
+- ❌ Give up after first failure without searching KB
 
 **Case 5: All tasks complete**
 - Return executor_status: ALL_COMPLETE

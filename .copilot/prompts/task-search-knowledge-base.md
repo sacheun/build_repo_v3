@@ -1,7 +1,6 @@
 @task-search-knowledge-base solution_path={{solution_path}} solution_name={{solution_name}} build_status={{build_status}} build_stderr={{build_stderr}} errors={{errors}} warnings={{warnings}}
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 ## Behavior

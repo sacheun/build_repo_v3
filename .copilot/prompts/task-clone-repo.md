@@ -1,7 +1,6 @@
-@task-clone-repo repo_url={{repo_url}} clone_path={{clone_path}}
+@task-clone-repo repo_url={{repo_url}} clone_path={{clone_path}} repo_name={{repo_name}}
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 Task name: task-clone-repo

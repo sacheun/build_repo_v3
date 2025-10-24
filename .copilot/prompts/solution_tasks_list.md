@@ -6,7 +6,6 @@
 @task-create-knowledge-base solution_path={{solution_path}}
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 ** ⚠️⚠️⚠️ CRITICAL MISTAKES TO AVOID - READ THIS FIRST ⚠️⚠️⚠️ **

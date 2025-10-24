@@ -1,7 +1,6 @@
 @task-process-solutions solutions_json={{solutions_json}} repo_name={{repo_name}}
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 ** ⚠️ CRITICAL WARNING - READ BEFORE IMPLEMENTING ⚠️ **
@@ -37,7 +36,7 @@ This task is **NON-SCRIPTABLE** - DO NOT CREATE ANY SCRIPT FOR THIS TASK.
 # DO NOT CREATE SCRIPTS FOR NON-SCRIPTABLE TASKS!
 # This task requires AI reasoning and cannot be automated
 for sln_path, sln_name in solutions:
-    subprocess.run(f'msbuild "{sln_path}" /restore /t:Clean,Build')
+    subprocess.run(f'msbuild "{sln_path}" /restore /t:Clean,Build /verbosity:quiet')
     # This skips the KB workflow entirely! ❌
 ```
 

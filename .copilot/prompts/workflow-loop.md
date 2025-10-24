@@ -1,7 +1,6 @@
 @workflow-loop input=<optional> clone=<optional> clean_results=<optional>
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 ** ⚠️⚠️⚠️ CRITICAL MISTAKES TO AVOID ⚠️⚠️⚠️ **

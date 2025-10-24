@@ -1,7 +1,6 @@
 @tasks-list repo_url={{repo_url}} clone_path={{clone_path}}
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 Description:

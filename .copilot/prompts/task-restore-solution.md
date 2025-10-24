@@ -1,7 +1,6 @@
 @task-restore-solution solution_path={{solution_path}}
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 Task name: task-restore-solution
@@ -19,18 +18,18 @@ Behavior:
 1. Input Validation: Reads JSON from stdin expecting solution_path (absolute path to .sln file); raises ContractError if missing or nonexistent.
 
 2. Primary Restore Attempt: 
-   - Command: `msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
-   - If DEBUG=1, print to console: `[debug][task-restore-solution] executing: msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
+   - Command: `msbuild {{solution_path}} /restore /p:Configuration=Release /nologo /verbosity:quiet`
+   - If DEBUG=1, print to console: `[debug][task-restore-solution] executing: msbuild {{solution_path}} /restore /p:Configuration=Release /nologo /verbosity:quiet`
    - **Execute the command synchronously and wait for process completion** before proceeding.
    - **CRITICAL**: After process completes, capture the exit code (e.g., `$LASTEXITCODE` in PowerShell, `$?` in Bash).
-   - **Log to Decision Log**: Append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild {{solution_path}} /restore /p:Configuration=Release /nologo,{{status}}"
+   - **Log to Decision Log**: Append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild {{solution_path}} /restore /p:Configuration=Release /nologo /verbosity:quiet,{{status}}"
      * timestamp: ISO 8601 format (e.g., "2025-10-22T14:30:45Z")
      * status: "SUCCESS" if exit code is 0, "FAIL" if non-zero
    - Captures stdout/stderr without throwing exceptions.
-   - **Special Case - MSBuild Not Found**: If command fails with error code 9009 (Windows "command not found") or stderr contains "not recognized", switches to `dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
-   - If DEBUG=1 and dotnet fallback triggered, print to console: `[debug][task-restore-solution] executing: dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo`
+   - **Special Case - MSBuild Not Found**: If command fails with error code 9009 (Windows "command not found") or stderr contains "not recognized", switches to `dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo /verbosity:quiet`
+   - If DEBUG=1 and dotnet fallback triggered, print to console: `[debug][task-restore-solution] executing: dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo /verbosity:quiet`
    - **Execute the dotnet msbuild fallback command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
-   - **Log to Decision Log**: If dotnet msbuild was executed, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo,{{status}}"
+   - **Log to Decision Log**: If dotnet msbuild was executed, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,dotnet msbuild {{solution_path}} /restore /p:Configuration=Release /nologo /verbosity:quiet,{{status}}"
    - **IMPORTANT**: Proceed to step 3 (NuGet fallback) if the final MSBuild exit code (msbuild or dotnet msbuild) is non-zero, regardless of the specific error code.
 
 3. NuGet Fallback (executed when step 2 MSBuild fails with ANY non-zero exit code): 

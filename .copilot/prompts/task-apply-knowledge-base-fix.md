@@ -1,7 +1,6 @@
 @task-apply-knowledge-base-fix solution_path={{solution_path}} kb_file_path={{kb_file_path}} error_code={{error_code}}
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 # Task: Apply Knowledge Base Fix

@@ -1,7 +1,6 @@
-@task-update-checklist repo_name=<required> task_name=<required> solution_name=<optional>
+@task-update-checklist repo_name={{repo_name}} task_name={{task_name}} solution_name={{solution_name}}
 ---
 temperature: 0.1
-model: gpt-4
 ---
 
 Description:

@@ -1,7 +1,6 @@
 @generate-solution-task-checklists repo_name=<required> solutions=<required>
 ---
 temperature: 0.1
-model: gpt-4
 ---
 
 Description:

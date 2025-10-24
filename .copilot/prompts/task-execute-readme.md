@@ -2,7 +2,6 @@
 
 ---
 temperature: 0.1
-model: gpt-5
 ---
 
 

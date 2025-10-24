@@ -1,7 +1,6 @@
 @generate-task-checklists input=<optional> append=<optional>
 ---
 temperature: 0.1
-model: gpt-4
 ---
 
 Description:

@@ -1,7 +1,11 @@
-@task-validate-all-solution-tasks-completed repo_name={{repo_name}} repo_path={{repo_path}} checked={{checked}}
+@task-validate-all-solution-tasks-completed repo_name={{repo_name}}
 ---
 temperature: 0.1
-model: gpt-5
+---
+
+Task name: task-validate-all-solution-tasks-completed repo_path={{repo_path}} checked={{checked}}
+---
+temperature: 0.1
 ---
 
 Description:
