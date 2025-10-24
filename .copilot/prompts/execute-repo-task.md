@@ -1,4 +1,4 @@
-@execute-task clone=<required> clean_results=<optional>
+@execute-repo-task clone=<required> clean_results=<optional>
 ---
 temperature: 0.1
 ---
@@ -76,9 +76,11 @@ Behavior:
   - @task-scan-readme: 
     - repo_directory: **Read from checklist variables**
     - repo_name: From checklist variables
+    - readme_content_path: **Construct from repo_name** → "output/{repo_name}_task2_search-readme.json"
   - @task-execute-readme: 
     - repo_directory: **Read from checklist variables**
     - repo_name: From checklist variables
+    - commands_json_path: **Construct from repo_name** → "output/{repo_name}_task3_scan-readme.json"
   - @task-find-solutions: 
     - repo_directory: **Read from checklist variables**
   - @generate-solution-task-checklists:
@@ -127,8 +129,23 @@ For tasks that need output from previous tasks:
 
 **Variable Value Formats:**
 - Simple values: Used directly (e.g., `repo_directory`: `C:\cloned\repo`)
-- File references: Parse and read (e.g., `readme_content`: `[saved to ./output/...]`)
+- File references: Parse and read (e.g., `readme_content_path`: `output/repo_task2_search-readme.json`)
 - Not set: Shows "not set" - task cannot proceed if this variable is required
+
+**How to Use Variables When Executing Tasks:**
+- For @task-search-readme: 
+  * Read `repo_directory` from checklist variables
+  * Pass as parameter: repo_directory={value_from_checklist}
+
+- For @task-scan-readme:
+  * Read `repo_directory` from checklist variables
+  * Read `readme_content_path` from checklist variables (e.g., "output/repo_task2_search-readme.json")
+  * Pass as parameters: repo_directory={value} readme_content_path={value}
+
+- For @task-execute-readme:
+  * Read `repo_directory` from checklist variables
+  * Read `commands_json_path` from checklist variables (e.g., "output/repo_task3_scan-readme.json")
+  * Pass as parameters: repo_directory={value} commands_json_path={value}
 
 **If required input data is missing:**
 - Return status: BLOCKED with error message indicating missing dependency
@@ -215,10 +232,10 @@ For tasks that need output from previous tasks:
    - **Read existing checklist "## Task Variables" section to preserve previous values**
    - Update/add new variables based on which task was executed:
      - @task-clone-repo → Sets: repo_directory
-     - @task-search-readme → Sets: readme_content, readme_filename
-     - @task-scan-readme → Sets: commands_extracted
-     - @task-execute-readme → Sets: executed_commands, skipped_commands
-     - @task-find-solutions → Sets: solutions_json
+     - @task-search-readme → Sets: readme_content (reference to JSON file path), readme_filename
+     - @task-scan-readme → Sets: commands_extracted (reference to JSON file path or count)
+     - @task-execute-readme → Sets: executed_commands (count), skipped_commands (count)
+     - @task-find-solutions → Sets: solutions_json (reference to JSON file path)
      - @generate-solution-task-checklists → Sets: checklist_updated (boolean indicating solution sections added)
    - **Preserve all existing variable values** from previous tasks
    - **Only update variables that this task produces**
@@ -229,7 +246,27 @@ For tasks that need output from previous tasks:
    - For each variable from repo_tasks_list.md "Variables available:" section:
      - If variable has a value (from current or previous tasks), show the value
      - If variable is not yet set, show "not set" or omit
-   - Format:
+   
+   **Variable Writing Rules:**
+   - After @task-clone-repo completes:
+     * Write `repo_directory`: {absolute_path} (e.g., "C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool")
+   
+   - After @task-search-readme completes:
+     * Write `readme_content_path`: "output/{repo_name}_task2_search-readme.json"
+     * Write `readme_filename`: {filename} (e.g., "README.md" or "getting_started.md")
+   
+   - After @task-scan-readme completes:
+     * Write `commands_json_path`: "output/{repo_name}_task3_scan-readme.json"
+     * Write `commands_extracted`: {count} commands found (e.g., "9 commands found")
+   
+   - After @task-execute-readme completes:
+     * Write `executed_commands`: {count} commands executed (e.g., "1 commands executed")
+     * Write `skipped_commands`: {count} commands skipped (e.g., "8 commands skipped")
+   
+   - After @task-find-solutions completes:
+     * Write `solutions_json`: "output/{repo_name}_task5_find-solutions.json"
+   
+   Format:
      ```
      ## Task Variables
      
@@ -240,15 +277,19 @@ For tasks that need output from previous tasks:
      - `clone_path`: ./cloned
      - `repo_directory`: {absolute_path_to_cloned_repo} (or "not set")
      - `repo_name`: {repo_name}
-     - `readme_content`: [saved to ./output/{repo_name}_task-search-readme.json] (or "not set")
+     - `readme_content_path`: [saved to ./output/{repo_name}_task2_search-readme.json] (or "not set")
      - `readme_filename`: {README.md} (or "not set")
-     - `commands_extracted`: {count} (or "not set")
-     - `executed_commands`: {count} (or "not set")
-     - `skipped_commands`: {count} (or "not set")
-     - `solutions_json`: [saved to ./output/{repo_name}_task-find-solutions.json] (or "not set")
+     - `commands_json_path`: [saved to ./output/{repo_name}_task3_scan-readme.json] (or "not set")
+     - `commands_extracted`: {count} commands found (or "not set")
+     - `executed_commands`: {count} commands executed (or "not set")
+     - `skipped_commands`: {count} commands skipped (or "not set")
+     - `solutions_json`: [saved to ./output/{repo_name}_task5_find-solutions.json] (or "not set")
      
-     **Note:** Large content (readme_content, solutions_json) is stored in ./output/ directory.
-     Paths and counts are shown here for quick reference.
+     **Note:** Large content (readme_content_path, commands_json_path, solutions_json) is stored in ./output/ directory.
+     File paths and counts are shown here for quick reference.
+     When executing tasks, use these paths to construct the required parameters:
+     - For @task-scan-readme: Pass readme_content_path value (e.g., "output/{repo_name}_task2_search-readme.json")
+     - For @task-execute-readme: Pass commands_json_path value (e.g., "output/{repo_name}_task3_scan-readme.json")
      ```
    - For large data (readme_content, solutions_json), reference the JSON file path instead of embedding full content
    - For simple values (paths, counts, filenames), embed directly in checklist
@@ -338,15 +379,17 @@ Special Cases:
 **Case 2: Task depends on previous task output**
 - **First, check checklist "## Task Variables" section** for the required variable
 - If variable is set in checklist:
-  - If value is a file reference, read ./output/{filename}
+  - If value is a file path (e.g., readme_content_path, commands_json_path), use directly as parameter
   - If value is embedded, use directly
 - If variable is not set in checklist (shows "not set"):
   - Check ./output/{repo_name}_{previous_task}.json as fallback
 - If missing from both sources, return BLOCKED status
-- Example workflow:
-  1. Task @task-search-readme needs `repo_directory`
-  2. Check checklist variables: `repo_directory: C:\cloned\repo`
-  3. Use this value as parameter for task invocation
+- Example workflow for @task-scan-readme:
+  1. Check checklist variables for `repo_directory`
+  2. Value found: `C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool`
+  3. Check checklist variables for `readme_content_path`
+  4. Value found: `output/ic3_spool_cosine-dep-spool_task2_search-readme.json`
+  5. Execute: @task-scan-readme repo_directory="C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool" repo_name="ic3_spool_cosine-dep-spool" readme_content_path="output/ic3_spool_cosine-dep-spool_task2_search-readme.json"
 
 **Case 3: Solution tasks**
 - Solution checklists must exist (created by @generate-solution-task-checklists)
