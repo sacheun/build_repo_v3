@@ -7,7 +7,7 @@ This task generates task checklists for all repositories in the input file. The 
 
 ** THIS TASK IS SCRIPTABLE **
 
-This task can be implemented as a Python/PowerShell/Bash script that:
+This task can be implemented as a Python script that:
 1. Reads repository URLs from input file
 2. Parses task definitions from repo_tasks_list.md
 3. Generates master checklist tracking all repositories
@@ -32,7 +32,6 @@ Behavior:
    
    **If append = true:**
    - Keep existing files in ./tasks directory
-   - Create ./tasks directory if it doesn't exist
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] preserving existing tasks (append=true)`
 
 3. Read Input File: Read the input file to get all repository URLs
@@ -97,7 +96,7 @@ Behavior:
    For each repository to process:
    - Extract repo_name from URL
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] generating checklist for: {{repo_name}}`
-   - File: ./tasks/{repo_name}_checklist.md
+   - File: ./tasks/{repo_name}_repo_checklist.md
    
    **If append = false:**
    - Create checklist for all repositories from input file
@@ -128,16 +127,16 @@ Behavior:
      
      **Next Action:** 
      1. Check if all [MANDATORY] tasks are completed
-     2. If YES and {{readme_content}} is not blank, execute @task-scan-readme
-     3. If {{commands_extracted}} is not blank, execute @task-execute-readme
+     2. If YES and {{readme_content}} is not blank and not "NONE", execute @task-scan-readme
+     3. If {{commands_extracted}} is not blank and not "NONE", execute @task-execute-readme
      4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
      
      **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-clone-repo`) as defined in `repo_tasks_list.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
      
      **Quick Reference:**
      - [MANDATORY] tasks must be completed in numbered order (#1 → #2 → #3 → #4)
-     - [CONDITIONAL - NON-SCRIPTABLE] @task-scan-readme executes when {{readme_content}} is not blank
-     - [CONDITIONAL - NON-SCRIPTABLE] @task-execute-readme executes when {{commands_extracted}} is not blank
+     - [CONDITIONAL - NON-SCRIPTABLE] @task-scan-readme executes when {{readme_content}} is not blank and not "NONE"
+     - [CONDITIONAL - NON-SCRIPTABLE] @task-execute-readme executes when {{commands_extracted}} is not blank and not "NONE"
      - Mark completed tasks with [x]
      
      ## Repo Variables Available

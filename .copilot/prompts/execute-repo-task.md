@@ -50,7 +50,7 @@ Behavior:
    - **EXIT LOOP** and proceed to Step 9 (Return Execution Summary)
 
 **Step 2: Read Repository Task Checklist**
-1. Read ./tasks/{repo_name}_checklist.md
+1. Read ./tasks/{repo_name}_repo_checklist.md
 2. Parse the "## Tasks (Sequential Pipeline - Complete in Order)" section
 3. Find the first task with `- [ ]` (uncompleted)
 4. Extract task_name from that line (e.g., "@task-clone-repo")
@@ -58,13 +58,9 @@ Behavior:
    - Parse all variable values from previous task executions
    - Store these values for use in task parameter preparation
    - This allows resuming work from a previous run with all context preserved
-6. Determine if this is a repository-level task or solution-level task:
-   - Repository-level: Task appears before any "## Solution:" section
-   - Solution-level: Task appears within a "## Solution: {name}" section
 
-**Step 3: Determine Task Scope and Parameters**
+**Step 3: Prepare Task Parameters**
 
-**If repository-level task:**
 - Extract task_name (e.g., "@task-clone-repo")
 - **Prepare parameters using variables from checklist first**:
   - @task-clone-repo: 
@@ -76,30 +72,16 @@ Behavior:
   - @task-scan-readme: 
     - repo_directory: **Read from checklist variables**
     - repo_name: From checklist variables
-    - readme_content_path: **Construct from repo_name** → "output/{repo_name}_task2_search-readme.json"
+    - readme_content_path: **Read from checklist variables** (set by @task-search-readme)
   - @task-execute-readme: 
     - repo_directory: **Read from checklist variables**
     - repo_name: From checklist variables
-    - commands_json_path: **Construct from repo_name** → "output/{repo_name}_task3_scan-readme.json"
+    - commands_json_path: **Read from checklist variables** (set by @task-scan-readme)
   - @task-find-solutions: 
     - repo_directory: **Read from checklist variables**
   - @generate-solution-task-checklists:
     - repo_name: From checklist variables
     - solutions: **Read from checklist variables** (reference to solutions_json file, extract solutions array)
-  - @task-process-solutions: 
-    - solutions_json: **Read from checklist variables** (reference to JSON file)
-    - repo_name: From checklist variables
-
-**If solution-level task:**
-- Extract solution_name from the "## Solution: {name}" section header
-- Extract solution_path from the "Path: {path}" line
-- Extract task_name (e.g., "@task-restore-solution")
-- Prepare parameters based on task type:
-  - @task-restore-solution: solution_path
-  - @task-build-solution: solution_path
-  - @task-search-knowledge-base: solution_path, solution_name, build_status, build_stderr, errors, warnings
-  - @task-create-knowledge-base: solution_path, solution_name, kb_search_status, detection_tokens, error_signature, error_code, error_type, build_stderr, errors, warnings
-  - @task-apply-knowledge-base-fix: solution_path, kb_file_path, error_code
 
 **Step 4: Gather Required Input Data**
 
@@ -113,17 +95,13 @@ For tasks that need output from previous tasks:
 - **If variable is embedded directly in checklist**, use that value
 - **Fallback: Check ./output/ directory** for JSON files (if variable not in checklist)
 - Read relevant JSON files to get required input parameters
-- Example: @task-process-solutions needs solutions_json:
-  1. Check checklist variables for `solutions_json`
-  2. If value is "[saved to ./output/repo_task-find-solutions.json]", read that file
-  3. Use the data from the file as input parameter
 - Example: @generate-solution-task-checklists needs solutions array:
   1. Check checklist variables for `solutions_json`
   2. Read the JSON file to get the solutions array
   3. Transform array to required format (objects with name and path properties)
 
 **Variable Resolution Priority:**
-1. **Check ./tasks/{repo_name}_checklist.md → "## Task Variables" section** (FIRST)
+1. **Check ./tasks/{repo_name}_repo_checklist.md → "## Task Variables" section** (FIRST)
 2. **If variable references a JSON file**, read from ./output/{filename}
 3. **If variable is not found in checklist**, check ./output/ directory directly (FALLBACK)
 
@@ -155,74 +133,32 @@ For tasks that need output from previous tasks:
 1. Log the execution attempt to results/decision-log.csv:
    - Timestamp: ISO 8601 format
    - Repo Name: {repo_name}
-   - Solution Name: {solution_name} (or empty if repo-level task)
+   - Solution Name: (empty for repo-level tasks)
    - Task: {task_name}
    - Message: "Starting task execution (loop iteration {tasks_executed_count + 1})"
    - Status: "IN_PROGRESS"
 
-2. Invoke the task prompt with required parameters:
-   - Repository tasks: Invoke task directive directly (e.g., @task-clone-repo)
-   - Solution tasks: May be invoked via @solution-tasks-list or individual task directives
+2. Invoke the task prompt with required parameters (e.g., @task-clone-repo)
 
-3. **SPECIAL HANDLING for @task-process-solutions (KB Workflow Enforcement):**
-   
-   When executing @task-process-solutions, the prompt MUST follow this workflow for EACH solution:
-   
-   a. Execute restore and build for the solution
-   
-   b. **IF restore OR build fails:**
-      - Execute @task-search-knowledge-base
-        - Input: solution_path, solution_name, build_status, build_stderr, errors, warnings
-        - Output: kb_search_status (FOUND or NOT_FOUND), kb_file_path (if FOUND)
-        - Log to decision-log.csv with status FOUND or NOT_FOUND
-      
-      - **IF kb_search_status == NOT_FOUND:**
-        - Execute @task-create-knowledge-base
-          - Input: solution_path, solution_name, error details
-          - Output: kb_create_status (SUCCESS or FAIL), new_kb_file_path
-          - Uses Microsoft Docs MCP for research
-          - Log to decision-log.csv with status SUCCESS or FAIL
-        - Execute @task-search-knowledge-base AGAIN (will be FOUND now)
-      
-      - Execute @task-apply-knowledge-base-fix (MANDATORY)
-        - Input: solution_path, kb_file_path, error_code
-        - Output: fix_status (SUCCESS or FAIL)
-        - Log to decision-log.csv with status SUCCESS or FAIL
-      
-      - RETRY restore + build after applying fix
-        - Log retry attempt to decision-log.csv
-        - Maximum 3 retry attempts per solution
-        - Log final retry result (SUCCESS or FAIL)
-   
-   c. Update checklist checkboxes for KB tasks:
-      - Mark "Search knowledge base" as [x] with status (FOUND/NOT_FOUND)
-      - Mark "Create KB entry" as [x] if NOT_FOUND (with SUCCESS/FAIL)
-      - Mark "Apply fix" as [x] with status (SUCCESS/FAIL)
-   
-   d. Only proceed to next solution after current solution's KB workflow completes
-   
-   **⚠️ CRITICAL: KB workflow is NOT optional! Never skip these steps for failed builds!**
+3. Capture task output (status, result data)
 
-4. Capture task output (status, result data)
-
-5. **If task execution fails:**
+4. **If task execution fails:**
    - Log failure to decision-log.csv with status: FAIL
    - Set executor_status: FAIL
    - **EXIT LOOP** and proceed to Step 9 (Return Execution Summary with error details)
 
-6. **If task execution is blocked:**
+5. **If task execution is blocked:**
    - Log blocked status to decision-log.csv
    - Set executor_status: BLOCKED
    - **EXIT LOOP** and proceed to Step 9 (Return Execution Summary with blocking reason)
 
-7. Increment tasks_executed_count by 1
+6. Increment tasks_executed_count by 1
 
 **Step 6: Update Checklists and Save Variables**
 1. If task completed successfully:
    - Invoke @task-update-checklist with:
      - repo_name: {repo_name}
      - task_name: {task_name}
-     - solution_name: {solution_name} (if solution-level task)
    
 2. Extract and save task output variables to repository checklist:
    - **Parse repo_tasks_list.md to get list of all available variables**:
@@ -241,7 +177,7 @@ For tasks that need output from previous tasks:
    - **Only update variables that this task produces**
    
 3. Update repository checklist with variable values:
-   - Read ./tasks/{repo_name}_checklist.md
+   - Read ./tasks/{repo_name}_repo_checklist.md
    - Find or create "## Task Variables" section at the end of the file
    - For each variable from repo_tasks_list.md "Variables available:" section:
      - If variable has a value (from current or previous tasks), show the value
@@ -253,15 +189,18 @@ For tasks that need output from previous tasks:
    
    - After @task-search-readme completes:
      * Write `readme_content_path`: "output/{repo_name}_task2_search-readme.json"
-     * Write `readme_filename`: {filename} (e.g., "README.md" or "getting_started.md")
+     * Write `readme_filename`: {actual_filename} (e.g., "README.md")
+     * If status is NONE (no README found), write `readme_content_path`: "NONE"
    
    - After @task-scan-readme completes:
      * Write `commands_json_path`: "output/{repo_name}_task3_scan-readme.json"
      * Write `commands_extracted`: {count} commands found (e.g., "9 commands found")
+     * If status is NONE (no commands found), write `commands_extracted`: "NONE"
    
    - After @task-execute-readme completes:
      * Write `executed_commands`: {count} commands executed (e.g., "1 commands executed")
      * Write `skipped_commands`: {count} commands skipped (e.g., "8 commands skipped")
+     * If status is NONE (no commands to execute), write `executed_commands`: "NONE" and `skipped_commands`: "NONE"
    
    - After @task-find-solutions completes:
      * Write `solutions_json`: "output/{repo_name}_task5_find-solutions.json"
@@ -298,14 +237,13 @@ For tasks that need output from previous tasks:
 2. Log completion to results/decision-log.csv:
    - Timestamp: ISO 8601 format
    - Repo Name: {repo_name}
-   - Solution Name: {solution_name} (or empty)
+   - Solution Name: (empty for repo-level tasks)
    - Task: {task_name}
    - Message: Task result message
    - Status: "SUCCESS" or "FAIL"
 
 3. Save task output to ./output/ directory (if task produces JSON output):
-   - Filename: {repo_name}_{task_name}.json (for repo tasks)
-   - Filename: {repo_name}_{solution_name}_{task_name}.json (for solution tasks)
+   - Filename: {repo_name}_{task_name}.json
 
 4. Write updated checklist with variables back to file
 
@@ -357,7 +295,6 @@ Output Contract:
   - total_duration_seconds: integer
 - last_completed_task: object
   - repo_name: string
-  - solution_name: string | null
   - task_name: string
   - task_status: "SUCCESS" | "FAIL"
 - blocking_reason: string | null (if executor_status == BLOCKED)
@@ -391,49 +328,7 @@ Special Cases:
   4. Value found: `output/ic3_spool_cosine-dep-spool_task2_search-readme.json`
   5. Execute: @task-scan-readme repo_directory="C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool" repo_name="ic3_spool_cosine-dep-spool" readme_content_path="output/ic3_spool_cosine-dep-spool_task2_search-readme.json"
 
-**Case 3: Solution tasks**
-- Solution checklists must exist (created by @generate-solution-task-checklists)
-- Solution path must be available in checklist or from @task-find-solutions output
-- Solution tasks may have conditional execution (e.g., KB tasks only run if build fails)
-
-**Case 4: Conditional tasks (solution workflow) - KB WORKFLOW ENFORCEMENT**
-
-**⚠️ CRITICAL: KB Workflow is MANDATORY for ALL build/restore failures!**
-
-When processing solutions via @task-process-solutions:
-1. Execute @task-restore-solution and @task-build-solution
-2. **IF either restore OR build fails:**
-   - ✅ MUST execute @task-search-knowledge-base (search for existing KB article)
-   - ✅ IF search returns NOT_FOUND: MUST execute @task-create-knowledge-base (research + create new KB)
-   - ✅ MUST execute @task-apply-knowledge-base-fix (apply the fix from KB)
-   - ✅ MUST retry restore + build after applying fix
-   - ✅ Log ALL KB task executions to decision-log.csv
-   - ❌ NEVER mark KB tasks as "SKIPPED" - they are MANDATORY on failure
-
-**Conditional Execution Logic:**
-- @task-search-knowledge-base: Executes when build_status == FAIL or restore_status == FAIL
-- @task-create-knowledge-base: Executes when kb_search_status == NOT_FOUND (after search)
-- @task-apply-knowledge-base-fix: ALWAYS executes after search (or after create if NOT_FOUND)
-- Retry build: ALWAYS executes after applying fix (maximum 3 retry attempts)
-
-**Example Correct Flow for Failed Build:**
-```
-Solution 3: ResourceProvider.sln
-1. Restore → SUCCESS
-2. Build → FAIL (Service Fabric error)
-3. Search KB → FOUND (kb_file: sf_baseoutputpath_missing.md)
-4. Apply Fix → SUCCESS (modified .sfproj file)
-5. Retry Restore → SUCCESS
-6. Retry Build → SUCCESS (or FAIL after max retries)
-```
-
-**What NOT to do:**
-- ❌ Skip KB workflow and move to next solution
-- ❌ Mark KB tasks as "SKIPPED" in checklist
-- ❌ Process all builds first, then try to fix them later
-- ❌ Give up after first failure without searching KB
-
-**Case 5: All tasks complete**
+**Case 3: All tasks complete**
 - Return executor_status: ALL_COMPLETE
 - Log final summary to decision-log.csv
 - No further action needed
@@ -449,15 +344,10 @@ Implementation Notes:
 8. **Variable Tracking**: Update "## Task Variables" section in repo checklist after each task
 9. **Variable Resolution**: Check checklist first for quick variable access before reading JSON files
 10. **Progress Visibility**: Log execution attempts and results for monitoring, print progress after each task
-11. **Conditional Logic**: Handle solution workflow conditionals (KB tasks only on build failure)
-12. **Sequential Execution**: Always execute tasks in order (MANDATORY #1, #2, #3, #4...)
-13. **Solution Iteration**: For repo tasks that process multiple solutions (like @task-process-solutions), each solution's tasks are tracked separately
-14. **Programming Language**: All code generated should be written in Python
-15. **Temporary Scripts Directory**: Scripts should be saved to ./temp-script directory
-16. **Loop Termination**: Only stops when ALL_COMPLETE, FAIL, or BLOCKED - ensures maximum progress before stopping
-11. **Solution Iteration**: For repo tasks that process multiple solutions (like @task-process-solutions), each solution's tasks are tracked separately
+11. **Sequential Execution**: Always execute tasks in order (MANDATORY #1, #2, #3, #4...)
 12. **Programming Language**: All code generated should be written in Python
 13. **Temporary Scripts Directory**: Scripts should be saved to ./temp-script directory
+14. **Loop Termination**: Only stops when ALL_COMPLETE, FAIL, or BLOCKED - ensures maximum progress before stopping
 
 Execution Flow Example:
 ```
@@ -470,7 +360,7 @@ INITIALIZATION:
 
 LOOP ITERATION 1:
   - Read all_repository_checklist.md → Find "repo1" uncompleted
-  - Read repo1_checklist.md → Find "@task-clone-repo" uncompleted
+  - Read repo1_repo_checklist.md → Find "@task-clone-repo" uncompleted
   - Execute @task-clone-repo → SUCCESS
   - Update checklist: Mark @task-clone-repo as [x]
   - Update Task Variables: repo_directory = C:\cloned\repo1
@@ -481,7 +371,7 @@ LOOP ITERATION 1:
 
 LOOP ITERATION 2:
   - Read all_repository_checklist.md → Find "repo1" still uncompleted
-  - Read repo1_checklist.md → Find "@task-search-readme" uncompleted
+  - Read repo1_repo_checklist.md → Find "@task-search-readme" uncompleted
   - Load repo_directory from checklist Task Variables
   - Execute @task-search-readme → SUCCESS
   - Update checklist: Mark @task-search-readme as [x]
@@ -495,33 +385,23 @@ LOOP ITERATION 2:
 
 LOOP ITERATION N-1:
   - Read all_repository_checklist.md → Find "repo1" still uncompleted
-  - Read repo1_checklist.md → Find "@generate-solution-task-checklists" uncompleted
+  - Read repo1_repo_checklist.md → Find "@generate-solution-task-checklists" uncompleted
   - Load solutions_json from checklist Task Variables
   - Execute @generate-solution-task-checklists → SUCCESS
   - Update checklist: Mark @generate-solution-task-checklists as [x]
   - Update Task Variables: checklist_updated = true
   - Repository checklist now has solution-specific task sections
-  - Tasks executed: 6
-  - Print: "✓ Task @generate-solution-task-checklists completed for repo1"
-  - LOOP BACK to Step 1
-
-LOOP ITERATION N:
-  - Read all_repository_checklist.md → Find "repo1" still uncompleted
-  - Read repo1_checklist.md → Find "@task-process-solutions" uncompleted (last task)
-  - Load solutions_json from checklist Task Variables
-  - Execute @task-process-solutions → SUCCESS
-  - Update checklist: Mark @task-process-solutions as [x]
   - **ALL tasks in repo1 are now [x]**
   - **Update all_repository_checklist.md: Mark repo1 as [x]**
   - Log: "repo1 - All tasks completed"
   - Repositories completed: 1
-  - Tasks executed: 7
+  - Tasks executed: 6
   - Print: "✓ Repository repo1 completed!"
   - LOOP BACK to Step 1
 
 LOOP ITERATION N+1:
   - Read all_repository_checklist.md → Find "repo2" uncompleted
-  - Read repo2_checklist.md → Find "@task-clone-repo" uncompleted
+  - Read repo2_repo_checklist.md → Find "@task-clone-repo" uncompleted
   - Execute @task-clone-repo for repo2 → SUCCESS
   - Update checklist: Mark @task-clone-repo as [x]
   - Tasks executed: 7

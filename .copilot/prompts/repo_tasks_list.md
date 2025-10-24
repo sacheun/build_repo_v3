@@ -14,7 +14,6 @@ Current Tasks List:
 4. @task-execute-readme
 5. @task-find-solutions
 6. @generate-solution-task-checklists
-7. @task-process-solutions
 
 Behavior:
 
@@ -25,6 +24,7 @@ Behavior:
    1. **First Task (@task-clone-repo):**
       - Execute using repo_url and clone_path
       - Output: absolute path to cloned repository directory
+      - Scriptable: Generate a Python script
       - Mark success/fail in repo-results.md and repo-results.csv
 
    2. **Second Task (@task-search-readme):**
@@ -60,13 +60,6 @@ Behavior:
       - Execute: @generate-solution-task-checklists repo_name={{repo_name}} solutions={{solutions}}
       - Output: Updated repository checklist with solution-specific task sections
       - Scriptable: Generate a Python script
-      - Mark success/fail in repo-results.md and repo-results.csv
-
-   7. **Seventh Task (@task-process-solutions):**
-      - Input: JSON object from task-find-solutions
-      - Execute: @task-process-solutions solutions_json={{solutions_json}} repo_name={{repo_name}}
-      - Output: summary of processed solutions
-      - Non-scriptable: Uses AI reasoning to analyze build errors and match KB articles
       - Mark success/fail in repo-results.md and repo-results.csv
 
 - If any task fails, stop the pipeline and return failure status
