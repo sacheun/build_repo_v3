@@ -1,195 +1,388 @@
----
-temperature: 0.1
----
+------
 
-@generate-solution-task-checklists repo_name=<required> solutions_json_path=<required>
+temperature: 0.1temperature: 0.1
 
-Task name: generate-solution-task-checklists
+------
 
-Description:
+
+
+@generate-solution-task-checklists repo_name=<required> solutions_json_path=<required>@generate-solution-task-checklists repo_name=<required> solutions_json_path=<required>
+
+
+
+Task name: generate-solution-task-checklistsTask name: generate-solution-task-checklists
+
+
+
+Description:Description:
+
+This task generates solution-specific task checklists in a separate file for each repository. The checklists allow agents to track progress for each solution within a repository. This is a file generation task that CAN be implemented as a script.
 
 This task generates solution-specific task checklists in a separate file for each repository. The checklists allow agents to track progress for each solution within a repository. This is a file generation task that CAN be implemented as a script.Task name: generate-solution-task-checklists
 
 ** THIS TASK IS SCRIPTABLE **
 
+** THIS TASK IS SCRIPTABLE **
 
-This task can be implemented as a Python script that:Description:
+This task can be implemented as a Python script that:
 
 1. Reads solution data from JSON output file (from @task-find-solutions)
 
-2. Parses variable definitions from solution_tasks_list.mdThis task generates solution-specific task checklists in a separate file for each repository. The checklists allow agents to track progress for each solution within a repository. This is a file generation task that CAN be implemented as a script.Task name: generate-solution-task-checklists---
+2. Generates solution sections with 10-task checklists (matching execute-solution-task.md format)This task can be implemented as a Python script that:Description:
 
-3. Generates solution sections with task checklists and variables sections
+3. Creates variables sections with retry attempt tracking
 
-4. Creates a new file {repo_name}_solution_checklist.md with all solution sections
+4. Creates a new file {repo_name}_solution_checklist.md with all solution sections1. Reads solution data from JSON output file (from @task-find-solutions)
 
 5. Maintains proper markdown formatting
 
-** THIS TASK IS SCRIPTABLE **
+2. Parses variable definitions from solution_tasks_list.mdThis task generates solution-specific task checklists in a separate file for each repository. The checklists allow agents to track progress for each solution within a repository. This is a file generation task that CAN be implemented as a script.Task name: generate-solution-task-checklists---
 
 Behavior:
 
+3. Generates solution sections with task checklists and variables sections
+
 0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-solution-task-checklists] START repo_name='{{repo_name}}' solutions_json_path='{{solutions_json_path}}'`
 
+4. Creates a new file {repo_name}_solution_checklist.md with all solution sections
+
+1. Input Parameters: You are given repo_name and solutions_json_path from the calling context.
+
+   - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")5. Maintains proper markdown formatting
+
+   - solutions_json_path: Path to JSON file from @task-find-solutions (e.g., "output/{repo_name}_task5_find-solutions.json")
+
+   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] repo_name: {{repo_name}}, solutions_json_path: {{solutions_json_path}}`** THIS TASK IS SCRIPTABLE **
 
 
-1. Input Parameters: You are given repo_name and solutions_json_path from the calling context.This task can be implemented as a Python script that:Description:Description:
 
-   - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")
+2. Read Solutions Data: Load solutions from JSON fileBehavior:
 
-   - solutions_json_path: Path to JSON file from @task-find-solutions (e.g., "output/{repo_name}_task5_find-solutions.json")1. Reads solution data from JSON output file (from @task-find-solutions)
+   - Read file at solutions_json_path
 
-   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] repo_name: {{repo_name}}, solutions_json_path: {{solutions_json_path}}`
+   - Extract "solutions" array (contains absolute paths to .sln files)0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-solution-task-checklists] START repo_name='{{repo_name}}' solutions_json_path='{{solutions_json_path}}'`
 
-2. Parses task definitions from solution_tasks_list.md (optional - can use hardcoded template)This task generates solution-specific task checklists and adds them as sections to an existing repository checklist. The checklists allow agents to track progress for each solution within a repository. This is a file generation task that CAN be implemented as a script.This prompt generates solution-specific task checklists and adds them as sections to an existing repository checklist.
-
-2. Read Solutions Data: Load solutions from JSON file
-
-   - Read file at solutions_json_path3. Generates solution sections with task checklists
-
-   - Extract "solutions" array (contains absolute paths to .sln files)
-
-   - Convert paths to solution objects: {"name": basename without extension, "path": absolute path}4. Creates a new file {repo_name}_solution_checklist.md with all solution sectionsIt allows agents to track progress for each solution within a repository.
+   - Convert paths to solution objects: {"name": basename without extension, "path": absolute path}
 
    - If DEBUG=1, print: `[debug][generate-solution-task-checklists] loaded {{solution_count}} solutions from JSON`
 
-5. Maintains proper markdown formatting
-
-3. Parse Solution Variables: Read .copilot/prompts/solution_tasks_list.md to extract:
-
-   - The complete "Variables available:" section content** THIS TASK IS SCRIPTABLE **
-
-   - All variable definitions that apply to each solution
-
-   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] extracted variables from solution_tasks_list.md`Behavior:
 
 
-
-4. Prepare Solution Checklist File:0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-solution-task-checklists] START repo_name='{{repo_name}}' solutions_json_path='{{solutions_json_path}}'`Behavior:
+3. Prepare Solution Checklist File:1. Input Parameters: You are given repo_name and solutions_json_path from the calling context.This task can be implemented as a Python script that:Description:Description:
 
    - File: ./tasks/{repo_name}_solution_checklist.md
 
-   - Create new file (will overwrite if exists)
+   - Create new file (will overwrite if exists)   - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")
 
    - If DEBUG=1, print: `[debug][generate-solution-task-checklists] creating solution checklist: ./tasks/{repo_name}_solution_checklist.md`
 
-1. Input Parameters: You are given repo_name and solutions_json_path from the calling context.This task can be implemented as a Python script that:1. Parse the required parameters:
+   - solutions_json_path: Path to JSON file from @task-find-solutions (e.g., "output/{repo_name}_task5_find-solutions.json")1. Reads solution data from JSON output file (from @task-find-solutions)
 
-5. Generate Solution Checklist Header:
+4. Generate Solution Checklist Header:
 
-   - Write file header with repository information   - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")
+   - Write file header with repository information   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] repo_name: {{repo_name}}, solutions_json_path: {{solutions_json_path}}`
 
    - Format:
 
-     ```   - solutions_json_path: Path to JSON file from @task-find-solutions (e.g., "output/{repo_name}_task5_find-solutions.json")1. Reads solution data from JSON output file (from @task-find-solutions)   - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")
+     ```2. Parses task definitions from solution_tasks_list.md (optional - can use hardcoded template)This task generates solution-specific task checklists and adds them as sections to an existing repository checklist. The checklists allow agents to track progress for each solution within a repository. This is a file generation task that CAN be implemented as a script.This prompt generates solution-specific task checklists and adds them as sections to an existing repository checklist.
 
      # Solution Checklist: {repo_name}
 
-        - If DEBUG=1, print: `[debug][generate-solution-task-checklists] repo_name: {{repo_name}}, solutions_json_path: {{solutions_json_path}}`
+     2. Read Solutions Data: Load solutions from JSON file
 
      Repository: {repo_url}
 
-     Generated: [timestamp]2. Parses task definitions from solution_tasks_list.md (optional - can use hardcoded template)   - solutions: Array of solution objects with name and path properties
+     Generated: [timestamp]   - Read file at solutions_json_path3. Generates solution sections with task checklists
 
      
 
-     This checklist tracks progress for all solutions discovered in this repository.2. Read Solutions Data: Load solutions from JSON file
+     ---   - Extract "solutions" array (contains absolute paths to .sln files)
 
-     Use @execute-solution-task to process each solution with the full build workflow.
+     
 
-        - Read file at solutions_json_path3. Generates solution sections with task checklists     Format: [{"name": "Solution1", "path": "/path/to/solution1.sln"}, ...]
-
-     ---
-
-     ```   - Extract "solutions" array (contains absolute paths to .sln files)
+     ```   - Convert paths to solution objects: {"name": basename without extension, "path": absolute path}4. Creates a new file {repo_name}_solution_checklist.md with all solution sectionsIt allows agents to track progress for each solution within a repository.
 
 
 
-6. Generate Solution Sections:   - Convert paths to solution objects: {"name": basename without extension, "path": absolute path}4. Appends solution sections to existing repository checklist
+5. Generate Solution Sections:   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] loaded {{solution_count}} solutions from JSON`
 
    
 
-   For each solution in the solutions array:   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] loaded {{solution_count}} solutions from JSON`
+   For each solution in the solutions array:5. Maintains proper markdown formatting
 
    - Extract solution name from path (basename without .sln extension)
 
-   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] generating section for: {{solution_name}}`5. Maintains proper markdown formatting and preserves existing content2. Locate the existing repository checklist:
+   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] generating section for: {{solution_name}}`3. Parse Solution Variables: Read .copilot/prompts/solution_tasks_list.md to extract:
 
    - Format:
 
-     ```3. Prepare Solution Checklist File:
+     ```   - The complete "Variables available:" section content** THIS TASK IS SCRIPTABLE **
 
      
 
-     ## Solution: {solution_name}   - File: ./tasks/{repo_name}_solution_checklist.md   - File: ./tasks/{repo_name}_checklist.md
+     ## Solution: {solution_name}   - All variable definitions that apply to each solution
 
      
 
-     Path: {solution_path}   - Create new file (will overwrite if exists)
+     Path: `{solution_path}`   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] extracted variables from solution_tasks_list.md`Behavior:
 
      
 
-     ### Tasks (Conditional Workflow - See execute-solution-task.md)   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] creating solution checklist: ./tasks/{repo_name}_solution_checklist.md`Behavior:   - If file does not exist, return FAIL status
-
-     
+     ### Tasks
 
      - [ ] [MANDATORY #1] Restore NuGet packages @task-restore-solution
 
-     - [ ] [MANDATORY #2] Build solution (Clean + Build) @task-build-solution
+     - [ ] [MANDATORY #2] Build solution (Clean + Build) @task-build-solution4. Prepare Solution Checklist File:0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-solution-task-checklists] START repo_name='{{repo_name}}' solutions_json_path='{{solutions_json_path}}'`Behavior:
 
-     - [ ] [CONDITIONAL] Search knowledge base for error fix @task-search-knowledge-base4. Generate Solution Checklist Header:0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-solution-task-checklists] START repo_name='{{repo_name}}' solutions_json_path='{{solutions_json_path}}'`
+     - [ ] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base
 
-     - [ ] [CONDITIONAL] Create knowledge base article @task-create-knowledge-base
+     - [ ] [CONDITIONAL #4] Create knowledge base article @task-create-knowledge-base   - File: ./tasks/{repo_name}_solution_checklist.md
 
-     - [ ] [CONDITIONAL] Apply fix from knowledge base @task-apply-knowledge-base-fix   - Write file header with repository information
+     - [ ] [CONDITIONAL #5 - Attempt 1] Apply fix from KB @task-apply-knowledge-base-fix
 
-     - [ ] [RETRY] Retry restore after fix applied @task-restore-solution-retry
+     - [ ] [CONDITIONAL #6 - Attempt 1] Retry build after fix @task-build-solution-retry   - Create new file (will overwrite if exists)
+
+     - [ ] [CONDITIONAL #7 - Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix
+
+     - [ ] [CONDITIONAL #8 - Attempt 2] Retry build after fix @task-build-solution-retry   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] creating solution checklist: ./tasks/{repo_name}_solution_checklist.md`
+
+     - [ ] [CONDITIONAL #9 - Attempt 3] Apply fix from KB @task-apply-knowledge-base-fix
+
+     - [ ] [CONDITIONAL #10 - Attempt 3] Retry build after fix @task-build-solution-retry1. Input Parameters: You are given repo_name and solutions_json_path from the calling context.This task can be implemented as a Python script that:1. Parse the required parameters:
+
+     
+
+     ### Solution Variables5. Generate Solution Checklist Header:
+
+     
+
+     (Variables set by tasks for this specific solution)   - Write file header with repository information   - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")
+
+     
+
+     - solution_path → {solution_path}   - Format:
+
+     - solution_name → {solution_name}
+
+     - max_build_attempts → 3     ```   - solutions_json_path: Path to JSON file from @task-find-solutions (e.g., "output/{repo_name}_task5_find-solutions.json")1. Reads solution data from JSON output file (from @task-find-solutions)   - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")
+
+     - restore_status → NOT_EXECUTED
+
+     - build_status → NOT_EXECUTED     # Solution Checklist: {repo_name}
+
+     - kb_search_status → NOT_EXECUTED
+
+     - kb_file_path → N/A        - If DEBUG=1, print: `[debug][generate-solution-task-checklists] repo_name: {{repo_name}}, solutions_json_path: {{solutions_json_path}}`
+
+     - kb_article_status → NOT_EXECUTED
+
+          Repository: {repo_url}
+
+     **Retry Attempt 1:**
+
+     - fix_applied_attempt_1 → NOT_EXECUTED     Generated: [timestamp]2. Parses task definitions from solution_tasks_list.md (optional - can use hardcoded template)   - solutions: Array of solution objects with name and path properties
+
+     - kb_option_applied_attempt_1 → null
+
+     - retry_build_status_attempt_1 → NOT_EXECUTED     
+
+     
+
+     **Retry Attempt 2:**     This checklist tracks progress for all solutions discovered in this repository.2. Read Solutions Data: Load solutions from JSON file
+
+     - fix_applied_attempt_2 → NOT_EXECUTED
+
+     - kb_option_applied_attempt_2 → null     Use @execute-solution-task to process each solution with the full build workflow.
+
+     - retry_build_status_attempt_2 → NOT_EXECUTED
+
+             - Read file at solutions_json_path3. Generates solution sections with task checklists     Format: [{"name": "Solution1", "path": "/path/to/solution1.sln"}, ...]
+
+     **Retry Attempt 3:**
+
+     - fix_applied_attempt_3 → NOT_EXECUTED     ---
+
+     - kb_option_applied_attempt_3 → null
+
+     - retry_build_status_attempt_3 → NOT_EXECUTED     ```   - Extract "solutions" array (contains absolute paths to .sln files)
+
+     
+
+     ---
+
+     
+
+     ```6. Generate Solution Sections:   - Convert paths to solution objects: {"name": basename without extension, "path": absolute path}4. Appends solution sections to existing repository checklist
+
+
+
+6. Write Solution Checklist File:   
+
+   - Write header (from step 4) to ./tasks/{repo_name}_solution_checklist.md
+
+   - Write all generated solution sections (from step 5) with their variables sections   For each solution in the solutions array:   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] loaded {{solution_count}} solutions from JSON`
+
+   - Add horizontal rule `---` between each solution section for visual clarity
+
+   - Close file   - Extract solution name from path (basename without .sln extension)
+
+   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] wrote {{solution_count}} solution sections to file`
+
+   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] generating section for: {{solution_name}}`5. Maintains proper markdown formatting and preserves existing content2. Locate the existing repository checklist:
+
+7. Structured Output: Save JSON object to output/{repo_name}_task6_generate-solution-checklists.json with:
+
+   - repo_name: echoed from input   - Format:
+
+   - solutions_json_path: echoed from input
+
+   - solutions_total: integer count of solutions processed     ```3. Prepare Solution Checklist File:
+
+   - checklist_created: boolean (true if file was created)
+
+   - checklist_path: string (./tasks/{repo_name}_solution_checklist.md)     
+
+   - status: SUCCESS if all sections generated and file created, FAIL if error occurred
+
+   - timestamp: ISO 8601 format datetime when task completed     ## Solution: {solution_name}   - File: ./tasks/{repo_name}_solution_checklist.md   - File: ./tasks/{repo_name}_checklist.md
+
+
+
+8. Log to Decision Log:     
+
+   - Append to: results/decision-log.csv
+
+   - Append row with: "{{timestamp}},{{repo_name}},,generate-solution-task-checklists,Generated solution checklist with {{solutions_total}} solutions,{{status}}"     Path: {solution_path}   - Create new file (will overwrite if exists)
+
+   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+
+   - The solution_name column (third column) is blank since this is a repository-level task     
+
+   - Status: "SUCCESS" or "FAIL"
+
+     ### Tasks (Conditional Workflow - See execute-solution-task.md)   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] creating solution checklist: ./tasks/{repo_name}_solution_checklist.md`Behavior:   - If file does not exist, return FAIL status
+
+9. DEBUG Exit Trace: If DEBUG=1, print:
+
+   "[debug][generate-solution-task-checklists] EXIT repo_name='{{repo_name}}' status={{status}} solutions_total={{solutions_total}}"     
+
+
+
+Conditional Verbose Output (DEBUG):     - [ ] [MANDATORY #1] Restore NuGet packages @task-restore-solution
+
+- Purpose: Provide clear trace of solution checklist generation process.
+
+- Activation: Only when DEBUG environment variable equals "1".     - [ ] [MANDATORY #2] Build solution (Clean + Build) @task-build-solution
+
+- Format Guarantees: Always starts with prefix [debug][generate-solution-task-checklists] allowing simple grep filtering.
+
+- Entry Message: "[debug][generate-solution-task-checklists] START repo_name='<name>' solutions_json_path='<path>'" emitted before step 1.     - [ ] [CONDITIONAL] Search knowledge base for error fix @task-search-knowledge-base4. Generate Solution Checklist Header:0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-solution-task-checklists] START repo_name='{{repo_name}}' solutions_json_path='{{solutions_json_path}}'`
+
+- Parameter Messages: "[debug][generate-solution-task-checklists] repo_name: <name>, solutions_json_path: <path>".
+
+- Load Messages: "[debug][generate-solution-task-checklists] loaded <N> solutions from JSON".     - [ ] [CONDITIONAL] Create knowledge base article @task-create-knowledge-base
+
+- File Messages: "[debug][generate-solution-task-checklists] creating solution checklist: ./tasks/<name>_solution_checklist.md".
+
+- Generation Messages: "[debug][generate-solution-task-checklists] generating section for: <solution_name>" for each solution.     - [ ] [CONDITIONAL] Apply fix from knowledge base @task-apply-knowledge-base-fix   - Write file header with repository information
+
+- Write Messages: "[debug][generate-solution-task-checklists] wrote <N> solution sections to file".
+
+- Exit Message: "[debug][generate-solution-task-checklists] EXIT repo_name='<name>' status=<SUCCESS|FAIL> solutions_total=<N>" emitted after step 8.     - [ ] [RETRY] Retry restore after fix applied @task-restore-solution-retry
+
+- Non-Interference: Does not modify success criteria or output contract; purely informational.
 
      - [ ] [RETRY] Retry build after fix applied @task-build-solution-retry   - Format:3. Parse solution_tasks_list.md to extract ALL solution task directives:
 
-     
+Output Contract:
 
-     ### Solution Variables     ```
+- repo_name: string (friendly repository name)     
 
-     
+- solutions_json_path: string (path to input JSON file)
 
-     (Variables set by tasks for this specific solution)     # Solution Checklist: {repo_name}1. Input Parameters: You are given repo_name and solutions_json_path from the calling context.   - Extract task names (e.g., @task-restore-solution, @task-build-solution, etc.)
+- solutions_total: integer (number of solutions processed)     ### Solution Variables     ```
 
-     
+- checklist_created: boolean (whether checklist file was successfully created)
 
-     - {{solution_path}} → `{solution_path}` (absolute path to .sln file)     
+- checklist_path: string (path to created solution checklist file: ./tasks/{repo_name}_solution_checklist.md)     
+
+- status: SUCCESS | FAIL
+
+- timestamp: string (ISO 8601 datetime when task completed)     (Variables set by tasks for this specific solution)     # Solution Checklist: {repo_name}1. Input Parameters: You are given repo_name and solutions_json_path from the calling context.   - Extract task names (e.g., @task-restore-solution, @task-build-solution, etc.)
+
+
+
+Variables available:     
+
+- {{repo_name}} → Friendly repository name
+
+- {{solutions_json_path}} → Path to JSON file containing solutions array     - {{solution_path}} → `{solution_path}` (absolute path to .sln file)     
+
+- {{tasks_dir}} → Directory where checklists are saved (./tasks)
 
      - {{solution_name}} → `{solution_name}` (friendly name without extension)
 
-     - {{build_attempt}} → Current build attempt number (1-3)     Repository: {repo_url}   - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")   - Extract short descriptions for each task
+Task Numbering and Format:
 
-     - {{max_build_attempts}} → Maximum allowed build attempts (3)
+Tasks are numbered #1-10 with specific attempt numbers for retry tasks:     - {{build_attempt}} → Current build attempt number (1-3)     Repository: {repo_url}   - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")   - Extract short descriptions for each task
 
-     - {{restore_status}} → Status of restore operation (output of @task-restore-solution)     Generated: [timestamp]
+- [MANDATORY #1] Restore NuGet packages
 
-     - {{build_status}} → Status of build operation (output of @task-build-solution)
+- [MANDATORY #2] Build solution (Clean + Build)     - {{max_build_attempts}} → Maximum allowed build attempts (3)
 
-     - {{kb_search_status}} → KB search result: FOUND | NOT_FOUND (output of @task-search-knowledge-base)        - solutions_json_path: Path to JSON file from @task-find-solutions (e.g., "output/{repo_name}_task5_find-solutions.json")   - Identify which tasks are mandatory vs optional based on the conditional workflow
+- [CONDITIONAL #3] Search knowledge base for error fix
 
-     - {{kb_file_path}} → Path to KB article if found (output of @task-search-knowledge-base)
+- [CONDITIONAL #4] Create knowledge base article     - {{restore_status}} → Status of restore operation (output of @task-restore-solution)     Generated: [timestamp]
 
-     - {{kb_create_status}} → KB creation status (output of @task-create-knowledge-base)     This checklist tracks progress for all solutions discovered in this repository.
+- [CONDITIONAL #5 - Attempt 1] Apply fix from KB
 
-     - {{fix_applied}} → Whether fix was applied (output of @task-apply-knowledge-base-fix)
+- [CONDITIONAL #6 - Attempt 1] Retry build after fix     - {{build_status}} → Status of build operation (output of @task-build-solution)
 
-     - {{retry_restore_status}} → Restore status after fix (output of @task-restore-solution-retry)     Use @execute-solution-task to process each solution with the full build workflow.   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] repo_name: {{repo_name}}, solutions_json_path: {{solutions_json_path}}`
+- [CONDITIONAL #7 - Attempt 2] Apply fix from KB
 
-     - {{retry_build_status}} → Build status after fix (output of @task-build-solution-retry)
+- [CONDITIONAL #8 - Attempt 2] Retry build after fix     - {{kb_search_status}} → KB search result: FOUND | NOT_FOUND (output of @task-search-knowledge-base)        - solutions_json_path: Path to JSON file from @task-find-solutions (e.g., "output/{repo_name}_task5_find-solutions.json")   - Identify which tasks are mandatory vs optional based on the conditional workflow
 
-          
+- [CONDITIONAL #9 - Attempt 3] Apply fix from KB
 
-     ### For Agents Resuming Work
+- [CONDITIONAL #10 - Attempt 3] Retry build after fix     - {{kb_file_path}} → Path to KB article if found (output of @task-search-knowledge-base)
 
-          ---4. For each solution in the solutions array:
 
-     **Next Action:** Use `@execute-solution-task` to execute the full conditional workflow with automatic retry logic.
 
-          ```
+Implementation Notes:     - {{kb_create_status}} → KB creation status (output of @task-create-knowledge-base)     This checklist tracks progress for all solutions discovered in this repository.
+
+1. **THIS IS SCRIPTABLE**: Generate a Python script to execute this task
+
+2. Solutions Array: Read from JSON file at solutions_json_path, extract basename for solution names     - {{fix_applied}} → Whether fix was applied (output of @task-apply-knowledge-base-fix)
+
+3. Path Parsing: Extract solution name from .sln file path (basename without extension)
+
+4. File Creation: Create new file ./tasks/{repo_name}_solution_checklist.md (overwrite if exists)     - {{retry_restore_status}} → Restore status after fix (output of @task-restore-solution-retry)     Use @execute-solution-task to process each solution with the full build workflow.   - If DEBUG=1, print: `[debug][generate-solution-task-checklists] repo_name: {{repo_name}}, solutions_json_path: {{solutions_json_path}}`
+
+5. File Structure: Header + solution sections (each with 10 tasks + variables), separated by `---` horizontal rules
+
+6. **Variables Section**: Each solution gets its own variables section with:     - {{retry_build_status}} → Build status after fix (output of @task-build-solution-retry)
+
+   - Base variables: solution_path, solution_name, max_build_attempts, restore_status, build_status, kb_search_status, kb_file_path, kb_article_status
+
+   - Retry Attempt 1 variables: fix_applied_attempt_1, kb_option_applied_attempt_1, retry_build_status_attempt_1          
+
+   - Retry Attempt 2 variables: fix_applied_attempt_2, kb_option_applied_attempt_2, retry_build_status_attempt_2
+
+   - Retry Attempt 3 variables: fix_applied_attempt_3, kb_option_applied_attempt_3, retry_build_status_attempt_3     ### For Agents Resuming Work
+
+7. Variable Initialization: Initialize solution-specific variables (solution_path, solution_name, max_build_attempts=3) with actual values; set others to NOT_EXECUTED or N/A
+
+8. Markdown Format: Use `- [ ]` for unchecked tasks, maintain consistent indentation          ---4. For each solution in the solutions array:
+
+9. Workflow Reference: Point to @execute-solution-task for autonomous execution
+
+10. Error Handling: If JSON file not found or invalid, set status=FAIL and save error to JSON output     **Next Action:** Use `@execute-solution-task` to execute the full conditional workflow with automatic retry logic.
+
+11. Contract Compliance: Always save JSON output file with all fields regardless of success/failure
+
+12. Script Location: Save generated script to temp-script/ directory with naming pattern: task6_generate_solution_checklists_{repo_name}.py          ```
+
+13. Environment: Set DEBUG=1 environment variable at the start of the script if debug output is desired
 
      **How to Execute:** Invoke `@execute-solution-task solution_path="{solution_path}"` which handles restore → build → KB workflow → retry logic.
 
