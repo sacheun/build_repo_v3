@@ -61,62 +61,72 @@ Behavior:
    - Consider context: sections near the beginning of README are more likely to be setup instructions
    - Ignore sections like "Contributing", "License", "FAQ", "Troubleshooting" unless they explicitly mention setup
 
-4a. **Follow Referenced Markdown Files**:
-   - ** CRITICAL: If README references other .md files for setup instructions, you MUST follow them **
-   - Use AI reasoning to identify references to other markdown files that contain setup/installation instructions:
+4a. ** MANDATORY: Follow Referenced Markdown Files **:
+   - ** CRITICAL REQUIREMENT: If README references other .md files, you MUST ALWAYS follow them **
+   - ** THIS IS NOT OPTIONAL - This step is MANDATORY for all README files **
+   - Use AI reasoning to identify ALL references to other markdown files:
      - Markdown links: `[Getting Started](getting_started.md)`, `[Setup Guide](docs/setup.md)`
-     - Plain text references: "See setup.md for instructions", "Refer to INSTALL.md"
-     - Wiki links: `[[Installation]]`, `[check wiki](link-to-wiki)`
-   - Patterns indicating setup-related markdown files:
-     - Filenames: setup.md, install.md, getting_started.md, prerequisites.md, building.md, development.md
-     - Link text: "setup", "installation", "getting started", "prerequisites", "building", "development", "local dev"
-   - If DEBUG=1, print: `[debug][task-scan-readme] found reference to setup file: {{filename}}`
+     - Plain text references: "See setup.md for instructions", "Refer to INSTALL.md", "check getting_started.md"
+     - Wiki links: `[[Installation]]`, `[check wiki](link-to-wiki)` (note: external wiki links may not be locally accessible)
+     - Bare filenames: "getting_started.md guide", "See BUILDING.md"
+   - ** MANDATORY ** Patterns indicating setup-related markdown files to ALWAYS follow:
+     - Filenames: setup.md, install.md, getting_started.md, getting_started_*.md, prerequisites.md, building.md, development.md, running_*.md, BUILDING.md, INSTALL.md, SETUP.md
+     - Link text containing: "setup", "installation", "getting started", "prerequisites", "building", "development", "local dev", "running", "how to"
+   - If DEBUG=1, print: `[debug][task-scan-readme] found reference to file: {{filename}}`
    
-   For each referenced markdown file that appears to contain setup instructions:
+   For each referenced markdown file (THIS IS MANDATORY - NOT OPTIONAL):
    
-   a. **Determine File Path**:
-      - If relative path (e.g., `setup.md`, `docs/setup.md`): construct absolute path using repo_directory
-      - If URL to wiki or external docs: skip (external references handled separately)
+   a. **Determine File Path** (MANDATORY):
+      - If relative path (e.g., `setup.md`, `docs/setup.md`, `getting_started.md`): construct absolute path using repo_directory
+      - If URL to external wiki (e.g., `https://...`): log as external reference, cannot read locally
       - Normalize path: handle `./`, `../`, and path separators correctly
       - If DEBUG=1, print: `[debug][task-scan-readme] resolving path: {{relative_path}} -> {{absolute_path}}`
    
-   b. **Check File Existence**:
+   b. **Check File Existence** (MANDATORY):
       - Use list_dir or read_file to verify the markdown file exists in the repository
-      - Common locations to check: repo root, docs/, documentation/, .github/
-      - If file not found, log warning and continue: `[debug][task-scan-readme] referenced file not found: {{filename}}`
-      - If file found, proceed to read it
+      - Common locations to check: repo root, docs/, documentation/, .github/, wiki/
+      - ** MANDATORY: Try common variations ** if exact path not found:
+        - Uppercase: SETUP.MD, README.MD
+        - Common directories: ./docs/{{filename}}, ./documentation/{{filename}}, ./{{filename}}
+      - If file not found after all attempts, log: `[debug][task-scan-readme] referenced file not found: {{filename}} (tried: {{paths_attempted}})`
+      - If file found, MUST proceed to read it (this is MANDATORY)
    
-   c. **Read Referenced File**:
-      - Use read_file tool to load the content of the referenced markdown file
+   c. **Read Referenced File** (MANDATORY):
+      - ** MANDATORY ** Use read_file tool to load the content of the referenced markdown file
       - If DEBUG=1, print: `[debug][task-scan-readme] reading referenced file: {{filename}}, {{char_count}} characters`
-      - Treat this as additional README content for analysis
+      - Treat this as additional README content for analysis (REQUIRED, not optional)
    
-   d. **Analyze Referenced Content**:
-      - Apply the same structural reasoning from steps 4-7 to this markdown file
+   d. **Analyze Referenced Content** (MANDATORY):
+      - ** MANDATORY ** Apply the same structural reasoning from steps 4-7 to this markdown file
       - Look for setup sections, extract commands, categorize them
       - Include file source in command metadata: `source_file: "getting_started.md"`
       - If DEBUG=1, print: `[debug][task-scan-readme] analyzing referenced file: {{filename}}`
    
-   e. **Merge Results**:
-      - Add identified sections from referenced file to sections_identified array
-      - Add extracted commands to commands_extracted array
+   e. **Merge Results** (MANDATORY):
+      - ** MANDATORY ** Add identified sections from referenced file to sections_identified array
+      - ** MANDATORY ** Add extracted commands to commands_extracted array
       - Preserve source file information for traceability
       - If DEBUG=1, print: `[debug][task-scan-readme] merged {{section_count}} sections, {{command_count}} commands from {{filename}}`
    
    f. **Prevent Infinite Loops**:
-      - Track which markdown files have been processed (max depth: 2 levels)
-      - Do not follow references from already-processed files
-      - Limit total referenced files to 5 to avoid excessive processing
-      - If DEBUG=1, print: `[debug][task-scan-readme] processed {{file_count}} referenced files`
+      - Track which markdown files have been processed (max depth: 3 levels for following references within references)
+      - Do not follow references from already-processed files beyond max depth
+      - Limit total referenced files to 10 to avoid excessive processing
+      - If DEBUG=1, print: `[debug][task-scan-readme] processed {{file_count}} referenced files, depth={{current_depth}}`
    
-   g. **Prioritization**:
-      - Process referenced files in order of likelihood to contain setup instructions:
-        1. Files with "setup", "install", "getting_started" in name
-        2. Files linked from "Prerequisites", "Getting Started" sections
-        3. Files in docs/ or documentation/ directories
-        4. Other referenced .md files
+   g. **Prioritization** (Process in this order):
+      - PRIORITY 1: Files with "setup", "install", "getting_started", "getting-started" in name (ALWAYS process these)
+      - PRIORITY 2: Files linked from "Prerequisites", "Getting Started", "Installation", "Setup", "Building" sections
+      - PRIORITY 3: Files in docs/ or documentation/ directories
+      - PRIORITY 4: Other referenced .md files
+      - Files with "running_", "testing_" in names are also PRIORITY 1 as they often contain build/setup commands
    
-   **Note**: This step significantly improves command extraction for repositories that organize documentation across multiple files. The README from sync_calling_concore-conversation is a good example where the main README references external wiki pages, but some repos keep setup docs in separate local markdown files.
+   ** IMPORTANT **: The analysis MUST NOT stop when it finds external links. When README only contains links to external documentation (wiki, .md files), this step becomes the PRIMARY way to extract commands. An analysis that reports "found only links to external files" but doesn't follow local .md files is INCOMPLETE.
+   
+   Example behavior for README with only external references:
+   - README contains: "See [getting_started.md](getting_started.md) for setup"
+   - CORRECT: Read getting_started.md, extract commands from it, report commands in output
+   - INCORRECT: Report "README contains only links" and stop without reading getting_started.md
 
 5. **Structural Reasoning - Command Extraction**:
    - ** YOU MUST ANALYZE THE ACTUAL README CONTENT, NOT JUST CREATE EMPTY OUTPUT **
@@ -245,7 +255,8 @@ Implementation Notes (conceptual):
    - ** STEP 5: ** Use create_file to save output/{repo_name}_task3_scan-readme.json
    - ** STEP 6: ** Use replace_string_in_file to update progress tables
    - ** DO NOT SKIP STEPS 1-3 ** - You cannot analyze a README you haven't read
-9. **Empty Results**: If no setup commands found, return empty arrays and status=NONE (scan completed, but no commands found)
+   - ** STEP 4 IS NOW MANDATORY ** - If README references local .md files (not external URLs), you MUST read and analyze them using read_file
+9. **Empty Results**: If no setup commands found after analyzing README AND all referenced local .md files, return empty arrays and status=NONE (scan completed, but no commands found)
 10. **Error Handling**: If README content is malformed or cannot be parsed, set status=FAIL and log reason
 11. **Next Task Dependency**: The output of this task (commands_extracted array) is input to task-execute-readme
 12. **Parameter Usage**: The readme_content_path parameter specifies where to load README content - do not hardcode paths

@@ -1,4 +1,4 @@
-@task-apply-knowledge-base-fix solution_path={{solution_path}} kb_file_path={{kb_file_path}} error_code={{error_code}}
+@task-apply-knowledge-base-fix solution_path={{solution_path}} kb_file_path={{kb_file_path}} error_code={{error_code}} last_option_applied={{last_option_applied}}
 ---
 temperature: 0.1
 ---
@@ -6,12 +6,13 @@ temperature: 0.1
 # Task: Apply Knowledge Base Fix
 
 ## Purpose
-Parse the KB article, extract fix instructions, and automatically apply them to the solution files to resolve the build error.
+Parse the KB article, extract fix instructions, and automatically apply them to the solution files to resolve the build error. Supports multiple fix options with sequential retry logic.
 
 ## Prerequisites
 - `solution_path`: Absolute path to the .sln file
 - `kb_file_path`: Absolute path to the KB article markdown file
 - `error_code`: Error code to fix (e.g., NU1008, MSB3644, SF0001)
+- `last_option_applied`: (Optional) The last option number that was applied (e.g., "1", "2", "3"). If not provided, defaults to applying Option 1.
 
 ## Behavior
 
@@ -42,14 +43,27 @@ Use these tools:
    ```
 
 2. **Extract Fix Instructions:**
-   - Locate the "## How to Fix" or "## Fix Options" section
-   - Identify the **Recommended** fix (Option 1)
-   - Parse the specific actions required:
+   - Locate the "## How to Fix" or "## Fix Options" or "## Fix" section
+   - Parse all available fix options (Option 1, Option 2, Option 3, etc.)
+   - Count total number of options available
+   
+3. **Determine Which Option to Apply:**
+   - **If `last_option_applied` is NOT provided or empty:**
+     * Apply **Option 1** (the first/recommended fix)
+   - **If `last_option_applied` IS provided (e.g., "1"):**
+     * Calculate next option: `next_option = last_option_applied + 1`
+     * Check if next option exists in the KB article
+     * **If next option exists:** Apply that option
+     * **If next option does NOT exist:** Return `fix_status = NO_MORE_OPTIONS` (no fix applied)
+   
+4. **Parse the Selected Option:**
+   - Extract the specific actions required for the chosen option:
      * File to modify (e.g., Directory.Build.props, *.csproj)
      * Content to add/remove/modify
      * Build parameters to change
+   - Track which option number is being applied for output
 
-3. **Identify Target Files:**
+5. **Identify Target Files:**
    - Determine which files need modification based on fix instructions
    - Common targets:
      * `Directory.Build.props` (for central package management)
@@ -153,6 +167,7 @@ Use these tools:
    - If all changes applied successfully: `fix_status = SUCCESS`
    - If any file modification failed: `fix_status = FAIL`
    - If fix instructions unclear or not applicable: `fix_status = SKIPPED`
+   - If no more options available after last_option_applied: `fix_status = NO_MORE_OPTIONS`
 
 ---
 
@@ -176,7 +191,8 @@ Return JSON output with the following structure:
 
 ```json
 {
-  "fix_status": "SUCCESS | FAIL | SKIPPED",
+  "fix_status": "SUCCESS | FAIL | SKIPPED | NO_MORE_OPTIONS",
+  "option_applied": "1 | 2 | 3 | null",
   "fix_applied": "Description of what was fixed",
   "kb_file_path": "path/to/kb/article.md",
   "error_code": "NU1008",
@@ -199,6 +215,11 @@ Return JSON output with the following structure:
   "validation": {
     "files_modified": 2,
     "syntax_valid": true
+  },
+  "available_options": {
+    "total": 3,
+    "last_applied": "1",
+    "next_available": "2"
   }
 }
 ```
@@ -207,6 +228,7 @@ Return JSON output with the following structure:
 - **SUCCESS**: All fix instructions applied successfully, files modified correctly
 - **FAIL**: Unable to apply fix due to file access issues, syntax errors, or unexpected file structure
 - **SKIPPED**: Fix instructions not applicable to this solution (wrong error code, files don't match KB expectations)
+- **NO_MORE_OPTIONS**: The last_option_applied was provided, but no additional options are available in the KB article (all options exhausted)
 
 ---
 
@@ -230,38 +252,45 @@ Return JSON output with the following structure:
 
 ## Common Fix Scenarios
 
-### Scenario 1: Central Package Management (NU1008)
-**KB Instructions:**
-- Remove Version from all PackageReference
-- Add PackageVersion to Directory.Packages.props
+### Scenario 1: Central Package Management (NU1008) - Multiple Options
+**KB Structure:**
+- **Option 1:** Remove Version from PackageReference, add to Directory.Packages.props
+- **Option 2:** Disable CPM globally
+- **Option 3:** Use specific package versions in Directory.Build.props
+
+**Implementation (Option Selection):**
+- **First attempt (last_option_applied not provided):**
+  * Apply Option 1 (recommended CPM approach)
+  * Return `option_applied: "1"`
+  
+- **Second attempt (last_option_applied = "1"):**
+  * Skip Option 1, apply Option 2
+  * Return `option_applied: "2"`
+  
+- **Third attempt (last_option_applied = "2"):**
+  * Skip Options 1 & 2, apply Option 3
+  * Return `option_applied: "3"`
+  
+- **Fourth attempt (last_option_applied = "3"):**
+  * No Option 4 exists in KB
+  * Return `fix_status: "NO_MORE_OPTIONS"`, `option_applied: null`
+
+### Scenario 2: Platform Configuration (Service Fabric) - Multiple Options
+**KB Structure:**
+- **Option 1:** Add Platform=x64 to build command
+- **Option 2:** Modify .sfproj file to set default Platform
+- **Option 3:** Use nuget restore fallback
 
 **Implementation:**
-1. Find all .csproj files: `file_search **/*.csproj`
-2. For each .csproj:
-   - Read file, find all `<PackageReference Include="X" Version="Y" />`
-   - Use `replace_string_in_file` to change to `<PackageReference Include="X" />`
-   - Track package name and version
-3. Create/update Directory.Packages.props:
-   - Add `<PackageVersion Include="X" Version="Y" />` for each package
+Follow same sequential option logic as Scenario 1
 
-### Scenario 2: Platform Configuration (Service Fabric)
-**KB Instructions:**
-- Add Platform=x64 to build
+### Scenario 3: Package Version Conflicts (NU1605) - Single Option
+**KB Structure:**
+- **Option 1:** Update conflicting packages to consistent version
 
 **Implementation:**
-1. Find Directory.Build.props or create it
-2. Add `<Platform>x64</Platform>` to PropertyGroup
-3. Or track that msbuild needs `/p:Platform=x64` parameter (handled by build task)
-
-### Scenario 3: Package Version Conflicts (NU1605)
-**KB Instructions:**
-- Update conflicting packages to consistent version
-
-**Implementation:**
-1. Parse stderr to find conflicting packages and versions
-2. Determine target version (usually highest)
-3. Find all .csproj or Directory.Packages.props with those packages
-4. Update all to consistent version using `replace_string_in_file`
+- **First attempt:** Apply Option 1
+- **Second attempt (last_option_applied = "1"):** Return `NO_MORE_OPTIONS`
 
 ---
 
@@ -271,14 +300,16 @@ When DEBUG=1 is set, output verbose logs:
 
 ```
 [FIX-DEBUG] Parsing KB article: nu1008_central_package_management.md
+[FIX-DEBUG] last_option_applied: 1
+[FIX-DEBUG] Total options available in KB: 3
+[FIX-DEBUG] Calculating next option: 1 + 1 = 2
+[FIX-DEBUG] Applying Option 2: Disable CPM globally
 [FIX-DEBUG] Fix type: NU1008 - Central Package Management
-[FIX-DEBUG] Target action: Remove Version from PackageReference
-[FIX-DEBUG] Finding .csproj files in solution directory
-[FIX-DEBUG] Found 3 project files
-[FIX-DEBUG] Modifying Project1.csproj: Removing Version from Newtonsoft.Json
-[FIX-DEBUG] Modifying Project2.csproj: Removing Version from Microsoft.Extensions.Logging
-[FIX-DEBUG] Creating Directory.Packages.props with 5 package versions
-[FIX-DEBUG] Fix applied successfully - 4 files modified
+[FIX-DEBUG] Target action: Add <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+[FIX-DEBUG] Finding Directory.Build.props
+[FIX-DEBUG] Modifying Directory.Build.props: Adding CPM disable flag
+[FIX-DEBUG] Fix applied successfully - 1 file modified
+[FIX-DEBUG] option_applied: "2", next_available: "3"
 ```
 
 ---

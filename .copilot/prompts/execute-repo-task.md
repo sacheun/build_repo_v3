@@ -190,10 +190,11 @@ For tasks that need output from previous tasks:
 6. Increment tasks_executed_count by 1
 
 **Step 6: Update Checklists and Save Variables**
-1. If task completed successfully:
-   - Invoke @task-update-checklist with:
-     - repo_name: {repo_name}
-     - task_name: {task_name}
+1. If task completed successfully, update the repository checklist file directly:
+   - Read ./tasks/{repo_name}_repo_checklist.md
+   - Find the task line matching {task_name} in "## Repo Tasks" section
+   - Replace `- [ ]` with `- [x]` for that specific task
+   - Write the updated content back to the file
    
 2. Extract and save task output variables to repository checklist:
    - **Parse repo_tasks_list.md to get list of all available variables**:
@@ -212,52 +213,52 @@ For tasks that need output from previous tasks:
    - **Only update variables that this task produces**
    
 3. Update repository checklist with variable values:
-   - Read ./tasks/{repo_name}_repo_checklist.md
-   - Find or create "## Task Variables" section at the end of the file
-   - For each variable from repo_tasks_list.md "Variables available:" section:
-     - If variable has a value (from current or previous tasks), show the value
-     - If variable is not yet set, show "not set" or omit
+   - Read ./tasks/{repo_name}_repo_checklist.md (if not already read in step 1)
+   - Find or create "## Task Variables" section
+     * If section doesn't exist, add it after "## Repo Variables Available" section
+     * If section exists, update it while preserving previous variables
+   - For each variable from completed tasks, write the appropriate value:
    
    **Variable Writing Rules:**
    - After @task-clone-repo completes:
+     * Write `repo_url`: {repo_url}
+     * Write `clone_path`: {clone_path}
      * Write `repo_directory`: {absolute_path} (e.g., "C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool")
+     * Write `repo_name`: {repo_name}
    
    - After @task-search-readme completes:
      * Write `readme_content_path`: "output/{repo_name}_task2_search-readme.json"
      * Write `readme_filename`: {actual_filename} (e.g., "README.md")
-     * If status is NONE (no README found), write `readme_content_path`: "NONE"
+     * If status is NOT_FOUND (no README found), write `readme_filename`: "NONE"
    
    - After @task-scan-readme completes:
      * Write `commands_json_path`: "output/{repo_name}_task3_scan-readme.json"
-     * Write `commands_extracted`: {count} commands found (e.g., "9 commands found")
-     * If status is NONE (no commands found), write `commands_extracted`: "NONE"
+     * Write `commands_extracted`: "{count} commands" or "NONE (0 commands - {reason})"
    
    - After @task-execute-readme completes:
-     * Write `executed_commands`: {count} commands executed (e.g., "1 commands executed")
-     * Write `skipped_commands`: {count} commands skipped (e.g., "8 commands skipped")
-     * If status is NONE (no commands to execute), write `executed_commands`: "NONE" and `skipped_commands`: "NONE"
+     * Write `executed_commands`: "SKIPPED (0 commands executed - {reason})" or "{count} commands executed"
+     * Write `skipped_commands`: "SKIPPED (0 commands skipped - {reason})" or "{count} commands skipped"
    
    - After @task-find-solutions completes:
-     * Write `solutions_json`: "output/{repo_name}_task5_find-solutions.json"
+     * Write `solutions_json`: "output/{repo_name}_task5_find-solutions.json ({count} solutions found)"
    
-   Format:
+   Format of Task Variables section:
      ```
      ## Task Variables
      
      Variables from completed tasks (for resuming work):
-     Variables list dynamically generated from repo_tasks_list.md
      
      - `repo_url`: {repo_url}
-     - `clone_path`: ./cloned
-     - `repo_directory`: {absolute_path_to_cloned_repo} (or "not set")
+     - `clone_path`: {clone_path}
+     - `repo_directory`: {absolute_path_to_cloned_repo}
      - `repo_name`: {repo_name}
-     - `readme_content_path`: [saved to ./output/{repo_name}_task2_search-readme.json] (or "not set")
-     - `readme_filename`: {README.md} (or "not set")
-     - `commands_json_path`: [saved to ./output/{repo_name}_task3_scan-readme.json] (or "not set")
-     - `commands_extracted`: {count} commands found (or "not set")
-     - `executed_commands`: {count} commands executed (or "not set")
-     - `skipped_commands`: {count} commands skipped (or "not set")
-     - `solutions_json`: [saved to ./output/{repo_name}_task5_find-solutions.json] (or "not set")
+     - `readme_content_path`: {path_to_json_file}
+     - `readme_filename`: {filename}
+     - `commands_json_path`: {path_to_json_file}
+     - `commands_extracted`: {description}
+     - `executed_commands`: {description}
+     - `skipped_commands`: {description}
+     - `solutions_json`: {path_and_count}
      
      **Note:** Large content (readme_content_path, commands_json_path, solutions_json) is stored in ./output/ directory.
      File paths and counts are shown here for quick reference.
@@ -267,7 +268,8 @@ For tasks that need output from previous tasks:
      ```
    - For large data (readme_content, solutions_json), reference the JSON file path instead of embedding full content
    - For simple values (paths, counts, filenames), embed directly in checklist
-   - **Important**: The variable list is always generated from repo_tasks_list.md to stay in sync
+   - **Important**: Only include variables for tasks that have been completed
+   - Write the updated checklist content back to the file
    
 2. Log completion to results/decision-log.csv:
    - Timestamp: ISO 8601 format
@@ -279,8 +281,6 @@ For tasks that need output from previous tasks:
 
 3. Save task output to ./output/ directory (if task produces JSON output):
    - Filename: {repo_name}_{task_name}.json
-
-4. Write updated checklist with variables back to file
 
 **Step 7: Check Completion Status**
 1. After updating checklist, check completion levels:

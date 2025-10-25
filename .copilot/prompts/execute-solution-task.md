@@ -74,49 +74,126 @@ For each solution checklist file found:
 - **CONDITIONAL tasks are NOT SKIPPABLE - they MUST EXECUTE when their condition is met**
 - CONDITIONAL means "execute IF condition is met"
 - When condition is TRUE → Task becomes MANDATORY and MUST be executed
-- When condition is FALSE → Task is SKIPPED (mark as [x] SKIPPED)
-- Example: "@task-search-knowledge-base" is CONDITIONAL on build failure
-  - If restore_status == FAIL OR build_status == FAIL → MUST execute @task-search-knowledge-base
-  - If both restore and build succeeded → Mark as [x] SKIPPED, move to next task
-- Example: "@task-apply-knowledge-base-fix" is CONDITIONAL on KB search result
-  - If kb_search_status == FOUND → MUST execute @task-apply-knowledge-base-fix
-  - If kb_search_status == NOT_FOUND → Mark as [x] SKIPPED, move to next task
-- Never skip a CONDITIONAL task when its condition is satisfied
+- When condition is FALSE → Task is SKIPPED (mark as [x] SKIPPED with reason)
+
+**Task Numbering and Attempt Tracking:**
+Tasks are numbered #1-10 with specific attempt numbers for retry tasks:
+- [MANDATORY #1] Restore NuGet packages
+- [MANDATORY #2] Build solution (Clean + Build)
+- [CONDITIONAL #3] Search knowledge base for error fix
+- [CONDITIONAL #4] Create knowledge base article
+- [CONDITIONAL #5 - Attempt 1] Apply fix from KB
+- [CONDITIONAL #6 - Attempt 1] Retry build after fix
+- [CONDITIONAL #7 - Attempt 2] Apply fix from KB
+- [CONDITIONAL #8 - Attempt 2] Retry build after fix
+- [CONDITIONAL #9 - Attempt 3] Apply fix from KB
+- [CONDITIONAL #10 - Attempt 3] Retry build after fix
+
+**Conditional Logic by Task Number:**
+
+**CONDITIONAL #3 - Search knowledge base:**
+- Condition: {{restore_status}} == FAILED OR {{build_status}} == FAILED
+- If TRUE → MUST execute @task-search-knowledge-base
+- If FALSE (both succeeded) → Mark as [x] SKIPPED (build succeeded), move to next task
+
+**CONDITIONAL #4 - Create knowledge base article:**
+- Condition: {{kb_search_status}} == NOT_FOUND
+- If TRUE → MUST execute @task-create-knowledge-base
+- If FALSE (KB found) → Mark as [x] SKIPPED (KB found), move to next task
+
+**CONDITIONAL #5 - Attempt 1 - Apply fix from KB:**
+- Condition: {{kb_search_status}} == FOUND OR {{kb_article_status}} == CREATED
+- If TRUE → MUST execute @task-apply-knowledge-base-fix
+- If FALSE → Mark as [x] SKIPPED (build succeeded), move to next task
+- Update variable: {{fix_applied_attempt_1}}
+
+**CONDITIONAL #6 - Attempt 1 - Retry build after fix:**
+- Condition: {{fix_applied_attempt_1}} == APPLIED
+- If TRUE → MUST execute @task-build-solution-retry
+- If FALSE → Mark as [x] SKIPPED (no fix applied), move to next task
+- Update variable: {{retry_build_status_attempt_1}}
+
+**CONDITIONAL #7 - Attempt 2 - Apply fix from KB:**
+- Condition: {{retry_build_status_attempt_1}} == FAILED
+- If TRUE → MUST execute @task-apply-knowledge-base-fix (attempt 2)
+- If FALSE → Mark as [x] SKIPPED (build succeeded OR no previous retry OR previous retry succeeded), move to next task
+- Update variable: {{fix_applied_attempt_2}}
+
+**CONDITIONAL #8 - Attempt 2 - Retry build after fix:**
+- Condition: {{fix_applied_attempt_2}} == APPLIED
+- If TRUE → MUST execute @task-build-solution-retry
+- If FALSE → Mark as [x] SKIPPED (no fix applied), move to next task
+- Update variable: {{retry_build_status_attempt_2}}
+
+**CONDITIONAL #9 - Attempt 3 - Apply fix from KB:**
+- Condition: {{retry_build_status_attempt_2}} == FAILED
+- If TRUE → MUST execute @task-apply-knowledge-base-fix (attempt 3)
+- If FALSE → Mark as [x] SKIPPED (build succeeded OR no previous retry OR previous retry succeeded), move to next task
+- Update variable: {{fix_applied_attempt_3}}
+
+**CONDITIONAL #10 - Attempt 3 - Retry build after fix:**
+- Condition: {{fix_applied_attempt_3}} == APPLIED
+- If TRUE → MUST execute @task-build-solution-retry
+- If FALSE → Mark as [x] SKIPPED (no fix applied), move to next task
+- Update variable: {{retry_build_status_attempt_3}}
 
 For the FIRST uncompleted [ ] task found:
 
-1. Identify task type from task description:
-   - "Restore packages for {solution_name}" → @task-restore-solution
-   - "Build solution {solution_name}" → @task-build-solution  
-   - "Search knowledge base for known issues" → @task-search-knowledge-base
-   - "Apply fixes if build/restore fails" → @task-apply-knowledge-base-fix
-   - "Retry build after applying fixes" → @task-build-solution (retry)
+1. Identify task type from task description and task number:
+   - [MANDATORY #1] → @task-restore-solution
+   - [MANDATORY #2] → @task-build-solution  
+   - [CONDITIONAL #3] → @task-search-knowledge-base
+   - [CONDITIONAL #4] → @task-create-knowledge-base
+   - [CONDITIONAL #5/7/9] → @task-apply-knowledge-base-fix (with attempt number)
+   - [CONDITIONAL #6/8/10] → @task-build-solution-retry (with attempt number)
 
 **Step 4: Read Variables from Markdown File**
 Before executing each task, extract required variables from the markdown file:
 
-**Variables Section (if present in file):**
+**Variables Section Format:**
 ```markdown
-## Variables
+### Solution Variables
 
-- solution_name: {value}
-- solution_path: {value}
-- restore_status: {value}
-- build_status: {value}
-- kb_search_status: {value}
-- kb_file_path: {value}
-- fix_status: {value}
-- retry_count: {value}
+(Variables set by tasks for this specific solution)
+
+- {{solution_path}} → path value
+- {{solution_name}} → name value
+- {{max_build_attempts}} → 3
+- {{restore_status}} → SUCCEEDED | FAILED | NOT_EXECUTED
+- {{build_status}} → SUCCEEDED | FAILED | NOT_EXECUTED | SKIPPED
+- {{kb_search_status}} → COMPLETED | SKIPPED | NOT_FOUND
+- {{kb_file_path}} → path or N/A
+- {{kb_article_status}} → EXISTS | CREATED | SKIPPED
+
+**Retry Attempt 1:**
+- {{fix_applied_attempt_1}} → APPLIED | NOT_APPLIED | SKIPPED
+- {{kb_option_applied_attempt_1}} → 1 | 2 | 3 | null
+- {{retry_build_status_attempt_1}} → SUCCEEDED | FAILED | SKIPPED
+
+**Retry Attempt 2:**
+- {{fix_applied_attempt_2}} → APPLIED | NOT_APPLIED | SKIPPED
+- {{kb_option_applied_attempt_2}} → 1 | 2 | 3 | null
+- {{retry_build_status_attempt_2}} → SUCCEEDED | FAILED | SKIPPED
+
+**Retry Attempt 3:**
+- {{fix_applied_attempt_3}} → APPLIED | NOT_APPLIED | SKIPPED
+- {{kb_option_applied_attempt_3}} → 1 | 2 | 3 | null
+- {{retry_build_status_attempt_3}} → SUCCEEDED | FAILED | SKIPPED
 ```
 
-**If Variables section exists:**
-- Parse each line to extract variable names and values
-- Use these values when calling task prompts
+**Variable Reading Logic:**
+1. Parse the **Solution Variables** section for the current solution
+2. Extract all variable values (text after →)
+3. Use these values to determine conditional task execution
+4. For retry attempts, read the specific attempt variables:
+   - For tasks #5-6 (Attempt 1): Use {{fix_applied_attempt_1}} and {{retry_build_status_attempt_1}}
+   - For tasks #7-8 (Attempt 2): Use {{fix_applied_attempt_2}} and {{retry_build_status_attempt_2}}
+   - For tasks #9-10 (Attempt 3): Use {{fix_applied_attempt_3}} and {{retry_build_status_attempt_3}}
 
 **If Variables section does NOT exist:**
 - Extract solution_name from section heading
-- Extract solution_path from "**Path:**" line in solution section
-- Initialize other variables as needed (e.g., retry_count = 0)
+- Extract solution_path from "Path:" line in solution section
+- Initialize all variables with default values (e.g., NOT_EXECUTED, N/A, SKIPPED)
 
 **Step 5: Execute Corresponding Task Prompt**
 Based on task type identified in Step 3:
@@ -180,18 +257,40 @@ Based on task type identified in Step 3:
    - Condition: kb_search_status == FOUND
    - If condition is TRUE → This task is MANDATORY and MUST be executed
    - If condition is FALSE (kb_search_status == NOT_FOUND) → Mark as [x] SKIPPED and move to next task (no fix available)
-2. **Call @task-apply-knowledge-base-fix** (let the task prompt handle fix application):
+2. **Determine last_option_applied parameter:**
+   - For CONDITIONAL #5 (Attempt 1): last_option_applied is NOT provided (use Option 1)
+   - For CONDITIONAL #7 (Attempt 2): Read {{kb_option_applied_attempt_1}} from variables and pass as last_option_applied
+   - For CONDITIONAL #9 (Attempt 3): Read {{kb_option_applied_attempt_2}} from variables and pass as last_option_applied
+3. **Call @task-apply-knowledge-base-fix** (let the task prompt handle fix application):
+   
+   For Attempt 1:
    ```
    @task-apply-knowledge-base-fix solution_path="{solution_path}" kb_file_path="{kb_file_path}" error_code="{error_code}"
    ```
-3. The task prompt will handle:
+   
+   For Attempt 2:
+   ```
+   @task-apply-knowledge-base-fix solution_path="{solution_path}" kb_file_path="{kb_file_path}" error_code="{error_code}" last_option_applied="{kb_option_applied_attempt_1}"
+   ```
+   
+   For Attempt 3:
+   ```
+   @task-apply-knowledge-base-fix solution_path="{solution_path}" kb_file_path="{kb_file_path}" error_code="{error_code}" last_option_applied="{kb_option_applied_attempt_2}"
+   ```
+4. The task prompt will handle:
    - Reading fix instructions from KB markdown
+   - Determining which option to apply based on last_option_applied
    - Applying file modifications
    - Running fix commands
-4. Capture output from task prompt and update variables:
-   - fix_status: SUCCESS | FAIL
+5. Capture output from task prompt and update variables:
+   - fix_status: SUCCESS | FAIL | NO_MORE_OPTIONS
+   - option_applied: 1 | 2 | 3 | null (from JSON output)
    - files_modified: list of files changed
-5. Log to decision-log.csv
+6. Update attempt-specific variables:
+   - For Attempt 1: {{kb_option_applied_attempt_1}} = option_applied
+   - For Attempt 2: {{kb_option_applied_attempt_2}} = option_applied
+   - For Attempt 3: {{kb_option_applied_attempt_3}} = option_applied
+7. Log to decision-log.csv
 
 **For "Retry build after applying fixes":**
 1. **CONDITIONAL EXECUTION - This task MUST execute if condition is met:**
@@ -223,29 +322,66 @@ Based on task type identified in Step 3:
 
 **Step 6: Update Checklist After Task Execution**
 1. Read the same solution_checklist.md file
-2. Find the specific solution section (## {N}. {solution_name})
-3. Find the task that was just executed
+2. Find the specific solution section (## Solution: {solution_name})
+3. Find the task that was just executed by task number
 4. Update task checkbox from [ ] to [x]
-5. Optionally append status to task line (e.g., "- [x] Restore packages for MySolution (SUCCESS)")
+5. Append status/reason to task line based on execution result:
+   - For MANDATORY tasks: Include result (e.g., "- [x] [MANDATORY #1] Restore NuGet packages @task-restore-solution")
+   - For CONDITIONAL tasks that executed: Include result (e.g., "- [x] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base")
+   - For CONDITIONAL tasks that were skipped: Include reason in parentheses:
+     * "- [x] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base - SKIPPED (build succeeded)"
+     * "- [x] [CONDITIONAL #4] Create knowledge base article @task-create-knowledge-base - SKIPPED (KB found)"
+     * "- [x] [CONDITIONAL #5 - Attempt 1] Apply fix from KB @task-apply-knowledge-base-fix - SKIPPED (build succeeded)"
+     * "- [x] [CONDITIONAL #6 - Attempt 1] Retry build after fix @task-build-solution-retry - SKIPPED (no fix applied)"
+     * "- [x] [CONDITIONAL #7 - Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix - SKIPPED (previous retry succeeded)"
 6. Write updated content back to file
 
 **Step 7: Update Variables Section in Markdown**
-1. Find or create ## Variables section in the solution section
+1. Find the **Solution Variables** section in the current solution section
 2. Update variable values based on task execution results:
-   ```markdown
-   ## Variables
    
-   - solution_name: MySolution
-   - solution_path: C:\repos\myrepo\src\MySolution.sln
-   - restore_status: SUCCESS
-   - build_status: FAIL
-   - kb_search_status: FOUND
-   - kb_file_path: knowledge_base_markdown\nu1605_package_downgrade.md
-   - error_code: NU1605
-   - fix_status: SUCCESS
-   - retry_count: 1
-   ```
+   **After MANDATORY #1 (Restore):**
+   - Update {{restore_status}} → SUCCEEDED | FAILED
+   
+   **After MANDATORY #2 (Build):**
+   - Update {{build_status}} → SUCCEEDED | FAILED | SKIPPED
+   
+   **After CONDITIONAL #3 (KB Search):**
+   - Update {{kb_search_status}} → COMPLETED | SKIPPED
+   - Update {{kb_file_path}} → path or N/A
+   
+   **After CONDITIONAL #4 (KB Create):**
+   - Update {{kb_article_status}} → CREATED | SKIPPED
+   
+   **After CONDITIONAL #5 (Apply fix - Attempt 1):**
+   - Update **Retry Attempt 1** section:
+     * {{fix_applied_attempt_1}} → APPLIED | NOT_APPLIED | SKIPPED (with reason)
+     * {{kb_option_applied_attempt_1}} → option number (1, 2, 3) from task output, or null if NO_MORE_OPTIONS or not applied
+   
+   **After CONDITIONAL #6 (Retry build - Attempt 1):**
+   - Update **Retry Attempt 1** section:
+     * {{retry_build_status_attempt_1}} → SUCCEEDED | FAILED | SKIPPED (with reason)
+   
+   **After CONDITIONAL #7 (Apply fix - Attempt 2):**
+   - Update **Retry Attempt 2** section:
+     * {{fix_applied_attempt_2}} → APPLIED | NOT_APPLIED | SKIPPED (with reason)
+     * {{kb_option_applied_attempt_2}} → option number (1, 2, 3) from task output, or null if NO_MORE_OPTIONS or not applied
+   
+   **After CONDITIONAL #8 (Retry build - Attempt 2):**
+   - Update **Retry Attempt 2** section:
+     * {{retry_build_status_attempt_2}} → SUCCEEDED | FAILED | SKIPPED (with reason)
+   
+   **After CONDITIONAL #9 (Apply fix - Attempt 3):**
+   - Update **Retry Attempt 3** section:
+     * {{fix_applied_attempt_3}} → APPLIED | NOT_APPLIED | SKIPPED (with reason)
+     * {{kb_option_applied_attempt_3}} → option number (1, 2, 3) from task output, or null if NO_MORE_OPTIONS or not applied
+   
+   **After CONDITIONAL #10 (Retry build - Attempt 3):**
+   - Update **Retry Attempt 3** section:
+     * {{retry_build_status_attempt_3}} → SUCCEEDED | FAILED | SKIPPED (with reason)
+
 3. Write updated variables back to markdown file
+4. Ensure proper formatting with → separator and attempt subsections
 
 **Step 8: Move to Next Uncompleted Task**
 1. After updating checklist and variables, read the file again
@@ -285,13 +421,21 @@ Variables available during execution:
 - {{repo_name}} → Extracted from filename
 - {{solution_name}} → From section heading or variables
 - {{solution_path}} → From "Path:" line or variables
-- {{restore_status}} → From variables section (updated after restore)
-- {{build_status}} → From variables section (updated after build)
-- {{kb_search_status}} → From variables section (updated after KB search)
-- {{kb_file_path}} → From variables section (updated after KB search)
-- {{error_code}} → From variables section (updated after KB search)
-- {{fix_status}} → From variables section (updated after fix applied)
-- {{retry_count}} → From variables section (incremented on each retry)
+- {{max_build_attempts}} → Maximum retry attempts (3)
+- {{restore_status}} → SUCCEEDED | FAILED | NOT_EXECUTED
+- {{build_status}} → SUCCEEDED | FAILED | NOT_EXECUTED | SKIPPED
+- {{kb_search_status}} → COMPLETED | SKIPPED | NOT_FOUND
+- {{kb_file_path}} → Path to KB file or N/A
+- {{kb_article_status}} → EXISTS | CREATED | SKIPPED
+- {{fix_applied_attempt_1}} → APPLIED | NOT_APPLIED | SKIPPED (reason)
+- {{kb_option_applied_attempt_1}} → 1 | 2 | 3 | null
+- {{retry_build_status_attempt_1}} → SUCCEEDED | FAILED | SKIPPED (reason)
+- {{fix_applied_attempt_2}} → APPLIED | NOT_APPLIED | SKIPPED (reason)
+- {{kb_option_applied_attempt_2}} → 1 | 2 | 3 | null
+- {{retry_build_status_attempt_2}} → SUCCEEDED | FAILED | SKIPPED (reason)
+- {{fix_applied_attempt_3}} → APPLIED | NOT_APPLIED | SKIPPED (reason)
+- {{kb_option_applied_attempt_3}} → 1 | 2 | 3 | null
+- {{retry_build_status_attempt_3}} → SUCCEEDED | FAILED | SKIPPED (reason)
 - {{errors}} → Build errors array (from task output, not stored in markdown)
 - {{warnings}} → Build warnings array (from task output, not stored in markdown)
 
@@ -311,41 +455,67 @@ Implementation Notes:
 1. **Strict Sequential Execution**: Process ONE task at a time, in order, per solution
 2. **Read Before Execute**: Always read current variable values from markdown before calling task
 3. **Update After Execute**: Always update checklist and variables after task completes
-4. **Conditional Tasks**: Skip KB tasks if build/restore succeeded
-5. **Retry Logic**: Maximum 3 retries per solution after applying fixes
-6. **Autonomous Loop**: Continue processing until all work complete or interrupted
-7. **Safety Limit**: Stop if execution exceeds reasonable time (e.g., 2 hours)
-8. **Logging**: Log every task execution to decision-log.csv
-9. **File Parsing**: Robust parsing to handle different markdown formatting styles
-10. **Error Recovery**: If a task fails, still mark it complete and move to next task
-11. **⚠️ CRITICAL: NEVER execute commands directly - ALWAYS call task prompts**
-12. **Task prompts handle scriptable vs non-scriptable internally**
-13. **This executor is a coordinator, not a command executor**
+4. **Conditional Tasks**: Evaluate condition based on specific variables for each task number
+5. **Retry Logic**: Maximum 3 retry attempts (tasks #5-10), each with separate status tracking
+6. **Attempt-Specific Variables**: Track {{fix_applied_attempt_N}} and {{retry_build_status_attempt_N}} for each attempt
+7. **Skip Reasons**: Include clear reasons when marking CONDITIONAL tasks as SKIPPED
+8. **Variable Format**: Use → separator and maintain **Retry Attempt N** subsections
+9. **Autonomous Loop**: Continue processing until all work complete or interrupted
+10. **Safety Limit**: Stop if execution exceeds reasonable time (e.g., 2 hours)
+11. **Logging**: Log every task execution to decision-log.csv
+12. **File Parsing**: Robust parsing to handle different markdown formatting styles
+13. **Error Recovery**: If a task fails, still mark it complete and move to next task
+14. **⚠️ CRITICAL: NEVER execute commands directly - ALWAYS call task prompts**
+15. **Task prompts handle scriptable vs non-scriptable internally**
+16. **This executor is a coordinator, not a command executor**
+17. **Condition Checking**: For retry attempts, check previous attempt status to determine if current attempt should execute or be skipped
 
 Example Solution Section in Markdown:
 ```markdown
-### 1. SDKTestApp
+## Solution: SDKTestApp
 
-**Path:** `samples\External\samples\SDKTestApp\SDKTestApp.sln`
+Path: `C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool\samples\External\samples\SDKTestApp\SDKTestApp.sln`
 
-**Tasks:**
-- [x] Restore packages for SDKTestApp (SUCCESS)
-- [x] Build solution SDKTestApp (FAIL - NU1605)
-- [x] Search knowledge base for known issues (FOUND)
-- [x] Apply fixes if build/restore fails (SUCCESS)
-- [x] Retry build after applying fixes (SUCCESS)
+### Tasks (Conditional Workflow - See execute-solution-task.md)
 
-## Variables
+- [x] [MANDATORY #1] Restore NuGet packages @task-restore-solution
+- [x] [MANDATORY #2] Build solution (Clean + Build) @task-build-solution
+- [x] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base
+- [x] [CONDITIONAL #4] Create knowledge base article @task-create-knowledge-base
+- [x] [CONDITIONAL #5 - Attempt 1] Apply fix from KB @task-apply-knowledge-base-fix
+- [x] [CONDITIONAL #6 - Attempt 1] Retry build after fix @task-build-solution-retry
+- [x] [CONDITIONAL #7 - Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix
+- [x] [CONDITIONAL #8 - Attempt 2] Retry build after fix @task-build-solution-retry
+- [x] [CONDITIONAL #9 - Attempt 3] Apply fix from KB @task-apply-knowledge-base-fix
+- [x] [CONDITIONAL #10 - Attempt 3] Retry build after fix @task-build-solution-retry
 
-- solution_name: SDKTestApp
-- solution_path: C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool\samples\External\samples\SDKTestApp\SDKTestApp.sln
-- restore_status: SUCCESS
-- build_status: SUCCESS
-- kb_search_status: FOUND
-- kb_file_path: knowledge_base_markdown\nu1605_package_downgrade.md
-- error_code: NU1605
-- fix_status: SUCCESS
-- retry_count: 1
+### Solution Variables
+
+(Variables set by tasks for this specific solution)
+
+- {{solution_path}} → `C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool\samples\External\samples\SDKTestApp\SDKTestApp.sln`
+- {{solution_name}} → `SDKTestApp`
+- {{max_build_attempts}} → 3
+- {{restore_status}} → SUCCEEDED
+- {{build_status}} → FAILED - NU1605 package downgrade error
+- {{kb_search_status}} → COMPLETED
+- {{kb_file_path}} → knowledge_base_markdown/nu1605_package_downgrade.md
+- {{kb_article_status}} → EXISTS
+
+**Retry Attempt 1:**
+- {{fix_applied_attempt_1}} → APPLIED (updated PackageReference versions)
+- {{kb_option_applied_attempt_1}} → 1
+- {{retry_build_status_attempt_1}} → SUCCEEDED
+
+**Retry Attempt 2:**
+- {{fix_applied_attempt_2}} → SKIPPED (previous retry succeeded)
+- {{kb_option_applied_attempt_2}} → null
+- {{retry_build_status_attempt_2}} → SKIPPED (no fix applied)
+
+**Retry Attempt 3:**
+- {{fix_applied_attempt_3}} → SKIPPED (previous retry succeeded)
+- {{kb_option_applied_attempt_3}} → null
+- {{retry_build_status_attempt_3}} → SKIPPED (no fix applied)
 
 ---
 ```
