@@ -12,10 +12,20 @@ It processes ALL uncompleted tasks across ALL repositories until everything is c
 - DO NOT skip CONDITIONAL tasks to prioritize MANDATORY tasks
 - DO NOT execute tasks out of order under any circumstances
 - Process each task in sequence: Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6
-- If a CONDITIONAL task's condition is met, EXECUTE it before proceeding
+- **CONDITIONAL tasks are NOT SKIPPABLE - they MUST EXECUTE when their condition is met**
+- If a CONDITIONAL task's condition is met, it is MANDATORY to EXECUTE it before proceeding
 - If a CONDITIONAL task's condition is NOT met, mark it SKIPPED and proceed to next task
-- The MANDATORY vs CONDITIONAL labels indicate importance, NOT execution order
+- The MANDATORY vs CONDITIONAL labels indicate when to execute, NOT whether to execute
 - Always execute the FIRST uncompleted [ ] task in the checklist, regardless of its label
+
+**CONDITIONAL Task Execution Rules:**
+- CONDITIONAL means "execute IF condition is met"
+- When condition is TRUE → Task becomes MANDATORY and MUST be executed
+- When condition is FALSE → Task is SKIPPED (mark as [x] SKIPPED)
+- Example: "@task-scan-readme" is CONDITIONAL on readme_content existing
+  - If readme_content exists → MUST execute @task-scan-readme
+  - If readme_content does NOT exist → Mark as [x] SKIPPED, move to next task
+- Never skip a CONDITIONAL task when its condition is satisfied
 
 **CRITICAL: This prompt runs in a continuous loop. After completing each task, it immediately:**
 1. Updates the repository checklist (marking task as [x])
