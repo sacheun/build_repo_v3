@@ -1,3 +1,7 @@
+---
+temperature: 0.1
+---
+
 @task-clone-repo repo_url={{repo_url}} clone_path={{clone_path}} repo_name={{repo_name}}
 
 Task name: task-clone-repo

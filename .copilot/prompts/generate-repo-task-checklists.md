@@ -1,3 +1,7 @@
+---
+temperature: 0.1
+---
+
 @generate-repo-task-checklists input=<optional> append=<optional>
 
 Task name: generate-repo-task-checklists

@@ -1,3 +1,7 @@
+---
+temperature: 0.1
+---
+
 @task-find-solutions repo_directory={{repo_directory}} repo_name={{repo_name}}
 
 Task name: task-find-solutions

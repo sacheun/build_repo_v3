@@ -1,3 +1,7 @@
+---
+temperature: 0.1
+---
+
 @task-search-readme repo_directory={{repo_directory}} repo_name={{repo_name}}
 
 Task name: task-search-readme

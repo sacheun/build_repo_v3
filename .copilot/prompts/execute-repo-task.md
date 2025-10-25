@@ -190,10 +190,19 @@ For tasks that need output from previous tasks:
 6. Increment tasks_executed_count by 1
 
 **Step 6: Update Checklists and Save Variables**
-1. If task completed successfully, update the repository checklist file directly:
+
+**CRITICAL REQUIREMENT: Only mark tasks as complete [x] when they are ACTUALLY COMPLETE**
+- DO NOT mark a task as [x] if you did not execute all required steps
+- DO NOT mark a task as [x] if you only created output files without performing the actual work
+- DO NOT mark a task as [x] if you skipped execution steps
+- Verify that all task requirements were fulfilled before changing `- [ ]` to `- [x]`
+- If a task was partially completed or skipped, leave it as `- [ ]` or mark it explicitly as SKIPPED
+
+1. If task completed successfully AND all required work was performed, update the repository checklist file directly:
    - Read ./tasks/{repo_name}_repo_checklist.md
    - Find the task line matching {task_name} in "## Repo Tasks" section
-   - Replace `- [ ]` with `- [x]` for that specific task
+   - **ONLY replace `- [ ]` with `- [x]` if the task was FULLY executed**
+   - **If task was skipped or not fully executed, DO NOT mark as [x]**
    - Write the updated content back to the file
    
 2. Extract and save task output variables to repository checklist:

@@ -1,3 +1,7 @@
+---
+temperature: 0.1
+---
+
 @task-scan-readme repo_directory={{repo_directory}} repo_name={{repo_name}} readme_content_path={{readme_content_path}}
 
 Task name: task-scan-readme
