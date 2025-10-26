@@ -6,6 +6,8 @@ temperature: 0.1
 ## Description:
 This prompt autonomously executes solution-level tasks by processing *solution_checklist.md files in the ./tasks directory. It finds uncompleted tasks, reads required variables from the markdown file, executes the corresponding task prompts, and updates the checklist as tasks complete.
 
+**CRITICAL REQUIREMENT:** After completing a task, you must update the designated repository markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
+
 **⚠️ CRITICAL: This is an EXECUTOR prompt - it ONLY calls other task prompts. It does NOT execute commands directly.**
 
 **DO NOT:**
@@ -37,6 +39,15 @@ This is an autonomous executor similar to @execute-repo-task but designed for so
 3. Continue until ALL tasks in ALL solution checklists are complete
 
 ## Behavior (Follow this Step by Step)
+
+**Step 0: Initialize Solution Result CSV Tracking**
+1. **[MANDATORY] Check if file `results/solution_result.csv` exists**
+2. **If it does NOT exist, create it with the following header row:**
+   ```
+   repo,solution,task name,status
+   ```
+3. This CSV file will track all solution task executions across all repositories
+4. Each task execution will add one row to this file (see Step 6a)
 
 **Step 1: Discover Solution Checklist Files**
 1. Search ./tasks directory for files matching pattern: *solution_checklist.md
@@ -319,6 +330,18 @@ Based on task type identified in Step 3:
 - Let task prompts decide scriptable vs non-scriptable ✅
 
 **Step 6: Update Checklist After Task Execution**
+
+**Step 6a: [MANDATORY] Log task execution to solution_result.csv**
+1. **After each task is performed (regardless of success, failure, or skip), add 1 row to results/solution_result.csv:**
+   - Column 1 (repo): {repo_name} (e.g., "ic3_spool_cosine-dep-spool")
+   - Column 2 (solution): {solution_name} (e.g., "ResourceProvider")
+   - Column 3 (task name): {task_name} (e.g., "@task-restore-solution" or "@task-build-solution")
+   - Column 4 (status): SUCCESS | FAIL | BLOCKED | SKIPPED
+2. **Append the row to the existing CSV file** (do not overwrite the file)
+3. **This step is MANDATORY and must be performed for EVERY task execution**
+4. Example row: `ic3_spool_cosine-dep-spool,ResourceProvider,@task-restore-solution,SUCCESS`
+5. Example row for skipped: `ic3_spool_cosine-dep-spool,ResourceProvider,@task-search-knowledge-base,SKIPPED`
+
 1. Read the same solution_checklist.md file
 2. Find the specific solution section (## Solution: {solution_name})
 3. Find the task that was just executed by task number

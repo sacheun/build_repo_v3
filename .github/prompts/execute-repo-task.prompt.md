@@ -7,6 +7,8 @@ temperature: 0.1
 This prompt acts as an autonomous task executor that reads task checklists and executes tasks in a continuous loop.
 It processes ALL uncompleted tasks across ALL repositories until everything is complete or an error occurs.
 
+**CRITICAL REQUIREMENT:** After completing a task, you must update the designated repository markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
+
 **CRITICAL - SEQUENTIAL EXECUTION REQUIREMENT:**
 - Tasks MUST be executed in STRICT SEQUENTIAL ORDER as they appear in the checklist
 - DO NOT skip CONDITIONAL tasks to prioritize MANDATORY tasks
@@ -56,7 +58,15 @@ It processes ALL uncompleted tasks across ALL repositories until everything is c
    - tasks_executed_count = 0
    - repositories_completed_count = 0
    - execution_start_time = current timestamp
-6. **BEGIN CONTINUOUS LOOP** - Repeat Steps 1-9 until all repositories complete or error occurs
+6. **[MANDATORY] Initialize repo_result.csv tracking file:**
+   - Check if file `results/repo_result.csv` exists
+   - If it does NOT exist, create it with the following header row:
+     ```
+     repo,task name,status
+     ```
+   - This CSV file will track all task executions across all repositories
+   - Each task execution will add one row to this file (see Step 6a)
+7. **BEGIN CONTINUOUS LOOP** - Repeat Steps 1-9 until all repositories complete or error occurs
 
 **Step 1: Read Master Repository Checklist**
 1. Read ./tasks/all_repository_checklist.md
@@ -196,6 +206,15 @@ For tasks that need output from previous tasks:
 - DO NOT mark a task as [x] if you skipped execution steps
 - Verify that all task requirements were fulfilled before changing `- [ ]` to `- [x]`
 - If a task was partially completed or skipped, leave it as `- [ ]` or mark it explicitly as SKIPPED
+
+**Step 6a: [MANDATORY] Log task execution to repo_result.csv**
+1. **After each task is performed (regardless of success or failure), add 1 row to results/repo_result.csv:**
+   - Column 1 (repo): {repo_name}
+   - Column 2 (task name): {task_name}
+   - Column 3 (status): SUCCESS | FAIL | BLOCKED | SKIPPED
+2. **Append the row to the existing CSV file** (do not overwrite the file)
+3. **This step is MANDATORY and must be performed for EVERY task execution**
+4. Example row: `ic3_spool_cosine-dep-spool,@task-clone-repo,SUCCESS`
 
 1. If task completed successfully AND all required work was performed, update the repository checklist file directly:
    - Read ./tasks/{repo_name}_repo_checklist.md
