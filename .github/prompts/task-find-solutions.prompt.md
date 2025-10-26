@@ -47,14 +47,32 @@ This task can be implemented as a Python script that:
    - timestamp: ISO 8601 format datetime when task completed
 
 5a. Log to Decision Log:
-   - Append to: results/decision-log.csv
+   - Call @task-update-decision-log to log task execution:
    - For EACH solution discovered:
      * Extract solution name from path (e.g., "C:\...\MyApp.sln" → "MyApp")
-     * Append row: "{{timestamp}},{{repo_name}},,task-find-solutions,Found solution: {{solution_name}},SUCCESS"
+     * Call:
+     ```
+     @task-update-decision-log 
+       timestamp="{{timestamp}}" 
+       repo_name="{{repo_name}}" 
+       solution_name="" 
+       task="task-find-solutions" 
+       message="Found solution: {{solution_name}}" 
+       status="SUCCESS"
+     ```
    - If NO solutions found:
-     * Append single row: "{{timestamp}},{{repo_name}},,task-find-solutions,No solutions found,SUCCESS"
+     * Call:
+     ```
+     @task-update-decision-log 
+       timestamp="{{timestamp}}" 
+       repo_name="{{repo_name}}" 
+       solution_name="" 
+       task="task-find-solutions" 
+       message="No solutions found" 
+       status="SUCCESS"
+     ```
    - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-   - The solution_name column (third column) is blank since this is a repository-level task
+   - The solution_name is blank since this is a repository-level task
    - Status: "SUCCESS" (even if 0 solutions found, as long as directory was valid)
 
 6. Result Tracking:

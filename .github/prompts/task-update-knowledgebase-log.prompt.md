@@ -1,4 +1,3 @@
-````prompt
 @task-update-knowledgebase-log knowledgebase_file={{knowledgebase_file}} option={{option}} status={{status}} repo_name={{repo_name}}
 
 ---
@@ -143,8 +142,16 @@ DO NOT:
    - stats_updated: boolean (true if stats file regenerated)
 
 2. **Log to Decision Log (Optional):**
-   - Append to: results/decision-log.csv
-   - Append row with: "{{timestamp}},{{repo_name}},,task-update-knowledgebase-log,Updated KB log: {{knowledgebase_file}} option {{option}},{{status}}"
+   - Call @task-update-decision-log to log task execution:
+   ```
+   @task-update-decision-log 
+     timestamp="{{timestamp}}" 
+     repo_name="{{repo_name}}" 
+     solution_name="" 
+     task="task-update-knowledgebase-log" 
+     message="Updated KB log: {{knowledgebase_file}} option {{option}}" 
+     status="{{status}}"
+   ```
    - Use ISO 8601 format for timestamp
    - Note: repo_name may be empty if task is called outside repo context
 
@@ -234,5 +241,3 @@ This shows:
 - Option 1 of nu1008 KB: 2 successes out of 3 attempts (66% success rate)
 - Option 2 of nu1008 KB: 0 successes out of 1 attempt (0% success rate)
 - Option 1 of sf KB: 1 success out of 1 attempt (100% success rate)
-
-````

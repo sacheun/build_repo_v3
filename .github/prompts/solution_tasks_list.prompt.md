@@ -2,8 +2,9 @@
 @task-restore-solution solution_path={{solution_path}}
 @task-build-solution solution_path={{solution_path}}
 @task-search-knowledge-base solution_path={{solution_path}}
-@task-apply-knowledge-base-fix solution_path={{solution_path}}
 @task-create-knowledge-base solution_path={{solution_path}}
+@task-apply-knowledge-base-fix solution_path={{solution_path}}
+@task-update-knowledgebase-log knowledgebase_file={{knowledgebase_file}} option={{option}} status={{status}} repo_name={{repo_name}}
 ---
 temperature: 0.1
 ---
@@ -12,8 +13,9 @@ temperature: 0.1
 1. @task-restore-solution - Restore NuGet packages for the solution
 2. @task-build-solution - Build the solution (Clean + Build)
 3. @task-search-knowledge-base - Search for existing KB article matching the error
-4. @task-apply-knowledge-base-fix - Apply the fix from KB article to the solution
-5. @task-create-knowledge-base - Create new KB article by researching with Microsoft Docs
+4. @task-create-knowledge-base - Create new KB article by researching with Microsoft Docs
+5. @task-apply-knowledge-base-fix - Apply the fix from KB article to the solution
+6. @task-update-knowledgebase-log - Update knowledgebase usage log and statistics
 
 ### Variables available:
 - {{solution_path}} → Absolute path to the .sln file being processed

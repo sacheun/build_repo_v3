@@ -33,8 +33,16 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
    - Non-zero exit sets success=false but still parse output for diagnostics.
 
 3a. Log to Decision Log:
-   - Append to: results/decision-log.csv
-   - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-build-solution,msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m /verbosity:quiet,{{status}}"
+   - Call @task-update-decision-log to log task execution:
+   ```
+   @task-update-decision-log 
+     timestamp="{{timestamp}}" 
+     repo_name="{{repo_name}}" 
+     solution_name="{{solution_name}}" 
+     task="task-build-solution" 
+     message="msbuild {{solution_path}} /t:Clean,Build /p:Configuration=Release /nologo /m /verbosity:quiet" 
+     status="{{status}}"
+   ```
    - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
    - Status: "SUCCESS" if return_code is 0, "FAIL" if non-zero
 

@@ -179,8 +179,16 @@ Use these tools:
    - This helps trace when the task completes and its outcome.
 
 2. **Log to Decision Log:**
-   - Append to: results/decision-log.csv
-   - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-apply-knowledge-base-fix,Applied KB fix: {{kb_file_name}},{{status}}"
+   - Call @task-update-decision-log to log task execution:
+   ```
+   @task-update-decision-log 
+     timestamp="{{timestamp}}" 
+     repo_name="{{repo_name}}" 
+     solution_name="{{solution_name}}" 
+     task="task-apply-knowledge-base-fix" 
+     message="Applied KB fix: {{kb_file_name}}" 
+     status="{{status}}"
+   ```
    - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
    - {{kb_file_name}}: Extract filename from kb_file_path (e.g., "nu1008_central_package_management.md")
    - Status: "SUCCESS" if fix_status is SUCCESS, "FAIL" if fix_status is FAIL, "SKIPPED" if fix_status is SKIPPED

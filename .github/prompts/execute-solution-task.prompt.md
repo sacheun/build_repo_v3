@@ -310,10 +310,28 @@ Based on task type identified in Step 3:
 3. **Call @task-restore-solution** again (if restore failed initially)
 4. **Call @task-build-solution** again
 5. Capture output from task prompts and update variables (same as build task)
-6. Log to decision-log.csv
-7. If build still fails AND retry_count < 3:
+6. **[MANDATORY] Call @task-update-knowledgebase-log** after rebuild to log the KB fix result:
+   - Extract knowledgebase_file from {{kb_file_path}} (filename only, e.g., "nu1008_central_package_management.md")
+   - Use option number from the corresponding attempt:
+     * For Attempt 1: Use {{kb_option_applied_attempt_1}}
+     * For Attempt 2: Use {{kb_option_applied_attempt_2}}
+     * For Attempt 3: Use {{kb_option_applied_attempt_3}}
+   - Use status based on retry build result:
+     * If retry_build_status == SUCCEEDED → status="SUCCESS"
+     * If retry_build_status == FAILED → status="FAIL"
+   - Call the task:
+     ```
+     @task-update-knowledgebase-log knowledgebase_file="{kb_filename}" option="{option_number}" status="{status}" repo_name="{repo_name}"
+     ```
+   - Example for Attempt 1:
+     ```
+     @task-update-knowledgebase-log knowledgebase_file="nu1008_central_package_management.md" option="1" status="SUCCESS" repo_name="ic3_spool_cosine-dep-spool"
+     ```
+   - This updates the knowledgebase usage log and statistics
+7. Log to decision-log.csv
+8. If build still fails AND retry_count < 3:
    - Go back to "Search knowledge base" task for new error
-8. If retry_count >= 3:
+9. If retry_count >= 3:
    - Mark as FAILED (max retries reached)
 
 **🚫 NEVER do this:**

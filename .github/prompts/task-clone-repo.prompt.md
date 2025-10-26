@@ -64,10 +64,18 @@ This task can be implemented as a Python script that:
    - git_output: captured stdout/stderr from git commands (for debugging)
 
 5a. Log to Decision Log:
-   - Append to: results/decision-log.csv
-   - Append row with: "{{timestamp}},{{repo_name}},,task-clone-repo,{{message}},{{clone_status}}"
+   - Call @task-update-decision-log to log task execution:
+   ```
+   @task-update-decision-log 
+     timestamp="{{timestamp}}" 
+     repo_name="{{repo_name}}" 
+     solution_name="" 
+     task="task-clone-repo" 
+     message="{{message}}" 
+     status="{{clone_status}}"
+   ```
    - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-   - The solution_name column (third column) is blank since this is a repository-level task
+   - The solution_name is blank since this is a repository-level task
    - Message format:
      * If fresh clone: "git clone --depth 1 {{repo_url}}"
      * If refresh: "git reset --hard HEAD && git clean -fd && git pull"

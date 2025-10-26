@@ -240,13 +240,47 @@ DO NOT:
 5. **Output**: Return creation results.
    - DEBUG: Log "[KB-CREATE-DEBUG] Final status: kb_create_status={status}, kb_file_path={path}"
    - **Log to Decision Log (MANDATORY STEPS):**
-     * Append to: results/decision-log.csv
      * **MUST LOG MICROSOFT DOCS QUERIES**: Log each MCP server query as a separate entry:
-       - For microsoft_docs_search: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,Queried Microsoft Docs MCP: {{search_query}},INFO"
-       - For code_sample_search: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,Queried Microsoft Docs code samples: {{code_query}},INFO"
-       - For docs_fetch: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,Fetched Microsoft Docs article: {{doc_url}},INFO"
+       - For microsoft_docs_search:
+       ```
+       @task-update-decision-log 
+         timestamp="{{timestamp}}" 
+         repo_name="{{repo_name}}" 
+         solution_name="{{solution_name}}" 
+         task="task-create-knowledge-base" 
+         message="Queried Microsoft Docs MCP: {{search_query}}" 
+         status="INFO"
+       ```
+       - For code_sample_search:
+       ```
+       @task-update-decision-log 
+         timestamp="{{timestamp}}" 
+         repo_name="{{repo_name}}" 
+         solution_name="{{solution_name}}" 
+         task="task-create-knowledge-base" 
+         message="Queried Microsoft Docs code samples: {{code_query}}" 
+         status="INFO"
+       ```
+       - For docs_fetch:
+       ```
+       @task-update-decision-log 
+         timestamp="{{timestamp}}" 
+         repo_name="{{repo_name}}" 
+         solution_name="{{solution_name}}" 
+         task="task-create-knowledge-base" 
+         message="Fetched Microsoft Docs article: {{doc_url}}" 
+         status="INFO"
+       ```
      * **FINAL TASK STATUS**: Log the overall task completion:
-       - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,{{message}},{{status}}"
+       ```
+       @task-update-decision-log 
+         timestamp="{{timestamp}}" 
+         repo_name="{{repo_name}}" 
+         solution_name="{{solution_name}}" 
+         task="task-create-knowledge-base" 
+         message="{{message}}" 
+         status="{{status}}"
+       ```
        - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
        - Message format:
          * If kb_create_status == SUCCESS: "Created KB: {{kb_filename}}" (e.g., "Created KB: nu1008_central_package_management.md")
