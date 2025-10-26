@@ -6,7 +6,7 @@ temperature: 0.1
 
 Task name: task-find-solutions
 
-Description:
+## Description:
 This task discovers all Visual Studio solution files (.sln) within a repository directory tree. This is a straightforward file search operation that CAN be implemented as a script.
 
 ** THIS TASK IS SCRIPTABLE **
@@ -18,7 +18,7 @@ This task can be implemented as a Python script that:
 4. Saves the result to JSON output
 5. Updates progress and results files
 
-Behavior:
+## Behavior (Follow this Step by Step)
 0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][task-find-solutions] START repo_directory='{{repo_directory}}'`
 
 1. Input Parameters: You are given repo_directory (absolute path to repository root) and repo_name from the calling context.

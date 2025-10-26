@@ -6,7 +6,7 @@ temperature: 0.1
 
 Task name: task-search-readme
 
-Description:
+## Description:
 This task searches for and reads the README documentation file from a repository's root directory. This is a simple file location and content extraction task that CAN be implemented as a script.
 
 ** THIS TASK IS SCRIPTABLE **
@@ -17,21 +17,19 @@ This task can be implemented as a Python/PowerShell/Bash script that:
 3. Saves the result to JSON output
 4. Updates progress and results files
 
-Behavior:
+## Behavior (Follow this Step by Step)
 0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][task-search-readme] START repo_directory='{{repo_directory}}'`
 
 1. Input Parameters: You are given repo_directory (absolute path to repository root) and repo_name from the calling context.
 
-2. README Candidate Search: Iterates through prioritized list of common README filenames in exact order:
-   - README.md
-   - readme.md
-   - README.txt
-   - README.rst
-   - README
-   - Readme.md
+2. README Candidate Search: Performs case-insensitive search for README files in the repository root directory.
+   - Search patterns to match (case-insensitive): README.md, README.txt, README.rst, README
+   - On Windows: File system is case-insensitive by default
+   - On Linux/Mac: Use case-insensitive file matching (e.g., glob with IGNORECASE or list all files and compare lowercased names)
+   - Priority order if multiple matches found: .md > .txt > .rst > (no extension)
 
-3. File Discovery: Checks repository root directory for each candidate filename; stops on first match found.
-   - If DEBUG=1, print: `[debug][task-search-readme] checking for: {{candidate_filename}}`
+3. File Discovery: Searches repository root directory using case-insensitive matching; stops on first match found.
+   - If DEBUG=1, print: `[debug][task-search-readme] searching for README files (case-insensitive)`
    - On first match, if DEBUG=1, print: `[debug][task-search-readme] found README file: {{matched_filename}}`
 
 4. Content Extraction: 
@@ -93,69 +91,13 @@ Output Contract:
 
 Implementation Notes:
 1. **THIS IS SCRIPTABLE**: Generate a Python/PowerShell/Bash script to execute this task
-2. Prioritization: Check filenames in exact order listed; first match wins.
-3. Error Handling: File read errors (permissions, encoding) should be caught and logged; set status=FAIL if content cannot be extracted.
-4. Contract Compliance: Always save JSON output file with all fields regardless of success/failure.
-5. Progress Update: Mark [x] in repo-progress for task-search-readme on both SUCCESS and FAIL (task completed, even if README not found).
-6. Content Handling: Return entire file content; do not truncate or summarize at this stage.
-7. Encoding Tolerance: Use UTF-8 with ignore mode to handle malformed characters gracefully.
-8. Null Safety: Ensure readme_content and readme_filename are explicitly null (not empty string) when no README found.
-9. Script Location: Save generated script to temp-script/ directory with naming pattern: step{N}_repo{M}_task2_search-readme.py (or .ps1/.sh)
-10. Environment: Set DEBUG=1 environment variable at the start of the script if debug output is desired.
-
-Example Script Structure (Python):
-```python
-import os
-import json
-from pathlib import Path
-from datetime import datetime
-
-os.environ['DEBUG'] = '1'
-
-repo_name = "{{repo_name}}"
-repo_directory = r"{{repo_directory}}"
-
-print(f"[debug][task-search-readme] START repo_directory='{repo_directory}'")
-
-readme_candidates = ["README.md", "readme.md", "README.txt", "README.rst", "README", "Readme.md"]
-readme_filename = None
-readme_content = None
-
-for candidate in readme_candidates:
-    print(f"[debug][task-search-readme] checking for: {candidate}")
-    candidate_path = Path(repo_directory) / candidate
-    if candidate_path.exists():
-        readme_filename = candidate
-        print(f"[debug][task-search-readme] found README file: {readme_filename}")
-        try:
-            with open(candidate_path, 'r', encoding='utf-8', errors='ignore') as f:
-                readme_content = f.read()
-            print(f"[debug][task-search-readme] content length: {len(readme_content)} characters")
-        except Exception as e:
-            print(f"[debug][task-search-readme] error reading file: {e}")
-            readme_content = None
-        break
-
-if readme_filename is None:
-    print("[debug][task-search-readme] no README file found in repository root")
-
-status = "SUCCESS" if readme_filename else "FAIL"
-timestamp = datetime.now().isoformat()
-
-output_data = {
-    "repo_directory": repo_directory,
-    "repo_name": repo_name,
-    "readme_content": readme_content,
-    "readme_filename": readme_filename,
-    "status": status,
-    "timestamp": timestamp
-}
-
-output_file = Path("output") / f"{repo_name}_task2_search-readme.json"
-with open(output_file, 'w', encoding='utf-8') as f:
-    json.dump(output_data, f, indent=2)
-
-# Update progress and results (code omitted for brevity)
-
-print(f"[debug][task-search-readme] EXIT repo_directory='{repo_directory}' status={status} readme_found={readme_filename}")
-```
+2. **Case-Insensitive Search**: Use case-insensitive file matching to find README files (e.g., README.md, readme.md, Readme.MD all match)
+3. Prioritization: If multiple README files found, prioritize by extension: .md > .txt > .rst > (no extension)
+4. Error Handling: File read errors (permissions, encoding) should be caught and logged; set status=FAIL if content cannot be extracted.
+5. Contract Compliance: Always save JSON output file with all fields regardless of success/failure.
+6. Progress Update: Mark [x] in repo-progress for task-search-readme on both SUCCESS and FAIL (task completed, even if README not found).
+7. Content Handling: Return entire file content; do not truncate or summarize at this stage.
+8. Encoding Tolerance: Use UTF-8 with ignore mode to handle malformed characters gracefully.
+9. Null Safety: Ensure readme_content and readme_filename are explicitly null (not empty string) when no README found.
+10. Script Location: Save generated script to temp-script/ directory with naming pattern: step{N}_repo{M}_task2_search-readme.py (or .ps1/.sh)
+11. Environment: Set DEBUG=1 environment variable at the start of the script if debug output is desired.

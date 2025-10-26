@@ -3,12 +3,12 @@
 temperature: 0.1
 ---
 
-Task name: task-validate-all-solution-tasks-completed repo_path={{repo_path}} checked={{checked}}
----
+Task name: task-validate-all-solution-tasks-completed
+
 temperature: 0.1
 ---
 
-Description:
+## Description:
 Validates that all mandatory solution tasks are in the expected state (checked or unchecked) for a repository by checking solution-progress.md. Can validate both:
 1. checked=false (default): Ensures all cells are EMPTY [ ] (for pre-processing validation)
 2. checked=true: Ensures all cells are COMPLETED [x] (for post-processing validation)
@@ -34,7 +34,7 @@ Outputs:
   - wrong_state_tasks: array[string] (list of tasks not in expected state)
 - reprocessing_triggered: boolean (true if task-process-solutions was re-executed, only when checked=true)
 
-Behavior:
+## Behavior (Follow this Step by Step)
 When checked=false (pre-processing validation):
 - Validates all mandatory task cells are EMPTY [ ] for all solutions in the repository
 - Returns SUCCESS if all cells are [ ], otherwise lists solutions with wrong state

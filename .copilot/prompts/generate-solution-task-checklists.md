@@ -1,4 +1,6 @@
-# Task: @generate-solution-task-checklists
+@generate-solution-task-checklists
+
+Task name: generate-repo-task-checklists
 
 **THIS TASK IS SCRIPTABLE**
 
@@ -10,7 +12,7 @@ If DEBUG=1, print parameter values.
 
 ---
 
-## Behavior (Step by Step)
+## Behavior (Follow this Step by Step)
 
 1. **Read Solutions Data**
    • Load JSON from `solutions_json_path`  

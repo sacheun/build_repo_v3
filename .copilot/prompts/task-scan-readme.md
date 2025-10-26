@@ -6,7 +6,7 @@ temperature: 0.1
 
 Task name: task-scan-readme
 
-Description:
+## Description:
 This task analyzes the README content (from task-search-readme output) using structural reasoning to identify and extract setup/build environment commands. This task requires AI structural reasoning and CANNOT be scripted.
 
 ** CRITICAL ** DO NOT GENERATE OR EXECUTE A SCRIPT FOR THIS TASK.This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
@@ -23,7 +23,7 @@ This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
 
 The AI agent must analyze the README content intelligently to understand context and extract meaningful setup commands.
 
-Behavior:
+## Behavior (Follow this Step by Step)
 0. DEBUG Entry Trace: If you need to output debug messages, use run_in_terminal with echo/Write-Host commands:
    "[debug][task-scan-readme] START repo_directory='{{repo_directory}}' readme_content_path='{{readme_content_path}}'"
 

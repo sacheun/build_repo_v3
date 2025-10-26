@@ -1,14 +1,20 @@
 @task-create-knowledge-base solution_path={{solution_path}} solution_name={{solution_name}} kb_search_status={{kb_search_status}} detection_tokens={{detection_tokens}} error_signature={{error_signature}} error_code={{error_code}} error_type={{error_type}} build_stderr={{build_stderr}} errors={{errors}} warnings={{warnings}}
+
 ---
 temperature: 0.1
 ---
 
-## Behavior
+Task name: task-create-knowledge-base
 
-0. **DEBUG Entry Trace:**
-   - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
-   - `[debug][task-create-knowledge-base] START solution='{{solution_name}}' error_signature='{{error_signature}}' error_code='{{error_code}}' error_count={{len(errors)}}`
-   - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
+
+## Description:
+This task creates new knowledge base articles when @task-search-kb returns NOT_FOUND. It researches the error using Microsoft Docs MCP server, synthesizes fix instructions from official documentation, and creates a comprehensive KB article with diagnostic hints, fix options, and safety guidance.
+
+** IMPORTANT - ONLY RUN WHEN NEEDED **:
+- This task should ONLY be invoked when kb_search_status == NOT_FOUND
+- If kb_search_status == FOUND or SKIPPED, do NOT create a new KB article
+- Check the kb_search_status before proceeding
+
 
 ** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
 
@@ -37,15 +43,12 @@ DO NOT:
 
 ** END WARNING **
 
-Description:
-This task creates new knowledge base articles when @task-search-kb returns NOT_FOUND. It researches the error using Microsoft Docs MCP server, synthesizes fix instructions from official documentation, and creates a comprehensive KB article with diagnostic hints, fix options, and safety guidance.
+## Behavior (Follow this Step by Step)
+0. **DEBUG Entry Trace:**
+   - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
+   - `[debug][task-create-knowledge-base] START solution='{{solution_name}}' error_signature='{{error_signature}}' error_code='{{error_code}}' error_count={{len(errors)}}`
+   - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
 
-** IMPORTANT - ONLY RUN WHEN NEEDED **:
-- This task should ONLY be invoked when kb_search_status == NOT_FOUND
-- If kb_search_status == FOUND or SKIPPED, do NOT create a new KB article
-- Check the kb_search_status before proceeding
-
-Behavior:
 1. **Prerequisite Check**: Verify this task should run.
    - If kb_search_status == FOUND:
      - DEBUG: Log "[KB-CREATE-DEBUG] KB article already exists, creation skipped"
@@ -59,13 +62,16 @@ Behavior:
 
 2. **RESEARCH THE ERROR USING MICROSOFT DOCS MCP SERVER**:
    
-   ** USE STRUCTURAL REASONING TO QUERY MICROSOFT DOCUMENTATION **:
+   ** MANDATORY STEP - MUST QUERY MICROSOFT DOCUMENTATION **:
+   - **REQUIREMENT**: This is a MANDATORY step - you MUST query the Microsoft Docs MCP server
    - Use the `microsoftdocs/mcp` MCP server to research the error
    - Use errors[] array from build task as primary source of error codes
    - Query for error codes from errors[] (e.g., "NU1008", "MSB3644", "CS0246")
    - Query for related concepts (e.g., "Central Package Management", "Service Fabric", ".NET build errors")
    - Use AI reasoning to formulate effective search queries
+   - **PRINT TO CONSOLE**: `[KB-CREATE] Starting Microsoft Docs MCP server research for errors: {errors}`
    - DEBUG: Log "[KB-CREATE-DEBUG] Querying Microsoft Docs for errors: {errors}, warnings: {warnings}"
+   - **MUST LOG TO DECISION LOG**: This step is mandatory and will be logged
    
    Steps:
    a. **Formulate search query** based on error analysis:
@@ -85,7 +91,10 @@ Behavior:
       Parameters:
         query: "[error_code] [error_type] [key_technology]"
       ```
+      - **PRINT TO CONSOLE**: `[KB-CREATE] Querying Microsoft Docs MCP server for: {search_query}`
       - DEBUG: Log "[KB-CREATE-DEBUG] Microsoft Docs search query: {search_query}"
+      - **EXECUTE QUERY**: Call mcp_microsoftdocs_microsoft_docs_search tool
+      - **PRINT TO CONSOLE**: `[KB-CREATE] Microsoft Docs returned {num_results} documentation results`
       - DEBUG: Log "[KB-CREATE-DEBUG] Found {num_results} documentation results"
       - **USE AI**: Analyze search results to identify most relevant articles
       - Extract URLs for reference section
@@ -101,7 +110,10 @@ Behavior:
       - For NU1008: query="Central Package Management Directory.Packages.props", language="xml"
       - For MSBuild: query="MSBuild property configuration", language="xml"
       - For C# errors: query="namespace resolution", language="csharp"
+      - **PRINT TO CONSOLE**: `[KB-CREATE] Querying Microsoft Docs code samples for: {code_query} (language: {language})`
       - DEBUG: Log "[KB-CREATE-DEBUG] Code sample search query: {code_query}"
+      - **EXECUTE QUERY**: Call mcp_microsoftdocs_microsoft_code_sample_search tool
+      - **PRINT TO CONSOLE**: `[KB-CREATE] Microsoft Docs returned {num_samples} code samples`
       - DEBUG: Log "[KB-CREATE-DEBUG] Found {num_samples} code samples"
       - **USE AI**: Extract relevant code snippets for fix examples
    
@@ -113,7 +125,10 @@ Behavior:
       Parameters:
         url: "[microsoft_docs_url_from_search]"
       ```
+      - **PRINT TO CONSOLE**: `[KB-CREATE] Fetching full Microsoft Docs article from: {doc_url}`
       - DEBUG: Log "[KB-CREATE-DEBUG] Fetching full documentation from: {doc_url}"
+      - **EXECUTE FETCH**: Call mcp_microsoftdocs_microsoft_docs_fetch tool
+      - **PRINT TO CONSOLE**: `[KB-CREATE] Successfully fetched full documentation (length: {content_length} chars)`
       - **USE AI**: Read and comprehend full documentation for deeper understanding
    
    e. **Use AI structural reasoning to analyze Microsoft Docs results**:
@@ -224,18 +239,23 @@ Behavior:
 
 5. **Output**: Return creation results.
    - DEBUG: Log "[KB-CREATE-DEBUG] Final status: kb_create_status={status}, kb_file_path={path}"
-   - **Log to Decision Log:**
+   - **Log to Decision Log (MANDATORY STEPS):**
      * Append to: results/decision-log.csv
-     * Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,{{message}},{{status}}"
-     * Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-     * Message format:
-       - If kb_create_status == SUCCESS: "Created KB: {{kb_filename}}" (e.g., "Created KB: nu1008_central_package_management.md")
-       - If kb_create_status == SKIPPED and kb_search_status == FOUND: "KB already exists - creation skipped"
-       - If kb_create_status == SKIPPED and kb_search_status == SKIPPED: "Build succeeded - KB not needed"
-     * {{kb_filename}}: Extract filename from kb_file_path (e.g., "nu1008_central_package_management.md")
-     * Status:
-       - "SUCCESS" if kb_create_status == SUCCESS
-       - "SKIPPED" if kb_create_status == SKIPPED
+     * **MUST LOG MICROSOFT DOCS QUERIES**: Log each MCP server query as a separate entry:
+       - For microsoft_docs_search: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,Queried Microsoft Docs MCP: {{search_query}},INFO"
+       - For code_sample_search: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,Queried Microsoft Docs code samples: {{code_query}},INFO"
+       - For docs_fetch: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,Fetched Microsoft Docs article: {{doc_url}},INFO"
+     * **FINAL TASK STATUS**: Log the overall task completion:
+       - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-create-knowledge-base,{{message}},{{status}}"
+       - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+       - Message format:
+         * If kb_create_status == SUCCESS: "Created KB: {{kb_filename}}" (e.g., "Created KB: nu1008_central_package_management.md")
+         * If kb_create_status == SKIPPED and kb_search_status == FOUND: "KB already exists - creation skipped"
+         * If kb_create_status == SKIPPED and kb_search_status == SKIPPED: "Build succeeded - KB not needed"
+       - {{kb_filename}}: Extract filename from kb_file_path (e.g., "nu1008_central_package_management.md")
+       - Status:
+         * "SUCCESS" if kb_create_status == SUCCESS
+         * "SKIPPED" if kb_create_status == SKIPPED
    - **DEBUG Exit Trace:**
      * If environment variable DEBUG=1, emit a line to stdout before returning:
      * `[debug][task-create-knowledge-base] END kb_create_status='{{kb_create_status}}' kb_file_created={{kb_file_created}}`

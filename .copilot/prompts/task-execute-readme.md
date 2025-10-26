@@ -6,7 +6,7 @@ temperature: 0.1
 
 Task name: task-execute-readme
 
-Description:
+## Description:
 
 This task takes the commands extracted by task-scan-readme, determines which commands are safe to execute, and executes them in the repository directory. This task requires AI structural reasoning for safety classification and CANNOT be scripted.
 
@@ -26,7 +26,7 @@ This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
 
 The AI agent must use reasoning to determine command safety and execute safe commands one at a time.
 
-Behavior:
+## Behavior (Follow this Step by Step)
 
 0. DEBUG Entry Trace: Use run_in_terminal with echo/Write-Host:
    "[debug][task-execute-readme] START repo_directory='{{repo_directory}}' commands_json_path='{{commands_json_path}}'"

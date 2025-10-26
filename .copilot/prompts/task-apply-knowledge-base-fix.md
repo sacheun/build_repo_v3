@@ -5,7 +5,7 @@ temperature: 0.1
 
 # Task: Apply Knowledge Base Fix
 
-## Purpose
+## Description
 Parse the KB article, extract fix instructions, and automatically apply them to the solution files to resolve the build error. Supports multiple fix options with sequential retry logic.
 
 ## Prerequisites
@@ -14,14 +14,14 @@ Parse the KB article, extract fix instructions, and automatically apply them to 
 - `error_code`: Error code to fix (e.g., NU1008, MSB3644, SF0001)
 - `last_option_applied`: (Optional) The last option number that was applied (e.g., "1", "2", "3"). If not provided, defaults to applying Option 1.
 
-## Behavior
+## Behavior (Follow this Step by Step)
 
 0. **DEBUG Entry Trace:**
    - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
    - `[debug][task-apply-knowledge-base-fix] START solution='{{solution_name}}' kb_file='{{kb_file_path}}' error_code='{{error_code}}'`
    - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
 
-## YOU MUST USE DIRECT TOOL CALLS
+### YOU MUST USE DIRECT TOOL CALLS
 
 ** CRITICAL: DO NOT suggest commands or edits - EXECUTE them directly **
 
@@ -35,7 +35,7 @@ Use these tools:
 
 ---
 
-## Step 1: Parse KB Article
+### Step 1: Parse KB Article
 
 1. **Read the KB Article:**
    ```
@@ -73,7 +73,7 @@ Use these tools:
 
 ---
 
-## Step 2: Locate Target Files
+### Step 2: Locate Target Files
 
 1. **Find Solution Directory:**
    - Extract directory from solution_path: `Path.GetDirectoryName(solution_path)`
@@ -91,11 +91,11 @@ Use these tools:
 
 ---
 
-## Step 3: Apply Fix Instructions
+### Step 3: Apply Fix Instructions
 
 ** CRITICAL: Use `replace_string_in_file` or `create_file` - DO NOT output code blocks **
 
-### Example Fix Patterns:
+#### Example Fix Patterns:
 
 **Pattern 1: NU1008 - Central Package Management**
 - **Action:** Remove `<Version>` from PackageReference, add to Directory.Packages.props
@@ -122,7 +122,7 @@ Use these tools:
   2. Determine highest required version
   3. Update all references to use highest version
 
-### Fix Application Steps:
+#### Fix Application Steps:
 
 1. **For Each Required Change:**
    - Read target file with `read_file`
@@ -153,7 +153,7 @@ Use these tools:
 
 ---
 
-## Step 4: Validate Fix Application
+### Step 4: Validate Fix Application
 
 1. **Check File Modifications:**
    - Re-read modified files to confirm changes applied
@@ -171,7 +171,7 @@ Use these tools:
 
 ---
 
-## Step 5: Output Results
+### Step 5: Output Results
 
 1. **DEBUG Exit Trace:**
    - If environment variable DEBUG=1, emit a line to stdout before returning:
@@ -224,7 +224,7 @@ Return JSON output with the following structure:
 }
 ```
 
-### Status Definitions:
+#### Status Definitions:
 - **SUCCESS**: All fix instructions applied successfully, files modified correctly
 - **FAIL**: Unable to apply fix due to file access issues, syntax errors, or unexpected file structure
 - **SKIPPED**: Fix instructions not applicable to this solution (wrong error code, files don't match KB expectations)
@@ -232,7 +232,7 @@ Return JSON output with the following structure:
 
 ---
 
-## Implementation Notes
+### Implementation Notes
 
 1. **File Encoding:** Preserve original file encoding when modifying (UTF-8, UTF-8 BOM, etc.)
 2. **Line Endings:** Preserve original line endings (CRLF on Windows, LF on Unix)

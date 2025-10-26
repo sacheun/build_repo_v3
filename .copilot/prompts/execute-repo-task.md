@@ -39,7 +39,7 @@ It processes ALL uncompleted tasks across ALL repositories until everything is c
 - A task fails (status: FAIL)
 - A task is blocked due to missing dependencies (status: BLOCKED)
 
-## Behavior (Step by Step)
+## Behavior (Follow this Step by Step)
 **Step 0: Initialize Parameters and Start Loop**
 1. If the user provides `clone=` and `clean_results=` when invoking this prompt, use them.
    Requirements:

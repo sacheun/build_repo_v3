@@ -5,12 +5,12 @@ temperature: 0.1
 
 Task name: task-restore-solution
 
-Description:
+## Description:
 This tasks performs NuGet package restore for a Visual Studio solution file using MSBuild with automatic fallback strategies. It attempts msbuild /restore first, optionally falls back to dotnet msbuild if MSBuild is unavailable, and executes nuget restore as a last resort for legacy solutions requiring classic NuGet CLI. Returns structured JSON indicating success status, captured output, and parsed error/warning messages.
 
 ** Important **: Do not deviate from the command list provided. Always use the exact same commands each time you run this prompt.
 
-Behavior:
+## Behavior (Follow this Step by Step)
 0. DEBUG Entry Trace: If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
    "[debug][task-restore-solution] START solution='{{solution_name}}' path='{{solution_path}}'"
    This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.

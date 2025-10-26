@@ -5,13 +5,13 @@ temperature: 0.1
 
 Task name: task-build-solution
 
-Description:
+## Description:
 Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release configuration, extracts diagnostic tokens (error/warning codes), classifies them heuristically, and returns structured JSON summarizing build success along with truncated output segments. Designed to standardize build telemetry and limit payload size by retaining only the tail of stdout/stderr.
 
 ** Important **: Do not deviate from the command list provided. Always use the exact same commands each time you run this prompt.
 
 
-Behavior:
+## Behavior (Follow this Step by Step)
 0. DEBUG Entry Trace: If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
    "[debug][task-build-solution] START solution='{{solution_name}}' path='{{solution_path}}'"
    This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.

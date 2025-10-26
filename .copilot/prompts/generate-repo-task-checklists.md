@@ -18,7 +18,7 @@ This task can be implemented as a Python script that:
 4. Generates individual checklist files for each repository
 5. Supports append mode to add new repositories without replacing existing ones
 
-## Behavior (Step by Step)
+## Behavior (Follow this Step by Step)
 0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-repo-task-checklists] START input='{{input}}' append={{append}}`
 
 1. Input Parameters: You are given input (file path) and append (boolean) from the calling context.

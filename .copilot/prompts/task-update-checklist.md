@@ -3,11 +3,13 @@
 temperature: 0.1
 ---
 
-Description:
+Task name: task-update-checklist
+
+## Description:
 This prompt updates a task checklist to mark a completed task as done.
 It updates either a repository-level task or a solution-level task based on whether solution_name is provided.
 
-Behavior:
+## Behavior (Follow this Step by Step)
 1. Parse the required parameters:
    - repo_name: Friendly name of the repository (e.g., "ic3_spool_cosine-dep-spool")
    - task_name: Name of the task to mark as complete (e.g., "@task-clone-repo", "@task-build-solution")

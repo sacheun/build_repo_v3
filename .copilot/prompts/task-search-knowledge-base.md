@@ -1,14 +1,10 @@
 @task-search-knowledge-base solution_path={{solution_path}} solution_name={{solution_name}} build_status={{build_status}} build_stderr={{build_stderr}} errors={{errors}} warnings={{warnings}}
+
+Task name: task-search-knowledge-base
+
 ---
 temperature: 0.1
 ---
-
-## Behavior
-
-0. **DEBUG Entry Trace:**
-   - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
-   - `[debug][task-search-knowledge-base] START solution='{{solution_name}}' build_status='{{build_status}}' error_count={{len(errors)}}`
-   - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
 
 ** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
 
@@ -35,10 +31,15 @@ DO NOT:
 
 ** END WARNING **
 
-Description:
+## Description:
 This task analyzes build failures, extracts detection tokens from error output, and searches existing knowledge base articles for matches. If a match is found, it returns the path to the existing KB article. If no match is found, it signals that a new KB article should be created.
 
-Behavior:
+## Behavior (Follow this Step by Step)
+0. **DEBUG Entry Trace:**
+   - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
+   - `[debug][task-search-knowledge-base] START solution='{{solution_name}}' build_status='{{build_status}}' error_count={{len(errors)}}`
+   - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
+
 1. **Success Check**: If build_status == SUCCESS, return kb_search_status=SKIPPED (no action needed).
    - DEBUG: Log "[KB-SEARCH-DEBUG] Build status: {build_status}, KB search skipped"
    - Return: kb_search_status=SKIPPED, kb_file_path=null, detection_tokens=[]

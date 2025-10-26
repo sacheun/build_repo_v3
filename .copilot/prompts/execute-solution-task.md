@@ -36,7 +36,7 @@ This is an autonomous executor similar to @execute-repo-task but designed for so
    - When solution complete, move to next solution
 3. Continue until ALL tasks in ALL solution checklists are complete
 
-## Behavior (Step by Step)
+## Behavior (Follow this Step by Step)
 
 **Step 1: Discover Solution Checklist Files**
 1. Search ./tasks directory for files matching pattern: *solution_checklist.md
@@ -152,6 +152,7 @@ Before executing each task, extract required variables from the markdown file:
 
 **Variables Section Format:**
 ```markdown
+
 ### Solution Variables
 
 (Variables set by tasks for this specific solution)
@@ -194,9 +195,6 @@ Before executing each task, extract required variables from the markdown file:
 - Extract solution_name from section heading
 - Extract solution_path from "Path:" line in solution section
 - Initialize all variables with default values (e.g., NOT_EXECUTED, N/A, SKIPPED)
-
-**Step 5: Execute Corresponding Task Prompt**
-Based on task type identified in Step 3:
 
 **Step 5: Execute Corresponding Task Prompt**
 Based on task type identified in Step 3:

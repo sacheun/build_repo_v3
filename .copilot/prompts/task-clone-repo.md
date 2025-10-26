@@ -6,7 +6,7 @@ temperature: 0.1
 
 Task name: task-clone-repo
 
-Description:
+## Description:
 This task clones a repository from repo_url into clone_path directory. This is a straightforward git operation that CAN be implemented as a script.
 
 ** THIS TASK IS SCRIPTABLE **
@@ -18,7 +18,7 @@ This task can be implemented as a Python script that:
 4. Saves the result to JSON output
 5. Updates progress and results files
 
-Behavior:
+## Behavior (Follow this Step by Step)
 0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][task-clone-repo] START repo_url='{{repo_url}}' clone_path='{{clone_path}}'`
 
 1. Input Parameters: You are given repo_url, clone_path, and optionally repo_name from the calling context.
