@@ -20,24 +20,27 @@ If DEBUG=1, print parameter values.
    • Convert each into object `{name, path}`  
    • Log solution count if DEBUG=1
 
-2. **Create Output File**
-   • New file: `./tasks/{repo_name}_solution_checklist.md`  
+2. **Create Single Output File for All Solutions**
+   • New file: `./tasks/{repo_name}_solutions_checklist.md`  
    • Overwrite if it already exists  
+   • This file will contain ALL solutions for this repository
    • Log creation if DEBUG=1
 
 3. **Write File Header**
    ```
-   # Solution Checklist: {repo_name}
+   # Solutions Checklist: {repo_name}
    Repository: {repo_url}
+   Total Solutions: {solutions_total}
    Generated: {timestamp}
+   
    ---
    ```
 
-4. **Generate Checklist Sections**
-   For each solution:
+4. **Generate Checklist Sections for ALL Solutions**
+   For each solution in the solutions array:
    ```
-   ## Solution: {solution_name}
-   Path: {solution_path}
+   ## Solution {index}: {solution_name}
+   Path: `{solution_path}`
 
    ### Tasks
    - [ ] [MANDATORY #1] [SCRIPTABLE] Restore NuGet packages @task-restore-solution
@@ -53,8 +56,8 @@ If DEBUG=1, print parameter values.
 
    ### Solution Variables
    (Variables set by tasks for this specific solution)
-   - solution_path → {solution_path}
-   - solution_name → {solution_name}
+   - solution_path → `{solution_path}`
+   - solution_name → `{solution_name}`
    - max_build_attempts → 3
    - restore_status → NOT_EXECUTED
    - build_status → NOT_EXECUTED
@@ -67,6 +70,8 @@ If DEBUG=1, print parameter values.
    - retry_build_status_attempt_2 → NOT_EXECUTED
    - fix_applied_attempt_3 → NOT_EXECUTED
    - retry_build_status_attempt_3 → NOT_EXECUTED
+   
+   ---
    ```
    • Insert `---` as a separator between solutions  
    • Log generated section name if DEBUG=1
@@ -86,8 +91,8 @@ JSON saved to:
 | repo_name | string | Echo of input |
 | solutions_json_path | string | Echo of input |
 | solutions_total | integer | Count of solutions processed |
-| checklist_created | boolean | True if file created successfully |
-| checklist_path | string | `./tasks/{repo_name}_solution_checklist.md` |
+| checklist_created | boolean | True if single consolidated file created successfully |
+| checklist_path | string | `./tasks/{repo_name}_solutions_checklist.md` (single file for all solutions) |
 | status | SUCCESS or FAIL |
 | timestamp | ISO8601 timestamp |
 
