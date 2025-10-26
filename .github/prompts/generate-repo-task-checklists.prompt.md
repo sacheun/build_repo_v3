@@ -122,12 +122,12 @@ This task can be implemented as a Python script that:
      
      ## Repo Tasks (Sequential Pipeline - Complete in Order)
      
-     - [ ] [MANDATORY #1] Clone repository to local directory @task-clone-repo
-     - [ ] [MANDATORY #2] Search for README file in repository @task-search-readme
-     - [ ] [CONDITIONAL - NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
-     - [ ] [CONDITIONAL - NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
-     - [ ] [MANDATORY #3] Find all solution files in repository @task-find-solutions
-     - [ ] [MANDATORY #4] Generate solution-specific task sections in checklist @generate-solution-task-checklists
+     - [ ] [MANDATORY #1] [SCRIPTABLE] Clone repository to local directory @task-clone-repo
+     - [ ] [MANDATORY #2] [SCRIPTABLE] Search for README file in repository @task-search-readme
+     - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
+     - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
+     - [ ] [MANDATORY #3] [SCRIPTABLE] Find all solution files in repository @task-find-solutions
+     - [ ] [MANDATORY #4] [SCRIPTABLE] Generate solution-specific task sections in checklist @generate-solution-task-checklists
      
      ## For Agents Resuming Work
      
@@ -141,8 +141,10 @@ This task can be implemented as a Python script that:
      
      **Quick Reference:**
      - [MANDATORY] tasks must be completed in numbered order (#1 → #2 → #3 → #4)
-     - [CONDITIONAL - NON-SCRIPTABLE] @task-scan-readme executes when {{readme_content}} is not blank and not "NONE"
-     - [CONDITIONAL - NON-SCRIPTABLE] @task-execute-readme executes when {{commands_extracted}} is not blank and not "NONE"
+     - [CONDITIONAL] [NON-SCRIPTABLE] @task-scan-readme executes when {{readme_content}} is not blank and not "NONE"
+     - [CONDITIONAL] [NON-SCRIPTABLE] @task-execute-readme executes when {{commands_extracted}} is not blank and not "NONE"
+     - [SCRIPTABLE] tasks can be automated with scripts
+     - [NON-SCRIPTABLE] tasks require AI reasoning and direct tool calls
      - Mark completed tasks with [x]
      
      ## Repo Variables Available
@@ -151,7 +153,9 @@ This task can be implemented as a Python script that:
      ```
    - Task classification:
      - MANDATORY (sequential): @task-clone-repo (#1), @task-search-readme (#2), @task-find-solutions (#3), @generate-solution-task-checklists (#4)
-     - OPTIONAL: @task-scan-readme, @task-execute-readme
+     - CONDITIONAL: @task-scan-readme, @task-execute-readme
+     - SCRIPTABLE: @task-clone-repo, @task-search-readme, @task-find-solutions, @generate-solution-task-checklists
+     - NON-SCRIPTABLE: @task-scan-readme, @task-execute-readme
    - **Dynamic Variables Section:** Extract the entire "Variables available:" section from repo_tasks_list.md and include it verbatim in each generated checklist under "## Repo Variables Available" heading
 
 8. Structured Output: Save JSON object to output/generate-repo-task-checklists.json with:

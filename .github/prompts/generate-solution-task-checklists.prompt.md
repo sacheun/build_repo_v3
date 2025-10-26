@@ -40,16 +40,16 @@ If DEBUG=1, print parameter values.
    Path: {solution_path}
 
    ### Tasks
-   - [ ] [MANDATORY #1] Restore NuGet packages @task-restore-solution
-   - [ ] [MANDATORY #2] Build solution (Clean + Build) @task-build-solution
-   - [ ] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base
-   - [ ] [CONDITIONAL #4] Create knowledge base article @task-create-knowledge-base
-   - [ ] [CONDITIONAL #5 - Attempt 1] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL #6 - Attempt 1] Retry build after fix @task-build-solution-retry
-   - [ ] [CONDITIONAL #7 - Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL #8 - Attempt 2] Retry build after fix @task-build-solution-retry
-   - [ ] [CONDITIONAL #9 - Attempt 3] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL #10 - Attempt 3] Retry build after fix @task-build-solution-retry
+   - [ ] [MANDATORY #1] [SCRIPTABLE] Restore NuGet packages @task-restore-solution
+   - [ ] [MANDATORY #2] [SCRIPTABLE] Build solution (Clean + Build) @task-build-solution
+   - [ ] [CONDITIONAL #3] [NON-SCRIPTABLE] Search knowledge base for error fix @task-search-knowledge-base
+   - [ ] [CONDITIONAL #4] [NON-SCRIPTABLE] Create knowledge base article @task-create-knowledge-base
+   - [ ] [CONDITIONAL #5 - Attempt 1] [NON-SCRIPTABLE] Apply fix from KB @task-apply-knowledge-base-fix
+   - [ ] [CONDITIONAL #6 - Attempt 1] [SCRIPTABLE] Retry build after fix @task-build-solution-retry
+   - [ ] [CONDITIONAL #7 - Attempt 2] [NON-SCRIPTABLE] Apply fix from KB @task-apply-knowledge-base-fix
+   - [ ] [CONDITIONAL #8 - Attempt 2] [SCRIPTABLE] Retry build after fix @task-build-solution-retry
+   - [ ] [CONDITIONAL #9 - Attempt 3] [NON-SCRIPTABLE] Apply fix from KB @task-apply-knowledge-base-fix
+   - [ ] [CONDITIONAL #10 - Attempt 3] [SCRIPTABLE] Retry build after fix @task-build-solution-retry
 
    ### Solution Variables
    (Variables set by tasks for this specific solution)

@@ -61,7 +61,24 @@ If DEBUG=1, print detailed verification steps.
    • Store result: {repo_name, repo_directory, directory_exists: bool, is_empty: bool, file_count}
    • Log status if DEBUG=1
 
-6. **Generate Verification Report**
+6. **Verify CSV Completeness**
+   • Check if `results/repo_result.csv` exists
+   • Expected: Exactly 1 row per task per repository (6 tasks per repo)
+   • Parse CSV file (skip header row)
+   • For each repository, verify all expected tasks are logged:
+     - @task-clone-repo
+     - @task-search-readme
+     - @task-scan-readme
+     - @task-execute-readme
+     - @task-find-solutions
+     - @generate-solution-task-checklists
+   • Identify missing tasks (expected but not in CSV)
+   • Identify duplicate tasks (same task logged multiple times)
+   • Identify unexpected tasks (in CSV but not in expected list, check for naming issues like missing @ prefix)
+   • Store result: {csv_exists, total_expected_rows, total_actual_rows, missing_rows, duplicate_rows, repositories_with_issues, all_rows_present, details: {repo_name: {expected_tasks, actual_tasks, missing_tasks, duplicate_tasks, unexpected_tasks, has_issues}}}
+   • Log status if DEBUG=1
+
+7. **Generate Verification Report**
    Create summary with:
    • Total repositories verified
    • Repositories with all tasks complete
@@ -71,7 +88,7 @@ If DEBUG=1, print detailed verification steps.
    • Overall status: PASS or FAIL
    • Detailed findings per repository
 
-7. **Write Results**
+8. **Write Results**
    • Save markdown report to: `results/repo-tasks-verification.md`
    • Save JSON output to: `output/verify-repo-tasks-completed.json`
    • Log completion if DEBUG=1
@@ -90,6 +107,7 @@ JSON saved to:
 | variable_validation_summary | object | {repo_name: {total_variables, valid_variables, invalid_variables, all_variables_set, invalid_variable_list}} |
 | solution_checklist_summary | object | {repo_name: {exists, path}} |
 | directory_summary | object | {repo_name: {directory, exists, is_empty, file_count}} |
+| csv_completeness | object | {csv_exists, total_expected_rows, total_actual_rows, missing_rows, duplicate_rows, repositories_with_issues, all_rows_present, details} |
 | repositories_passing | array | List of repos passing all checks |
 | repositories_failing | array | List of repos failing any check |
 | overall_status | string | PASS or FAIL |
@@ -104,6 +122,7 @@ A repository PASSES if:
 - All task variables under "Variables set by completed tasks:" are properly set (not blank, not "NONE", not "N/A", not "NOT_EXECUTED"). Note: "SKIPPED" is acceptable as it indicates an intentional skip with context.
 - A *_solution_checklist.md file exists
 - The repo_directory exists and is not empty (contains at least 1 file/directory)
+- All 6 expected tasks are logged in repo_result.csv with correct naming (@ prefix)
 
 A repository FAILS if any of the above criteria is not met.
 
@@ -124,6 +143,22 @@ Generated: {timestamp}
 - Repositories Passing: {count}
 - Repositories Failing: {count}
 - Overall Status: {PASS/FAIL}
+
+## CSV Completeness Check
+
+- CSV File: {EXISTS/MISSING}
+- Expected Rows (6 tasks × {repo_count} repos): {count}
+- Actual Rows: {count}
+- Missing Rows: {count}
+- Duplicate Rows: {count}
+- All Rows Present: {YES/NO}
+
+{If repositories_with_issues:}
+**Repositories with CSV Issues:**
+- {repo_name}:
+  - Missing tasks: {list}
+  - Duplicate tasks: {list}
+  - Unexpected tasks: {list}
 
 ## Detailed Results
 
@@ -153,6 +188,15 @@ Generated: {timestamp}
 - Exists: {YES/NO}
 - Empty: {YES/NO}
 - File Count: {count}
+
+#### CSV Tracking
+- Expected Tasks: 6
+- Actual Tasks in CSV: {count}
+- All Tasks Logged: {YES/NO}
+{If issues:}
+- Missing: {list}
+- Duplicates: {list}
+- Unexpected: {list}
 
 ---
 

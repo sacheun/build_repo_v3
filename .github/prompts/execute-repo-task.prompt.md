@@ -95,35 +95,35 @@ It processes ALL uncompleted tasks across ALL repositories until everything is c
 - The sequence is: Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6
 - If a task is CONDITIONAL and its condition is met, it MUST be executed before moving to the next task
 - If a task is CONDITIONAL and its condition is NOT met, mark it as SKIPPED and move to the next task
-- Example sequence for ic3_spool_cosine-dep-spool:
-  1. [MANDATORY #1] @task-clone-repo ✅ Execute
-  2. [MANDATORY #2] @task-search-readme ✅ Execute
-  3. [CONDITIONAL] @task-scan-readme ✅ Execute (condition met: readme_content exists)
-  4. [CONDITIONAL] @task-execute-readme ✅ Execute (condition met: commands_extracted exists)
-  5. [MANDATORY #3] @task-find-solutions ✅ Execute (only after tasks 1-4 complete)
-  6. [MANDATORY #4] @generate-solution-task-checklists ✅ Execute (only after tasks 1-5 complete)
+**Example sequence for ic3_spool_cosine-dep-spool:
+  1. [MANDATORY #1] [SCRIPTABLE] @task-clone-repo ✅ Execute
+  2. [MANDATORY #2] [SCRIPTABLE] @task-search-readme ✅ Execute
+  3. [CONDITIONAL] [NON-SCRIPTABLE] @task-scan-readme ✅ Execute (condition met: readme_content exists)
+  4. [CONDITIONAL] [NON-SCRIPTABLE] @task-execute-readme ✅ Execute (condition met: commands_extracted exists)
+  5. [MANDATORY #3] [SCRIPTABLE] @task-find-solutions ✅ Execute (only after tasks 1-4 complete)
+  6. [MANDATORY #4] [SCRIPTABLE] @generate-solution-task-checklists ✅ Execute (only after tasks 1-5 complete)
 
 **Step 3: Prepare Task Parameters**
 
 - Extract task_name (e.g., "@task-clone-repo")
 - **Prepare parameters using variables from checklist first**:
-  - @task-clone-repo: 
+  - @task-clone-repo: [SCRIPTABLE]
     - repo_url: From checklist variables OR from all_repository_checklist.md
     - clone_path: From checklist variables OR from clone= parameter (required)
-  - @task-search-readme: 
+  - @task-search-readme: [SCRIPTABLE]
     - repo_directory: **Read from checklist variables** (set by @task-clone-repo)
     - repo_name: From checklist variables
-  - @task-scan-readme: 
+  - @task-scan-readme: [NON-SCRIPTABLE]
     - repo_directory: **Read from checklist variables**
     - repo_name: From checklist variables
     - readme_content_path: **Read from checklist variables** (set by @task-search-readme)
-  - @task-execute-readme: 
+  - @task-execute-readme: [NON-SCRIPTABLE]
     - repo_directory: **Read from checklist variables**
     - repo_name: From checklist variables
     - commands_json_path: **Read from checklist variables** (set by @task-scan-readme)
-  - @task-find-solutions: 
+  - @task-find-solutions: [SCRIPTABLE]
     - repo_directory: **Read from checklist variables**
-  - @generate-solution-task-checklists:
+  - @generate-solution-task-checklists: [SCRIPTABLE]
     - repo_name: From checklist variables
     - solutions: **Read from checklist variables** (reference to solutions_json file, extract solutions array)
 
@@ -230,12 +230,12 @@ For tasks that need output from previous tasks:
    - Read task output data from execution result
    - **Read existing checklist "## Task Variables" section to preserve previous values**
    - Update/add new variables based on which task was executed:
-     - @task-clone-repo → Sets: repo_directory
-     - @task-search-readme → Sets: readme_content (reference to JSON file path), readme_filename
-     - @task-scan-readme → Sets: commands_extracted (reference to JSON file path or count)
-     - @task-execute-readme → Sets: executed_commands (count), skipped_commands (count)
-     - @task-find-solutions → Sets: solutions_json (reference to JSON file path)
-     - @generate-solution-task-checklists → Sets: checklist_updated (boolean indicating solution sections added)
+     - @task-clone-repo [SCRIPTABLE] → Sets: repo_directory
+     - @task-search-readme [SCRIPTABLE] → Sets: readme_content (reference to JSON file path), readme_filename
+     - @task-scan-readme [NON-SCRIPTABLE] → Sets: commands_extracted (reference to JSON file path or count)
+     - @task-execute-readme [NON-SCRIPTABLE] → Sets: executed_commands (count), skipped_commands (count)
+     - @task-find-solutions [SCRIPTABLE] → Sets: solutions_json (reference to JSON file path)
+     - @generate-solution-task-checklists [SCRIPTABLE] → Sets: checklist_updated (boolean indicating solution sections added)
    - **Preserve all existing variable values** from previous tasks
    - **Only update variables that this task produces**
    
@@ -247,26 +247,26 @@ For tasks that need output from previous tasks:
    - For each variable from completed tasks, write the appropriate value:
    
    **Variable Writing Rules:**
-   - After @task-clone-repo completes:
+   - After @task-clone-repo [SCRIPTABLE] completes:
      * Write `repo_url`: {repo_url}
      * Write `clone_path`: {clone_path}
      * Write `repo_directory`: {absolute_path} (e.g., "C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool")
      * Write `repo_name`: {repo_name}
    
-   - After @task-search-readme completes:
+   - After @task-search-readme [SCRIPTABLE] completes:
      * Write `readme_content_path`: "output/{repo_name}_task2_search-readme.json"
      * Write `readme_filename`: {actual_filename} (e.g., "README.md")
      * If status is NOT_FOUND (no README found), write `readme_filename`: "NONE"
    
-   - After @task-scan-readme completes:
+   - After @task-scan-readme [NON-SCRIPTABLE] completes:
      * Write `commands_json_path`: "output/{repo_name}_task3_scan-readme.json"
      * Write `commands_extracted`: "{count} commands" or "NONE (0 commands - {reason})"
    
-   - After @task-execute-readme completes:
+   - After @task-execute-readme [NON-SCRIPTABLE] completes:
      * Write `executed_commands`: "SKIPPED (0 commands executed - {reason})" or "{count} commands executed"
      * Write `skipped_commands`: "SKIPPED (0 commands skipped - {reason})" or "{count} commands skipped"
    
-   - After @task-find-solutions completes:
+   - After @task-find-solutions [SCRIPTABLE] completes:
      * Write `solutions_json`: "output/{repo_name}_task5_find-solutions.json ({count} solutions found)"
    
    **⚠️ CRITICAL - FORMAT CONSISTENCY REQUIREMENT:**
@@ -306,11 +306,11 @@ For tasks that need output from previous tasks:
    - Only update variables that the current task produces
    
    **Variable Update Guidelines:**
-   - After @task-clone-repo: Update `repo_directory`, `repo_name`
-   - After @task-search-readme: Update `readme_content`, `readme_filename`
-   - After @task-scan-readme: Update `commands_extracted`
-   - After @task-execute-readme: Update `executed_commands`, `skipped_commands`
-   - After @task-find-solutions: Update `solutions_json`
+   - After @task-clone-repo [SCRIPTABLE]: Update `repo_directory`, `repo_name`
+   - After @task-search-readme [SCRIPTABLE]: Update `readme_content`, `readme_filename`
+   - After @task-scan-readme [NON-SCRIPTABLE]: Update `commands_extracted`
+   - After @task-execute-readme [NON-SCRIPTABLE]: Update `executed_commands`, `skipped_commands`
+   - After @task-find-solutions [SCRIPTABLE]: Update `solutions_json`
    
    - For large data, provide descriptive summaries with counts instead of full content
    - For simple values (paths, counts, filenames), embed directly with clear descriptions
@@ -389,7 +389,7 @@ Output Contract:
 
 Special Cases:
 
-**Case 1: First task for a repository (@task-clone-repo)**
+**Case 1: First task for a repository (@task-clone-repo [SCRIPTABLE])**
 - Use repo_url from master checklist
 - Use clone_path from clone= parameter (required)
 - After completion, repo_directory will be in task output
@@ -402,12 +402,12 @@ Special Cases:
 - If variable is not set in checklist (shows "not set"):
   - Check ./output/{repo_name}_{previous_task}.json as fallback
 - If missing from both sources, return BLOCKED status
-- Example workflow for @task-scan-readme:
+- Example workflow for @task-scan-readme [NON-SCRIPTABLE]:
   1. Check checklist variables for `repo_directory`
   2. Value found: `C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool`
   3. Check checklist variables for `readme_content_path`
-  4. Value found: `output/ic3_spool_cosine-dep-spool_task2_search-readme.json`
-  5. Execute: @task-scan-readme repo_directory="C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool" repo_name="ic3_spool_cosine-dep-spool" readme_content_path="output/ic3_spool_cosine-dep-spool_task2_search-readme.json"
+  - Value found: `output/ic3_spool_cosine-dep-spool_task2_search-readme.json`
+  5. Execute: @task-scan-readme [NON-SCRIPTABLE] repo_directory="C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool" repo_name="ic3_spool_cosine-dep-spool" readme_content_path="output/ic3_spool_cosine-dep-spool_task2_search-readme.json"
 
 **Case 3: All tasks complete**
 - Return executor_status: ALL_COMPLETE
@@ -441,7 +441,7 @@ INITIALIZATION:
 
 LOOP ITERATION 1:
   - Read all_repository_checklist.md → Find "repo1" uncompleted
-  - Read repo1_repo_checklist.md → Find "@task-clone-repo" uncompleted
+  - Read repo1_repo_checklist.md → Find "@task-clone-repo [SCRIPTABLE]" uncompleted
   - Execute @task-clone-repo → SUCCESS
   - Update checklist: Mark @task-clone-repo as [x]
   - Update Task Variables: repo_directory = C:\cloned\repo1
@@ -452,7 +452,7 @@ LOOP ITERATION 1:
 
 LOOP ITERATION 2:
   - Read all_repository_checklist.md → Find "repo1" still uncompleted
-  - Read repo1_repo_checklist.md → Find "@task-search-readme" uncompleted
+  - Read repo1_repo_checklist.md → Find "@task-search-readme [SCRIPTABLE]" uncompleted
   - Load repo_directory from checklist Task Variables
   - Execute @task-search-readme → SUCCESS
   - Update checklist: Mark @task-search-readme as [x]
@@ -466,7 +466,7 @@ LOOP ITERATION 2:
 
 LOOP ITERATION N-1:
   - Read all_repository_checklist.md → Find "repo1" still uncompleted
-  - Read repo1_repo_checklist.md → Find "@generate-solution-task-checklists" uncompleted
+  - Read repo1_repo_checklist.md → Find "@generate-solution-task-checklists [SCRIPTABLE]" uncompleted
   - Load solutions_json from checklist Task Variables
   - Execute @generate-solution-task-checklists → SUCCESS
   - Update checklist: Mark @generate-solution-task-checklists as [x]
@@ -482,7 +482,7 @@ LOOP ITERATION N-1:
 
 LOOP ITERATION N+1:
   - Read all_repository_checklist.md → Find "repo2" uncompleted
-  - Read repo2_repo_checklist.md → Find "@task-clone-repo" uncompleted
+  - Read repo2_repo_checklist.md → Find "@task-clone-repo [SCRIPTABLE]" uncompleted
   - Execute @task-clone-repo for repo2 → SUCCESS
   - Update checklist: Mark @task-clone-repo as [x]
   - Tasks executed: 7
