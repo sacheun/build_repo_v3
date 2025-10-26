@@ -3,7 +3,7 @@
 temperature: 0.1
 ---
 
-Description:
+## Description:
 This prompt acts as an autonomous task executor that reads task checklists and executes tasks in a continuous loop.
 It processes ALL uncompleted tasks across ALL repositories until everything is complete or an error occurs.
 

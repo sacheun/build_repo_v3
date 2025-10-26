@@ -3,7 +3,7 @@
 temperature: 0.1
 ---
 
-Description:
+## Description:
 This prompt autonomously executes solution-level tasks by processing *solution_checklist.md files in the ./tasks directory. It finds uncompleted tasks, reads required variables from the markdown file, executes the corresponding task prompts, and updates the checklist as tasks complete.
 
 **⚠️ CRITICAL: This is an EXECUTOR prompt - it ONLY calls other task prompts. It does NOT execute commands directly.**
