@@ -36,7 +36,7 @@ This is an autonomous executor similar to @execute-repo-task but designed for so
    - When solution complete, move to next solution
 3. Continue until ALL tasks in ALL solution checklists are complete
 
-Behavior:
+## Behavior (Step by Step)
 
 **Step 1: Discover Solution Checklist Files**
 1. Search ./tasks directory for files matching pattern: *solution_checklist.md
@@ -382,6 +382,46 @@ Based on task type identified in Step 3:
 
 3. Write updated variables back to markdown file
 4. Ensure proper formatting with → separator and attempt subsections
+
+**⚠️ CRITICAL - FORMAT CONSISTENCY REQUIREMENT:**
+
+ALL solution_checklist.md files MUST follow this exact format for Solution Variables section:
+
+```markdown
+### Solution Variables
+
+(Variables set by tasks for this specific solution)
+
+- solution_path → {value}
+- solution_name → {value}
+- max_build_attempts → 3
+- restore_status → {value}
+- build_status → {value}
+- kb_search_status → {value}
+- kb_file_path → {value}
+- kb_article_status → {value}
+- fix_applied_attempt_1 → {value}
+- retry_build_status_attempt_1 → {value}
+- fix_applied_attempt_2 → {value}
+- retry_build_status_attempt_2 → {value}
+- fix_applied_attempt_3 → {value}
+- retry_build_status_attempt_3 → {value}
+
+---
+```
+
+**Format Rules (MANDATORY):**
+1. Section header MUST be exactly: `### Solution Variables`
+2. Parenthetical MUST be exactly: `(Variables set by tasks for this specific solution)`
+3. Variable format MUST be: `variable_name → value` (with → arrow character U+2192, not ASCII ->)
+4. Variables MUST be in the order listed above
+5. Solution separator MUST be exactly: `---` (three dashes on separate line)
+6. All 14 variables MUST be present in every solution section
+
+**Before updating any variables:**
+- Verify the Solution Variables section exists and follows this exact format
+- If format is incorrect or section is missing, recreate it with the correct structure
+- If you're creating a new solution_checklist.md file, always include this section
 
 **Step 8: Move to Next Uncompleted Task**
 1. After updating checklist and variables, read the file again

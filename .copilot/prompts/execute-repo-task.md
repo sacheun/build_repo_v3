@@ -39,8 +39,7 @@ It processes ALL uncompleted tasks across ALL repositories until everything is c
 - A task fails (status: FAIL)
 - A task is blocked due to missing dependencies (status: BLOCKED)
 
-Behavior:
-
+## Behavior (Step by Step)
 **Step 0: Initialize Parameters and Start Loop**
 1. If the user provides `clone=` and `clean_results=` when invoking this prompt, use them.
    Requirements:
@@ -251,33 +250,52 @@ For tasks that need output from previous tasks:
    - After @task-find-solutions completes:
      * Write `solutions_json`: "output/{repo_name}_task5_find-solutions.json ({count} solutions found)"
    
-   Format of Task Variables section:
-     ```
-     ## Task Variables
-     
-     Variables from completed tasks (for resuming work):
-     
-     - `repo_url`: {repo_url}
-     - `clone_path`: {clone_path}
-     - `repo_directory`: {absolute_path_to_cloned_repo}
-     - `repo_name`: {repo_name}
-     - `readme_content_path`: {path_to_json_file}
-     - `readme_filename`: {filename}
-     - `commands_json_path`: {path_to_json_file}
-     - `commands_extracted`: {description}
-     - `executed_commands`: {description}
-     - `skipped_commands`: {description}
-     - `solutions_json`: {path_and_count}
-     
-     **Note:** Large content (readme_content_path, commands_json_path, solutions_json) is stored in ./output/ directory.
-     File paths and counts are shown here for quick reference.
-     When executing tasks, use these paths to construct the required parameters:
-     - For @task-scan-readme: Pass readme_content_path value (e.g., "output/{repo_name}_task2_search-readme.json")
-     - For @task-execute-readme: Pass commands_json_path value (e.g., "output/{repo_name}_task3_scan-readme.json")
-     ```
-   - For large data (readme_content, solutions_json), reference the JSON file path instead of embedding full content
-   - For simple values (paths, counts, filenames), embed directly in checklist
-   - **Important**: Only include variables for tasks that have been completed
+   **⚠️ CRITICAL - FORMAT CONSISTENCY REQUIREMENT:**
+   
+   ALL {repo_name}_repo_checklist.md files MUST follow this exact format for Task Variables section:
+   
+   ```markdown
+   ## Task Variables
+   
+   Variables set by completed tasks:
+   - `repo_url`: {repo_url}
+   - `clone_path`: {clone_path}
+   - `repo_directory`: {absolute_path_to_cloned_repo}
+   - `repo_name`: {repo_name}
+   - `readme_content`: {description_with_character_count_or_NONE}
+   - `readme_filename`: {filename_or_NONE}
+   - `commands_extracted`: {count_and_source_or_NONE}
+   - `executed_commands`: {count_and_description_or_0}
+   - `skipped_commands`: {count_and_reason_or_0}
+   - `solutions_json`: {count_solutions_found_with_names_or_NONE}
+   ```
+   
+   **Format Rules (MANDATORY):**
+   1. Section header MUST be exactly: `## Task Variables`
+   2. Subheading MUST be exactly: `Variables set by completed tasks:`
+   3. Variable format MUST be: `` `variable_name`: {value} `` (backticks around variable name, colon separator)
+   4. Variables MUST be in the order listed above (repo_url first, solutions_json last)
+   5. All 10 variables MUST be present in every repo checklist
+   6. Variable names MUST use backticks: `` `repo_url` ``, `` `clone_path` ``, etc.
+   7. Values should be descriptive (e.g., "2892 characters - README.md found", "13 commands (from getting_started.md)")
+   8. If a task hasn't been completed, use placeholder values: NONE, 0, or descriptive text
+   
+   **Before updating any variables:**
+   - Verify the Task Variables section exists and follows this exact format
+   - If format is incorrect or section is missing, recreate it with the correct structure
+   - Preserve all existing variable values when updating
+   - Only update variables that the current task produces
+   
+   **Variable Update Guidelines:**
+   - After @task-clone-repo: Update `repo_directory`, `repo_name`
+   - After @task-search-readme: Update `readme_content`, `readme_filename`
+   - After @task-scan-readme: Update `commands_extracted`
+   - After @task-execute-readme: Update `executed_commands`, `skipped_commands`
+   - After @task-find-solutions: Update `solutions_json`
+   
+   - For large data, provide descriptive summaries with counts instead of full content
+   - For simple values (paths, counts, filenames), embed directly with clear descriptions
+   - **Important**: Only include actual values for tasks that have been completed
    - Write the updated checklist content back to the file
    
 2. Log completion to results/decision-log.csv:
