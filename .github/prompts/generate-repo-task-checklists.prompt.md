@@ -59,7 +59,7 @@ This task can be implemented as a Python script that:
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] found {{existing_count}} existing repos, {{new_count}} new repos`
    - Only process these new repositories
 
-5. Parse Task Definitions: Read .copilot/prompts/repo_tasks_list.md to extract:
+5. Parse Task Definitions: Read .github/prompts/repo_tasks_list.md to extract:
    - All task directives (e.g., @task-clone-repo, @task-search-readme, etc.)
    - Short descriptions for each task
    - The complete "Variables available:" section content
@@ -219,7 +219,7 @@ Output Contract:
 Implementation Notes:
 1. **THIS IS SCRIPTABLE**: Generate a Python/PowerShell/Bash script to execute this task
 2. URL Parsing: Extract friendly repo names from URLs (e.g., last segment after final /)
-3. Dynamic Task Extraction: Parse .copilot/prompts/repo_tasks_list.md to get task list and variables section
+3. Dynamic Task Extraction: Parse .github/prompts/repo_tasks_list.md to get task list and variables section
 4. Contract Compliance: Always save JSON output file with all fields regardless of success/failure
 5. Markdown Format: Use `- [ ]` for unchecked, `- [x]` for checked checkboxes
 6. Timestamp Format: Use ISO 8601 format (e.g., "2025-10-24T14:30:00")
