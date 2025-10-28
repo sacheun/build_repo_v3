@@ -31,14 +31,18 @@ This task can be implemented as a Python script that:
    
    **If append = false (default):**
    - **Remove the entire ./tasks directory if it exists** (including all files and subdirectories)
-   - Create a fresh ./tasks directory
-   - If DEBUG=1, print: `[debug][generate-repo-task-checklists] removed and recreated tasks directory (append=false)`
-   - **WARNING**: This will delete all existing checklists, solution checklists, and progress tracking files
+   - **Remove the entire ./output directory if it exists** (including all output JSON files)
+   - **Remove the entire ./temp-script directory if it exists** (including all generated scripts)
+   - Create fresh ./tasks, ./output, and ./temp-script directories
+   - If DEBUG=1, print: `[debug][generate-repo-task-checklists] removed and recreated tasks, output, and temp-script directories (append=false)`
+   - **WARNING**: This will delete all existing checklists, solution checklists, output files, and generated scripts
    
    **If append = true:**
    - Keep existing ./tasks directory and all its contents
-   - Create ./tasks directory if it doesn't exist
-   - If DEBUG=1, print: `[debug][generate-repo-task-checklists] preserving existing tasks (append=true)`
+   - Keep existing ./output directory and all its contents
+   - Keep existing ./temp-script directory and all its contents
+   - Create ./tasks, ./output, and ./temp-script directories if they don't exist
+   - If DEBUG=1, print: `[debug][generate-repo-task-checklists] preserving existing tasks, output, and temp-script (append=true)`
 
 3. Read Input File: Read the input file to get all repository URLs
    - Parse line by line, skip empty lines and comments (lines starting with #)

@@ -5,8 +5,8 @@ Task name: generate-repo-task-checklists
 **THIS TASK IS SCRIPTABLE**
 
 ## Description:
-Generate a solution-level checklist file for a repository.  
-This is used to track progress for each solution (.sln) discovered in the repo.
+Generate individual solution-level checklist files for a repository.  
+This creates ONE checklist file per solution (.sln) discovered in the repo.
 
 If DEBUG=1, print parameter values.
 
@@ -28,26 +28,27 @@ If DEBUG=1, print parameter values.
    • If DEBUG=1, print: `[debug][generate-solution-task-checklists] extracted {{task_count}} tasks from solution_tasks_list.prompt.md`
    • Store the variables section for inclusion in each solution section
 
-3. **Create Single Output File for All Solutions**
-   • New file: `./tasks/{repo_name}_solutions_checklist.md`  
+3. **Create One Checklist File Per Solution**
+   For each solution in the solutions array:
+   • Create new file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`  
+   • Sanitize solution_name for filename (replace spaces/special chars with underscores)
    • Overwrite if it already exists  
-   • This file will contain ALL solutions for this repository
+   • Each solution gets its own dedicated checklist file
    • Log creation if DEBUG=1
 
-4. **Write File Header**
+4. **Write File Header (for each solution file)**
    ```
-   # Solutions Checklist: {repo_name}
-   Repository: {repo_url}
-   Total Solutions: {solutions_total}
+   # Solution Checklist: {solution_name}
+   Repository: {repo_name}
+   Solution Path: `{solution_path}`
    Generated: {timestamp}
    
    ---
    ```
 
-5. **Generate Checklist Sections for ALL Solutions**
-   For each solution in the solutions array:
+5. **Generate Checklist Content (for each solution file)**
    ```
-   ## Solution {index}: {solution_name}
+   ## Solution: {solution_name}
    Path: `{solution_path}`
 
    ### Tasks
@@ -70,16 +71,15 @@ If DEBUG=1, print parameter values.
    - max_build_attempts → 3
    
    [Content dynamically extracted from .github/prompts/solution_tasks_list.prompt.md "Variables available:" section]
-   
-   ---
    ```
-   • Insert `---` as a separator between solutions  
-   • Log generated section name if DEBUG=1
-   • **Dynamic Variables Section:** Extract the entire "Variables available:" section from .github/prompts/solution_tasks_list.prompt.md and include it verbatim in each solution section under "### Solution Variables Available" heading
+   • Each solution file is self-contained with all its tasks and variables
+   • No separator needed (each solution is in its own file)
+   • Log generated file path if DEBUG=1
+   • **Dynamic Variables Section:** Extract the entire "Variables available:" section from .github/prompts/solution_tasks_list.prompt.md and include it verbatim in each solution file under "### Solution Variables Available" heading
 
-6. **Write and Close File**
-   • Confirm file written successfully  
-   • Log solution count if DEBUG=1
+6. **Write and Close Each File**
+   • Confirm each file written successfully  
+   • Log total solution files created if DEBUG=1
 
 ---
 
@@ -92,8 +92,8 @@ JSON saved to:
 | repo_name | string | Echo of input |
 | solutions_json_path | string | Echo of input |
 | solutions_total | integer | Count of solutions processed |
-| checklist_created | boolean | True if single consolidated file created successfully |
-| checklist_path | string | `./tasks/{repo_name}_solutions_checklist.md` (single file for all solutions) |
+| checklists_created | integer | Number of individual checklist files created successfully |
+| checklist_paths | array of strings | List of all created checklist file paths (e.g., `./tasks/{repo_name}_{solution_name}_solution_checklist.md`) |
 | status | SUCCESS or FAIL |
 | timestamp | ISO8601 timestamp |
 
@@ -124,6 +124,7 @@ Log messages for:
 7. **Error Handling**: If solutions_json_path not found, set status=FAIL and return with empty results
 8. **Script Location**: Save generated script to temp-script/ directory with naming pattern: generate_solution_checklists.py (or .ps1/.sh)
 9. **Environment**: Set DEBUG=1 environment variable at the start of the script if debug output is desired
-10. **Single File Output**: All solutions for a repository go into ONE consolidated checklist file, not separate files per solution
+10. **One File Per Solution**: Each solution gets its own dedicated checklist file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`
+11. **Filename Sanitization**: Replace spaces and special characters in solution_name with underscores for valid filenames
 
 ````

@@ -1,91 +1,56 @@
-@execute-solution-task
+@execute-solution-task solution_checklist=<required>
 ---
 temperature: 0.1
 ---
 
 ## Description:
-This prompt autonomously executes solution-level tasks by processing *solution_checklist.md files in the ./tasks directory. It finds uncompleted tasks, reads required variables from the markdown file, executes the corresponding task prompts, and updates the checklist as tasks complete.
+This prompt finds all unmarked tasks from a solution checklist markdown file and executes them sequentially. Each checklist file contains tasks for ONE solution only. It processes all uncompleted tasks in the specified checklist until all are complete or an error occurs.
 
-**CRITICAL REQUIREMENT:** After completing a task, you must update the designated repository markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
+**CRITICAL REQUIREMENT:** After completing a task, you must update the designated solution markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
 
 **⚠️ CRITICAL: This is an EXECUTOR prompt - it ONLY calls other task prompts. It does NOT execute commands directly.**
 
-**DO NOT:**
-- Run `dotnet restore` commands directly
-- Run `dotnet build` commands directly
-- Execute ANY terminal commands yourself
-- Generate scripts for solution tasks
-- Deviate from calling the defined task prompts
+**CRITICAL - SEQUENTIAL EXECUTION:**
+- This prompt executes ALL unmarked [ ] tasks in the checklist sequentially
+- Tasks are executed in the order they appear in the checklist
+- CONDITIONAL tasks execute when their condition is met, otherwise marked as SKIPPED
+- Processing continues until all tasks are complete or a failure/blocking occurs
 
-**DO:**
-- Call @task-restore-solution prompt for restore tasks
-- Call @task-build-solution prompt for build tasks
-- Call @task-search-knowledge-base prompt for KB search
-- Call @task-apply-knowledge-base-fix prompt for applying fixes
-- Let those task prompts handle command execution (scriptable or non-scriptable)
-
-This is an autonomous executor similar to @execute-repo-task but designed for solution-level workflows.
-
-**Autonomous Execution Flow:**
-1. Scan ./tasks directory for *solution_checklist.md files
-2. For each solution checklist file:
-   - Read all solution sections
-   - For each solution section, find FIRST uncompleted [ ] task
-   - Read required variables from markdown file
-   - Execute corresponding task prompt
-   - Update checklist when task completes
-   - Move to NEXT uncompleted task in same solution
-   - When solution complete, move to next solution
-3. Continue until ALL tasks in ALL solution checklists are complete
+**CONDITIONAL Task Execution Rules:**
+- CONDITIONAL means "execute IF condition is met"
+- When condition is TRUE → Task is executed
+- When condition is FALSE → Task is SKIPPED (mark as [x] SKIPPED)
+- Example: "@task-search-knowledge-base" is CONDITIONAL on build failure
+  - If build FAILED → Execute @task-search-knowledge-base
+  - If build SUCCEEDED → Mark as [x] SKIPPED
 
 ## Behavior (Follow this Step by Step)
 
-**Step 0: Initialize Solution Result CSV Tracking**
-1. **[MANDATORY] Check if file `results/solution_result.csv` exists**
-2. **If it does NOT exist, create it with the following header row:**
-   ```
-   repo,solution,task name,status
-   ```
-3. This CSV file will track all solution task executions across all repositories
-4. Each task execution will add one row to this file (see Step 6a)
+**Step 0: Initialize Parameters**
+1. Required parameters:
+      solution_checklist = <required> (path to solution checklist markdown file for ONE solution, e.g., "./tasks/ic3_spool_cosine-dep-spool_ResourceProvider_solution_checklist.md")
+2. **[MANDATORY] Initialize solution_result.csv tracking file:**
+   - Check if file `results/solution_result.csv` exists
+   - If it does NOT exist, create it with the following header row:
+     ```
+     repo,solution,task name,status
+     ```
 
-**Step 1: Discover Solution Checklist Files**
-1. Search ./tasks directory for files matching pattern: *solution_checklist.md
-2. Expected files:
-   - ic3_spool_cosine-dep-spool_solution_checklist.md
-   - people_spool_usertokenmanagement_solution_checklist.md
-   - sync_calling_concore-conversation_solution_checklist.md
-3. Sort files alphabetically for consistent processing order
-4. If no solution checklist files found, return status: NO_WORK
+**Step 1: Read Solution Checklist and Find Next Unmarked Task**
+1. Read the solution checklist file specified by solution_checklist parameter
+2. Parse the solution section (## Solution: {solution_name})
+   - Note: Each checklist file contains ONLY ONE solution
+3. Within that solution section, find the FIRST task with `- [ ]` (unmarked/uncompleted)
+4. If no unmarked tasks found, return status: ALL_TASKS_COMPLETE
+5. Extract task_name and task_number from that line (e.g., "#1", "@task-restore-solution")
+6. Extract repo_name from checklist filename (e.g., "ic3_spool_cosine-dep-spool" from "ic3_spool_cosine-dep-spool_ResourceProvider_solution_checklist.md")
+7. Extract solution_name from section heading (e.g., "## Solution: ResourceProvider")
+8. **Read existing "### Solution Variables" section (if it exists)**:
+   - Parse all variable values from previous task executions
+   - Store these values for use in task parameter preparation
+9. **Continue to next step to execute this task**
 
-**Step 2: Process Each Solution Checklist File**
-For each solution checklist file found:
-
-1. Read the entire file content
-2. Extract repository name from filename (e.g., "ic3_spool_cosine-dep-spool" from "ic3_spool_cosine-dep-spool_solution_checklist.md")
-3. Parse all solution sections (## {N}. {solution_name})
-4. For each solution section, identify:
-   - Solution name
-   - Solution path
-   - Solution variables (if any)
-   - Task list with completion status
-
-**Step 3: Find and Execute First Uncompleted Task**
-
-**CRITICAL - SEQUENTIAL EXECUTION REQUIREMENT:**
-- Process tasks in STRICT SEQUENTIAL ORDER within each solution
-- Find the FIRST uncompleted [ ] task in the current solution
-- Execute ONLY that ONE task
-- Update the checklist
-- Then find the NEXT uncompleted [ ] task
-- DO NOT skip tasks or execute multiple tasks simultaneously
-- DO NOT move to next solution until current solution has ALL tasks [x] completed
-
-**CRITICAL - CONDITIONAL TASK EXECUTION:**
-- **CONDITIONAL tasks are NOT SKIPPABLE - they MUST EXECUTE when their condition is met**
-- CONDITIONAL means "execute IF condition is met"
-- When condition is TRUE → Task becomes MANDATORY and MUST be executed
-- When condition is FALSE → Task is SKIPPED (mark as [x] SKIPPED with reason)
+**Step 2: Prepare Task Parameters**
 
 **Task Numbering and Attempt Tracking:**
 Tasks are numbered #1-10 with specific attempt numbers for retry tasks:
@@ -158,8 +123,14 @@ For the FIRST uncompleted [ ] task found:
    - [CONDITIONAL #5/7/9] → @task-apply-knowledge-base-fix (with attempt number)
    - [CONDITIONAL #6/8/10] → @task-build-solution-retry (with attempt number)
 
-**Step 4: Read Variables from Markdown File**
-Before executing each task, extract required variables from the markdown file:
+2. **Prepare parameters using variables from checklist**:
+   - Read "### Solution Variables" section from the current solution in the checklist
+   - Extract solution_path, solution_name, and task-specific variables
+   - For CONDITIONAL tasks, read condition variables to determine if task should execute
+
+**Step 3: Gather Required Input Data**
+
+Before executing the task, gather all required variables from the "### Solution Variables" section:
 
 **Variables Section Format:**
 ```markdown
@@ -207,7 +178,7 @@ Before executing each task, extract required variables from the markdown file:
 - Extract solution_path from "Path:" line in solution section
 - Initialize all variables with default values (e.g., NOT_EXECUTED, N/A, SKIPPED)
 
-**Step 5: Execute Corresponding Task Prompt**
+**Step 3: Execute Corresponding Task Prompt**
 Based on task type identified in Step 3:
 
 **⚠️ CRITICAL: DO NOT execute commands directly! Call the task prompts:**
@@ -347,7 +318,7 @@ Based on task type identified in Step 3:
 - Call @task-apply-knowledge-base-fix prompt ✅
 - Let task prompts decide scriptable vs non-scriptable ✅
 
-**Step 6: Update Checklist After Task Execution**
+**Step 4: Update Checklist After Task Execution**
 
 **Step 6a: [MANDATORY] Log task execution to solution_result.csv**
 1. **After each task is performed (regardless of success, failure, or skip), add 1 row to results/solution_result.csv:**
@@ -375,7 +346,7 @@ Based on task type identified in Step 3:
      * "- [x] [CONDITIONAL #7 - Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix - SKIPPED (previous retry succeeded)"
 6. Write updated content back to file
 
-**Step 7: Update Variables Section in Markdown**
+**Step 5: Update Variables Section in Markdown**
 1. Find the **Solution Variables** section in the current solution section
 2. Update variable values based on task execution results:
    
@@ -462,39 +433,13 @@ ALL solution_checklist.md files MUST follow this exact format for Solution Varia
 - If format is incorrect or section is missing, recreate it with the correct structure
 - If you're creating a new solution_checklist.md file, always include this section
 
-**Step 8: Move to Next Uncompleted Task**
-1. After updating checklist and variables, read the file again
-2. Find the NEXT uncompleted [ ] task in the SAME solution section
-3. If found, go back to Step 4 (read variables) and execute that task
-4. If NO uncompleted tasks in current solution, mark solution as COMPLETE
-5. Move to NEXT solution section in the same file
-6. If NO more solutions in current file, move to NEXT solution_checklist.md file
-7. If NO more files, autonomous execution is COMPLETE
+**Step 6: Loop Back to Process Next Unmarked Task**
+1. After updating checklist and variables, return to **Step 1**
+2. Step 1 will read the updated checklist and find the NEXT unmarked [ ] task in the solution
+3. If found, Steps 2-5 will execute that task
+4. If NO unmarked tasks remain, execution is COMPLETE for this solution checklist file
 
-**Step 9: Continue Loop Until All Work Complete**
-Repeat Steps 3-8 until:
-- ALL tasks in ALL solutions in ALL *solution_checklist.md files are marked [x]
-- OR maximum execution time reached (safety limit)
-- OR user interrupts execution
-
-**Step 10: Generate Execution Summary**
-When all work complete, create summary:
-```
-✅ Solution Task Execution Complete
-
-Processed Files:
-- ic3_spool_cosine-dep-spool_solution_checklist.md (8 solutions, 40 tasks)
-- people_spool_usertokenmanagement_solution_checklist.md (5 solutions, 25 tasks)
-- sync_calling_concore-conversation_solution_checklist.md (13 solutions, 65 tasks)
-
-Summary:
-- Total Solutions: 26
-- Total Tasks Executed: 130
-- Successful Builds: 20
-- Failed Builds: 6
-- KB Fixes Applied: 6
-- Retries Performed: 8
-```
+**Note:** This creates a continuous loop: Step 1 → Step 2 → Step 3 → Step 4 → Step 5 → Step 6 → back to Step 1, until all tasks in the provided solution_checklist file are marked [x]. Since each checklist file contains only ONE solution, this processes all tasks for that single solution.
 
 Variables available during execution:
 - {{repo_name}} → Extracted from filename
