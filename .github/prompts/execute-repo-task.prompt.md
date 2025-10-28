@@ -163,7 +163,7 @@ For tasks that need output from previous tasks:
    - Write the updated content back to the file
    
 4. Extract and save task output variables to repository checklist:
-   - **Parse repo_tasks_list.md to get list of all available variables**:
+   - **Parse repo_tasks_list.prompt.md to get list of all available variables**:
      - Read the "Variables available:" section
      - Extract all variable names (e.g., {{repo_url}}, {{repo_directory}}, {{readme_content}}, etc.)
    - Read task output data from execution result

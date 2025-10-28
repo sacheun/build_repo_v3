@@ -21,11 +21,11 @@ If DEBUG=1, print parameter values.
    • Log solution count if DEBUG=1
 
 2. **Parse Task Definitions**
-   • Read `.github/prompts/solution_tasks_list.prompt.md` to extract:
+   • Read `.github/prompts/execute-solution-task.prompt.md` to extract:
      - All task directives (e.g., @task-restore-solution, @task-build-solution, etc.)
      - Short descriptions for each task
-     - The complete "Variables available:" section content
-   • If DEBUG=1, print: `[debug][generate-solution-task-checklists] extracted {{task_count}} tasks from solution_tasks_list.prompt.md`
+     - The complete "### Solution Variables" section content
+   • If DEBUG=1, print: `[debug][generate-solution-task-checklists] extracted {{task_count}} tasks from execute-solution-task.prompt.md`
    • Store the variables section for inclusion in each solution section
 
 3. **Create One Checklist File Per Solution**
@@ -63,19 +63,56 @@ If DEBUG=1, print parameter values.
    - [ ] [CONDITIONAL #9 - Attempt 3] [NON-SCRIPTABLE] Apply fix from KB @task-apply-knowledge-base-fix
    - [ ] [CONDITIONAL #10 - Attempt 3] [SCRIPTABLE] Retry build after fix @task-build-solution-retry
 
+   ## For Agents Resuming Work
+
+   **Next Action:** 
+   1. Check if all [MANDATORY] tasks (#1-#2) are completed
+   2. If restore/build failed, execute conditional tasks (#3-#4) for knowledge base search/creation
+   3. If knowledge base articles exist, execute retry attempts (#5-#10) as needed
+   4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
+
+   **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-restore-solution`) as defined in `.github\prompts\execute-solution-task.prompt.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
+
+   **Quick Reference:**
+   - [MANDATORY] tasks must be completed in numbered order (#1 → #2)
+   - [CONDITIONAL] tasks (#3-#10) execute based on success/failure of mandatory tasks and retry logic
+   - [SCRIPTABLE] tasks can be automated with scripts
+   - [NON-SCRIPTABLE] tasks require AI reasoning and direct tool calls
+   - Mark completed tasks with [x]
+   - Check Solution Variables section below for current task status and retry attempt tracking
+
    ### Solution Variables
    (Variables set by tasks for this specific solution)
    - solution_path → `{solution_path}`
    - solution_name → `{solution_name}`
-   - build_attempt → 0
    - max_build_attempts → 3
+   - restore_status → NOT_EXECUTED
+   - build_status → NOT_EXECUTED
+   - kb_search_status → NOT_EXECUTED
+   - kb_file_path → N/A
+   - kb_article_status → NOT_EXECUTED
    
-   [Content dynamically extracted from .github/prompts/solution_tasks_list.prompt.md "Variables available:" section]
+   **Retry Attempt 1:**
+   - fix_applied_attempt_1 → NOT_EXECUTED
+   - kb_option_applied_attempt_1 → null
+   - retry_build_status_attempt_1 → NOT_EXECUTED
+   
+   **Retry Attempt 2:**
+   - fix_applied_attempt_2 → NOT_EXECUTED
+   - kb_option_applied_attempt_2 → null
+   - retry_build_status_attempt_2 → NOT_EXECUTED
+   
+   **Retry Attempt 3:**
+   - fix_applied_attempt_3 → NOT_EXECUTED
+   - kb_option_applied_attempt_3 → null
+   - retry_build_status_attempt_3 → NOT_EXECUTED
+
+   [Content dynamically extracted from .github/prompts/execute-solution-task.prompt.md "### Solution Variables" section]
    ```
    • Each solution file is self-contained with all its tasks and variables
    • No separator needed (each solution is in its own file)
    • Log generated file path if DEBUG=1
-   • **Dynamic Variables Section:** Extract the entire "Variables available:" section from .github/prompts/solution_tasks_list.prompt.md and include it verbatim in each solution file under "### Solution Variables Available" heading
+   • **Variables Section**: Include the explicit retry attempt variables above PLUS dynamically extract any additional variables from execute-solution-task.prompt.md to ensure complete compatibility
 
 6. **Write and Close Each File**
    • Confirm each file written successfully  
@@ -104,7 +141,7 @@ Prefix: `[debug][generate-solution-task-checklists]`
 
 Log messages for:
 • START (with input parameters)  
-• Task extraction from .github/prompts/solution_tasks_list.prompt.md
+• Task extraction from .github/prompts/execute-solution-task.prompt.md
 • File creation  
 • Each solution section  
 • Completion summary  
@@ -114,10 +151,8 @@ Log messages for:
 
 ## Implementation Notes
 1. **THIS IS SCRIPTABLE**: Generate a Python/PowerShell/Bash script to execute this task
-2. **Dynamic Task Extraction**: Parse .github/prompts/solution_tasks_list.prompt.md to get:
-   - Task list and descriptions
-   - Variables section (extract entire "### Variables available:" section)
-3. **Variables Section Format**: Include the extracted variables section exactly as it appears in .github/prompts/solution_tasks_list.prompt.md, preserving markdown formatting and variable descriptions
+2. **Mixed Variables Approach**: Include the explicit retry attempt variables template above AND dynamically extract additional content from .github/prompts/execute-solution-task.prompt.md "### Solution Variables" section
+3. **Variables Section Format**: Combine the static template with any additional variables found in execute-solution-task.prompt.md to ensure complete compatibility
 4. **Contract Compliance**: Always save JSON output file with all fields regardless of success/failure
 5. **Markdown Format**: Use `- [ ]` for unchecked, `- [x]` for checked checkboxes
 6. **Timestamp Format**: Use ISO 8601 format (e.g., "2025-10-27T14:30:00")

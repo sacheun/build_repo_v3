@@ -68,7 +68,7 @@ Variables set by completed tasks:
 3. If {{commands_extracted}} is not blank and not NONE, execute @task-execute-readme
 4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
 
-**How to Execute:** Invoke the corresponding task prompt as defined in repo_tasks_list.md.
+**How to Execute:** Invoke the corresponding task prompt as defined in repo_tasks_list.prompt.md.
 
 **Quick Reference:**
 - [MANDATORY] tasks must be completed in numbered order
@@ -141,7 +141,7 @@ For each repo checklist file, verify:
 - [ ] Section header: `## Repo Variables Available` (exact match)
 - [ ] Empty line before section
 - [ ] Empty line after section header
-- [ ] Contains variables documentation from repo_tasks_list.md
+- [ ] Contains variables documentation from repo_tasks_list.prompt.md
 - [ ] Variables use `{{variable_name}}` format with double curly braces
 
 **Step 4: Cross-File Consistency Check**

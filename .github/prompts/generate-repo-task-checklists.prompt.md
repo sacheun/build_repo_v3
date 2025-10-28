@@ -67,7 +67,7 @@ This task can be implemented as a Python script that:
    - All task directives (e.g., @task-clone-repo, @task-search-readme, etc.)
    - Short descriptions for each task
    - The complete "Variables available:" section content
-   - If DEBUG=1, print: `[debug][generate-repo-task-checklists] extracted {{task_count}} tasks from repo_tasks_list.md`
+   - If DEBUG=1, print: `[debug][generate-repo-task-checklists] extracted {{task_count}} tasks from .github\prompts\repo_tasks_list.prompt.md`
 
 6. Generate or Update Master Checklist:
    - File: ./tasks/all_repository_checklist.md
@@ -162,7 +162,7 @@ This task can be implemented as a Python script that:
      - CONDITIONAL: @task-scan-readme, @task-execute-readme
      - SCRIPTABLE: @task-clone-repo, @task-search-readme, @task-find-solutions, @generate-solution-task-checklists
      - NON-SCRIPTABLE: @task-scan-readme, @task-execute-readme
-   - **Dynamic Variables Section:** Extract the entire "### Variables available:" section from repo_tasks_list.prompt.md and include it verbatim in each generated checklist under "## Repo Variables Available" heading
+   - **Dynamic Variables Section:** Extract the entire "### Variables available:" section from .github\prompts\repo_tasks_list.prompt.md and include it verbatim in each generated checklist under "## Repo Variables Available" heading
 
 8. Structured Output: Save JSON object to output/generate-repo-task-checklists.json with:
    - input_file: path to input file used
