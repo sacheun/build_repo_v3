@@ -1,111 +1,56 @@
-@execute-repo-task clone=<required> clean_results=<optional>
+@execute-repo-task repo_checklist=<required> clone=<required>
 ---
 temperature: 0.1
 ---
 
 ## Description:
-This prompt acts as an autonomous task executor that reads task checklists and executes tasks in a continuous loop.
-It processes ALL uncompleted tasks across ALL repositories until everything is complete or an error occurs.
+This prompt finds all unmarked tasks from a repository checklist markdown file and executes them sequentially.
+It processes all uncompleted tasks in the specified checklist until all are complete or an error occurs.
 
 **CRITICAL REQUIREMENT:** After completing a task, you must update the designated repository markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
 
-**CRITICAL - SEQUENTIAL EXECUTION REQUIREMENT:**
-- Tasks MUST be executed in STRICT SEQUENTIAL ORDER as they appear in the checklist
-- DO NOT skip CONDITIONAL tasks to prioritize MANDATORY tasks
-- DO NOT execute tasks out of order under any circumstances
-- Process each task in sequence: Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6
-- **CONDITIONAL tasks are NOT SKIPPABLE - they MUST EXECUTE when their condition is met**
-- If a CONDITIONAL task's condition is met, it is MANDATORY to EXECUTE it before proceeding
-- If a CONDITIONAL task's condition is NOT met, mark it SKIPPED and proceed to next task
-- The MANDATORY vs CONDITIONAL labels indicate when to execute, NOT whether to execute
-- Always execute the FIRST uncompleted [ ] task in the checklist, regardless of its label
+**CRITICAL - SEQUENTIAL EXECUTION:**
+- This prompt executes ALL unmarked [ ] tasks in the checklist sequentially
+- Tasks are executed in the order they appear in the checklist
+- CONDITIONAL tasks execute when their condition is met, otherwise marked as SKIPPED
+- Processing continues until all tasks are complete or a failure/blocking occurs
 
 **CONDITIONAL Task Execution Rules:**
 - CONDITIONAL means "execute IF condition is met"
-- When condition is TRUE → Task becomes MANDATORY and MUST be executed
+- When condition is TRUE → Task is executed
 - When condition is FALSE → Task is SKIPPED (mark as [x] SKIPPED)
 - Example: "@task-scan-readme" is CONDITIONAL on readme_content existing
-  - If readme_content exists → MUST execute @task-scan-readme
-  - If readme_content does NOT exist → Mark as [x] SKIPPED, move to next task
-- Never skip a CONDITIONAL task when its condition is satisfied
-
-**CRITICAL: This prompt runs in a continuous loop. After completing each task, it immediately:**
-1. Updates the repository checklist (marking task as [x])
-2. Updates the Task Variables section with output from the completed task
-3. Finds the next uncompleted task
-4. Executes the next task
-5. Repeats until all repositories and all tasks are complete
-
-**The loop only stops when:**
-- All repositories are marked [x] in all_repository_checklist.md
-- A task fails (status: FAIL)
-- A task is blocked due to missing dependencies (status: BLOCKED)
+  - If readme_content exists → Execute @task-scan-readme
+  - If readme_content does NOT exist → Mark as [x] SKIPPED
 
 ## Behavior (Follow this Step by Step)
-**Step 0: Initialize Parameters and Start Loop**
-1. If the user provides `clone=` and `clean_results=` when invoking this prompt, use them.
-   Requirements:
-      clone = <required> (must be provided by user)
-      clean_results = false (default if not provided)
-2. If clean_results is true:
-      - Remove all files in results/ directory to start from scratch
-      - Remove all files in output/ directory to start from scratch
-      - Remove all files in temp-script/ directory to start from scratch
-      - **WARNING**: This will erase all task execution history and outputs
-3. Ensure the clone directory exists; create if it does not.
-4. Store clone_path value for use in task parameter preparation (Step 3)
-5. **Initialize loop counter and tracking:**
-   - tasks_executed_count = 0
-   - repositories_completed_count = 0
-   - execution_start_time = current timestamp
-6. **[MANDATORY] Initialize repo_result.csv tracking file:**
+
+**Step 0: Initialize Parameters**
+1. Required parameters:
+      repo_checklist = <required> (path to repository checklist markdown file, e.g., "./tasks/ic3_spool_cosine-dep-spool_repo_checklist.md")
+      clone = <required> (root directory for cloned repositories)
+2. Ensure the clone directory exists; create if it does not.
+3. **[MANDATORY] Initialize repo_result.csv tracking file:**
    - Check if file `results/repo_result.csv` exists
    - If it does NOT exist, create it with the following header row:
      ```
      repo,task name,status
      ```
-   - This CSV file will track all task executions across all repositories
-   - Each task execution will add one row to this file (see Step 6a)
-7. **BEGIN CONTINUOUS LOOP** - Repeat Steps 1-9 until all repositories complete or error occurs
 
-**Step 1: Read Master Repository Checklist**
-1. Read ./tasks/all_repository_checklist.md
-2. Parse the "## Repositories" section
-3. Find the first repository with `- [ ]` (uncompleted)
-4. Extract repo_name and repo_url from that line
-5. **If all repositories are marked `- [x]`:**
-   - Set executor_status: ALL_COMPLETE
-   - Log final summary to decision-log.csv: "All repositories completed. Total tasks executed: {tasks_executed_count}"
-   - **EXIT LOOP** and proceed to Step 9 (Return Execution Summary)
-
-**Step 2: Read Repository Task Checklist**
-1. Read ./tasks/{repo_name}_repo_checklist.md
-2. Parse the "## Tasks (Sequential Pipeline - Complete in Order)" section
-3. Find the first task with `- [ ]` (uncompleted)
-4. Extract task_name from that line (e.g., "@task-clone-repo")
-5. **Read existing "## Task Variables" section (if it exists)**:
+**Step 1: Read Repository Task Checklist and Find Next Unmarked Task**
+1. Read the repository checklist file specified by repo_checklist parameter
+2. Parse the "## Repo Tasks (Sequential Pipeline - Complete in Order)" section
+3. Find the FIRST task with `- [ ]` (unmarked/uncompleted)
+4. If no unmarked tasks found, return status: ALL_TASKS_COMPLETE
+5. Extract task_name from that line (e.g., "@task-clone-repo")
+6. Extract repo_name from checklist header (e.g., "# Task Checklist: {repo_name}")
+7. **Read existing "## Task Variables" section (if it exists)**:
    - Parse all variable values from previous task executions
    - Store these values for use in task parameter preparation
-   - This allows resuming work from a previous run with all context preserved
+8. **Continue to next step to execute this task**
 
-**CRITICAL - SEQUENTIAL EXECUTION REQUIREMENT:**
-- **Tasks MUST be completed in the EXACT order they appear in the checklist**
-- **DO NOT skip CONDITIONAL tasks to prioritize MANDATORY tasks**
-- **DO NOT execute tasks out of order, even if they are marked MANDATORY**
-- The sequence is: Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6
-- If a task is CONDITIONAL and its condition is met, it MUST be executed before moving to the next task
-- If a task is CONDITIONAL and its condition is NOT met, mark it as SKIPPED and move to the next task
-**Example sequence for ic3_spool_cosine-dep-spool:
-  1. [MANDATORY #1] [SCRIPTABLE] @task-clone-repo ✅ Execute
-  2. [MANDATORY #2] [SCRIPTABLE] @task-search-readme ✅ Execute
-  3. [CONDITIONAL] [NON-SCRIPTABLE] @task-scan-readme ✅ Execute (condition met: readme_content exists)
-  4. [CONDITIONAL] [NON-SCRIPTABLE] @task-execute-readme ✅ Execute (condition met: commands_extracted exists)
-  5. [MANDATORY #3] [SCRIPTABLE] @task-find-solutions ✅ Execute (only after tasks 1-4 complete)
-  6. [MANDATORY #4] [SCRIPTABLE] @generate-solution-task-checklists ✅ Execute (only after tasks 1-5 complete)
-
-**Step 3: Prepare Task Parameters**
-
-- Extract task_name (e.g., "@task-clone-repo")
+**Step 2: Prepare Task Parameters**
+Extract task_name (e.g., "@task-clone-repo")
 - **Prepare parameters using variables from checklist first**:
   - @task-clone-repo: [SCRIPTABLE]
     - repo_url: From checklist variables OR from all_repository_checklist.md
@@ -127,8 +72,7 @@ It processes ALL uncompleted tasks across ALL repositories until everything is c
     - repo_name: From checklist variables
     - solutions: **Read from checklist variables** (reference to solutions_json file, extract solutions array)
 
-**Step 4: Gather Required Input Data**
-
+**Step 3: Gather Required Input Data**
 For tasks that need output from previous tasks:
 - **Primary Source: Check repo checklist "## Task Variables" section** for variable values
   - These values are preserved from previous task executions
@@ -170,35 +114,32 @@ For tasks that need output from previous tasks:
   * Pass as parameters: repo_directory={value} commands_json_path={value}
 
 **If required input data is missing:**
-- Return status: BLOCKED with error message indicating missing dependency
+- Mark the current task as BLOCKED in the checklist
+- Log blocked status using @task-update-decision-log: timestamp={current_timestamp} repo_name={repo_name} solution_name="" task={task_name} message={blocking_reason} status="BLOCKED"
+- Stop processing remaining tasks in the checklist
+- Return execution_status: BLOCKED with error message indicating missing dependency
 - Example: "Cannot execute @task-search-readme: Variable 'repo_directory' not set (previous task @task-clone-repo not completed)"
 
-**Step 5: Execute the Task**
-1. Log the execution attempt to results/decision-log.csv:
-   - Timestamp: ISO 8601 format
-   - Repo Name: {repo_name}
-   - Solution Name: (empty for repo-level tasks)
-   - Task: {task_name}
-   - Message: "Starting task execution (loop iteration {tasks_executed_count + 1})"
-   - Status: "IN_PROGRESS"
+**Step 4: Execute the Task**
+1. Log the execution attempt using @task-update-decision-log:
+   - Invoke: @task-update-decision-log timestamp={current_timestamp} repo_name={repo_name} solution_name="" task={task_name} message="Starting task execution" status="IN_PROGRESS"
+   - This will append a row to results/decision-log.csv with execution start details
 
 2. Invoke the task prompt with required parameters (e.g., @task-clone-repo)
 
 3. Capture task output (status, result data)
 
 4. **If task execution fails:**
-   - Log failure to decision-log.csv with status: FAIL
-   - Set executor_status: FAIL
-   - **EXIT LOOP** and proceed to Step 9 (Return Execution Summary with error details)
+   - Log failure using @task-update-decision-log with status: FAIL and error message
+   - Stop processing remaining tasks in the checklist
+   - Return execution_status: FAIL with error details
 
 5. **If task execution is blocked:**
-   - Log blocked status to decision-log.csv
-   - Set executor_status: BLOCKED
-   - **EXIT LOOP** and proceed to Step 9 (Return Execution Summary with blocking reason)
+   - Log blocked status using @task-update-decision-log with blocking reason
+   - Stop processing remaining tasks in the checklist
+   - Return execution_status: BLOCKED with blocking reason
 
-6. Increment tasks_executed_count by 1
-
-**Step 6: Update Checklists and Save Variables**
+**Step 5: Update Checklist and Save Variables**
 
 **CRITICAL REQUIREMENT: Only mark tasks as complete [x] when they are ACTUALLY COMPLETE**
 - DO NOT mark a task as [x] if you did not execute all required steps
@@ -207,23 +148,21 @@ For tasks that need output from previous tasks:
 - Verify that all task requirements were fulfilled before changing `- [ ]` to `- [x]`
 - If a task was partially completed or skipped, leave it as `- [ ]` or mark it explicitly as SKIPPED
 
-**Step 6a: [MANDATORY] Log task execution to repo_result.csv**
-1. **After each task is performed (regardless of success or failure), add 1 row to results/repo_result.csv:**
+1. **After the task is performed (regardless of success or failure), add 1 row to results/repo_result.csv:**
    - Column 1 (repo): {repo_name}
    - Column 2 (task name): {task_name}
    - Column 3 (status): SUCCESS | FAIL | BLOCKED | SKIPPED
 2. **Append the row to the existing CSV file** (do not overwrite the file)
-3. **This step is MANDATORY and must be performed for EVERY task execution**
-4. Example row: `ic3_spool_cosine-dep-spool,@task-clone-repo,SUCCESS`
+   Example row: `ic3_spool_cosine-dep-spool,@task-clone-repo,SUCCESS`
 
-1. If task completed successfully AND all required work was performed, update the repository checklist file directly:
+3. If task completed successfully AND all required work was performed, update the repository checklist file directly:
    - Read ./tasks/{repo_name}_repo_checklist.md
    - Find the task line matching {task_name} in "## Repo Tasks" section
    - **ONLY replace `- [ ]` with `- [x]` if the task was FULLY executed**
    - **If task was skipped or not fully executed, DO NOT mark as [x]**
    - Write the updated content back to the file
    
-2. Extract and save task output variables to repository checklist:
+4. Extract and save task output variables to repository checklist:
    - **Parse repo_tasks_list.md to get list of all available variables**:
      - Read the "Variables available:" section
      - Extract all variable names (e.g., {{repo_url}}, {{repo_directory}}, {{readme_content}}, etc.)
@@ -239,7 +178,7 @@ For tasks that need output from previous tasks:
    - **Preserve all existing variable values** from previous tasks
    - **Only update variables that this task produces**
    
-3. Update repository checklist with variable values:
+5. Update repository checklist with variable values:
    - Read ./tasks/{repo_name}_repo_checklist.md (if not already read in step 1)
    - Find or create "## Task Variables" section
      * If section doesn't exist, add it after "## Repo Variables Available" section
@@ -305,92 +244,58 @@ For tasks that need output from previous tasks:
    - Preserve all existing variable values when updating
    - Only update variables that the current task produces
    
-   **Variable Update Guidelines:**
-   - After @task-clone-repo [SCRIPTABLE]: Update `repo_directory`, `repo_name`
-   - After @task-search-readme [SCRIPTABLE]: Update `readme_content`, `readme_filename`
-   - After @task-scan-readme [NON-SCRIPTABLE]: Update `commands_extracted`
-   - After @task-execute-readme [NON-SCRIPTABLE]: Update `executed_commands`, `skipped_commands`
-   - After @task-find-solutions [SCRIPTABLE]: Update `solutions_json`
-   
    - For large data, provide descriptive summaries with counts instead of full content
    - For simple values (paths, counts, filenames), embed directly with clear descriptions
    - **Important**: Only include actual values for tasks that have been completed
    - Write the updated checklist content back to the file
-   
-2. Log completion to results/decision-log.csv:
-   - Timestamp: ISO 8601 format
-   - Repo Name: {repo_name}
-   - Solution Name: (empty for repo-level tasks)
-   - Task: {task_name}
-   - Message: Task result message
-   - Status: "SUCCESS" or "FAIL"
 
-3. Save task output to ./output/ directory (if task produces JSON output):
+**Step 6: Check for More Tasks and Continue** 
+Log completion using @task-update-decision-log:
+   - Invoke: @task-update-decision-log timestamp={current_timestamp} repo_name={repo_name} solution_name="" task={task_name} message={task_result_message} status="SUCCESS"
+   - This will append task completion to results/decision-log.csv
+
+**Step 7: Check for More Tasks and Continue**
+Save task output to ./output/ directory (if task produces JSON output):
    - Filename: {repo_name}_{task_name}.json
 
-**Step 7: Check Completion Status**
-1. After updating checklist, check completion levels:
-   - If all tasks for current solution are complete, log milestone
-   - **If all repository tasks are complete (all tasks marked [x] in repo checklist):**
-     a. Read ./tasks/all_repository_checklist.md
-     b. Find the line for current repository
-     c. Update checkbox from `- [ ]` to `- [x]` for this repository
-     d. Write updated content back to all_repository_checklist.md
-     e. Log milestone to decision-log.csv: "{repo_name} - All tasks completed"
-     f. Increment repositories_completed_count by 1
-   - If all repositories are complete, log final completion
+**Step 8: Check for More Tasks and Continue**
+1. After completing the current task, **return to Step 1**
+2. Read the checklist again to find the next unmarked task
+3. If more unmarked tasks exist, execute them
+4. Continue this loop until:
+   - All tasks are marked [x] (return ALL_TASKS_COMPLETE)
+   - A task fails (return FAIL with error details)
+   - A task is blocked (return BLOCKED with blocking reason)
 
-**Step 8: Continue Loop**
-1. **Print progress update:**
-   - "✓ Task {task_name} completed for {repo_name}"
-   - "→ Progress: {tasks_executed_count} tasks executed, {repositories_completed_count} repositories completed"
+**Step 9: Return Final Execution Summary**
 
-2. **LOOP BACK to Step 1** to find and execute the next task
-   - The loop continues automatically
-   - No user intervention required
-   - Processes all tasks for all repositories sequentially
-
-**Step 9: Return Execution Summary**
-
-**This step is only reached when:**
-- All repositories are complete (executor_status: ALL_COMPLETE), OR
-- A task failed (executor_status: FAIL), OR  
-- A task is blocked (executor_status: BLOCKED)
-
-Return final summary with complete execution history.
+Return execution summary after all tasks are processed or execution stops.
 
 Variables available:
 - {{tasks_dir}} → Directory where checklists are saved (./tasks)
 - {{output_dir}} → Directory where task outputs are saved (./output)
 - {{results_dir}} → Directory where results and logs are saved (./results)
 - {{clone_path}} → Root folder for cloned repositories (from clone= parameter - required)
-- {{clean_results}} → Whether to clean results/output/temp-script directories (from clean_results= parameter or default "false")
+- {{repo_checklist}} → Path to repository checklist markdown file (from repo_checklist= parameter - required)
 
 Output Contract:
-- executor_status: "ALL_COMPLETE" | "FAIL" | "BLOCKED"
-- loop_execution_summary: object
-  - tasks_executed_count: integer (total tasks completed in this run)
-  - repositories_completed_count: integer (repositories marked [x] during this run)
-  - execution_start_time: timestamp
-  - execution_end_time: timestamp
-  - total_duration_seconds: integer
-- last_completed_task: object
+- execution_status: "ALL_TASKS_COMPLETE" | "FAIL" | "BLOCKED"
+- tasks_executed: array of objects
   - repo_name: string
   - task_name: string
-  - task_status: "SUCCESS" | "FAIL"
-- blocking_reason: string | null (if executor_status == BLOCKED)
-- error_message: string | null (if executor_status == FAIL)
-- error_task: string | null (task name that failed, if executor_status == FAIL)
-- completion_progress: object
-  - total_repos: integer
-  - completed_repos: integer (cumulative - includes previously completed)
-  - remaining_repos: integer
+  - execution_time: timestamp
+  - task_status: "SUCCESS" | "FAIL" | "BLOCKED" | "SKIPPED"
+  - result_data: object (task-specific output)
+- total_tasks_executed: integer (count of tasks processed in this run)
+- blocking_reason: string | null (if execution_status == BLOCKED)
+- error_message: string | null (if execution_status == FAIL)
+- failed_task: string | null (task name that failed)
 - status: SUCCESS | FAIL
 
 Special Cases:
 
 **Case 1: First task for a repository (@task-clone-repo [SCRIPTABLE])**
-- Use repo_url from master checklist
+- Extract repo_url from the repository checklist header section
 - Use clone_path from clone= parameter (required)
 - After completion, repo_directory will be in task output
 
@@ -402,117 +307,24 @@ Special Cases:
 - If variable is not set in checklist (shows "not set"):
   - Check ./output/{repo_name}_{previous_task}.json as fallback
 - If missing from both sources, return BLOCKED status
-- Example workflow for @task-scan-readme [NON-SCRIPTABLE]:
-  1. Check checklist variables for `repo_directory`
-  2. Value found: `C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool`
-  3. Check checklist variables for `readme_content_path`
-  - Value found: `output/ic3_spool_cosine-dep-spool_task2_search-readme.json`
-  5. Execute: @task-scan-readme [NON-SCRIPTABLE] repo_directory="C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool" repo_name="ic3_spool_cosine-dep-spool" readme_content_path="output/ic3_spool_cosine-dep-spool_task2_search-readme.json"
 
 **Case 3: All tasks complete**
-- Return executor_status: ALL_COMPLETE
-- Log final summary to decision-log.csv
-- No further action needed
+- Return execution_status: ALL_TASKS_COMPLETE
+- Log final completion using @task-update-decision-log with appropriate message
 
 Implementation Notes:
-1. **Continuous Loop Execution**: The prompt runs in a loop, executing tasks sequentially until all repositories are complete
-2. **Automatic Progression**: After each task completes, immediately proceeds to next task without user intervention
-3. **Idempotent Execution**: If interrupted and re-run, it resumes from the next uncompleted task by reading checklist state
+1. **Sequential Task Execution**: This prompt executes ALL unmarked tasks sequentially in one run
+2. **Continuous Processing**: After completing each task, automatically finds and executes the next unmarked task
+3. **Idempotent Execution**: Can be interrupted and re-run - will resume from first uncompleted task
 4. **Task Dependencies**: Validates required inputs before execution to avoid partial failures
-5. **Error Handling**: Any task failure stops the loop and returns FAIL status with error details
-6. **Checkpoint Recovery**: All task completions are immediately written to checklists, enabling resume at any point
+5. **Error Handling**: Task failures stop execution and return FAIL status with error details
+6. **Checkpoint Recovery**: Each task completion is written to checklist immediately, enabling resume at any point
 7. **Output Persistence**: Save task outputs to ./output/ for use by subsequent tasks
-8. **Variable Tracking**: Update "## Task Variables" section in repo checklist after each task
+8. **Variable Tracking**: Update "## Task Variables" section in repo checklist after each task completion
 9. **Variable Resolution**: Check checklist first for quick variable access before reading JSON files
-10. **Progress Visibility**: Log execution attempts and results for monitoring, print progress after each task
-11. **Sequential Execution**: Always execute tasks in order (MANDATORY #1, #2, #3, #4...)
-12. **Programming Language**: All code generated should be written in Python
-13. **Temporary Scripts Directory**: Scripts should be saved to ./temp-script directory
-14. **Loop Termination**: Only stops when ALL_COMPLETE, FAIL, or BLOCKED - ensures maximum progress before stopping
-
-Execution Flow Example:
-```
-INITIALIZATION:
-  - Clone path: ./cloned
-  - Clean results: false
-  - Tasks executed count: 0
-  - Repositories completed: 0
-  - Start time: 2025-10-23T10:00:00Z
-
-LOOP ITERATION 1:
-  - Read all_repository_checklist.md → Find "repo1" uncompleted
-  - Read repo1_repo_checklist.md → Find "@task-clone-repo [SCRIPTABLE]" uncompleted
-  - Execute @task-clone-repo → SUCCESS
-  - Update checklist: Mark @task-clone-repo as [x]
-  - Update Task Variables: repo_directory = C:\cloned\repo1
-  - Save output: ./output/repo1_task-clone-repo.json
-  - Tasks executed: 1
-  - Print: "✓ Task @task-clone-repo completed for repo1"
-  - LOOP BACK to Step 1
-
-LOOP ITERATION 2:
-  - Read all_repository_checklist.md → Find "repo1" still uncompleted
-  - Read repo1_repo_checklist.md → Find "@task-search-readme [SCRIPTABLE]" uncompleted
-  - Load repo_directory from checklist Task Variables
-  - Execute @task-search-readme → SUCCESS
-  - Update checklist: Mark @task-search-readme as [x]
-  - Update Task Variables: readme_content = [saved to ./output/...]
-  - Save output: ./output/repo1_task-search-readme.json
-  - Tasks executed: 2
-  - Print: "✓ Task @task-search-readme completed for repo1"
-  - LOOP BACK to Step 1
-
-... (loop continues for all repo1 tasks)
-
-LOOP ITERATION N-1:
-  - Read all_repository_checklist.md → Find "repo1" still uncompleted
-  - Read repo1_repo_checklist.md → Find "@generate-solution-task-checklists [SCRIPTABLE]" uncompleted
-  - Load solutions_json from checklist Task Variables
-  - Execute @generate-solution-task-checklists → SUCCESS
-  - Update checklist: Mark @generate-solution-task-checklists as [x]
-  - Update Task Variables: checklist_updated = true
-  - Repository checklist now has solution-specific task sections
-  - **ALL tasks in repo1 are now [x]**
-  - **Update all_repository_checklist.md: Mark repo1 as [x]**
-  - Log: "repo1 - All tasks completed"
-  - Repositories completed: 1
-  - Tasks executed: 6
-  - Print: "✓ Repository repo1 completed!"
-  - LOOP BACK to Step 1
-
-LOOP ITERATION N+1:
-  - Read all_repository_checklist.md → Find "repo2" uncompleted
-  - Read repo2_repo_checklist.md → Find "@task-clone-repo [SCRIPTABLE]" uncompleted
-  - Execute @task-clone-repo for repo2 → SUCCESS
-  - Update checklist: Mark @task-clone-repo as [x]
-  - Tasks executed: 7
-  - Print: "✓ Task @task-clone-repo completed for repo2"
-  - LOOP BACK to Step 1
-
-... (loop continues for all repo2 tasks, then repo3, etc.)
-
-FINAL LOOP ITERATION:
-  - Read all_repository_checklist.md → ALL repos marked [x]
-  - Executor status: ALL_COMPLETE
-  - Log: "All repositories completed. Total tasks executed: 18"
-  - End time: 2025-10-23T10:45:30Z
-  - EXIT LOOP → Proceed to Step 9
-
-RETURN SUMMARY:
-  - executor_status: ALL_COMPLETE
-  - tasks_executed_count: 18
-  - repositories_completed_count: 3
-  - total_duration_seconds: 2730
-  - status: SUCCESS
-```
-
-**Key Differences from Single-Task Execution:**
-- ✅ **Runs continuously** - No manual intervention between tasks
-- ✅ **Auto-progresses** - Automatically moves from task to task, repo to repo
-- ✅ **Checkpoints preserved** - Every task completion updates checklist immediately
-- ✅ **Resumable** - If interrupted, next run picks up from first uncompleted task
-- ✅ **Complete execution** - Processes all repositories in one invocation
-- ✅ **Progress tracking** - Prints updates after each task for visibility
+10. **Loop Execution**: Continues processing until all tasks complete, a failure occurs, or blocking detected
+11. **Programming Language**: All code generated should be written in Python
+12. **Temporary Scripts Directory**: Scripts should be saved to ./temp-script directory
 
 **Error Recovery:**
 If the executor is interrupted (Ctrl+C, crash, etc.):

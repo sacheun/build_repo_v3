@@ -20,13 +20,21 @@ If DEBUG=1, print parameter values.
    • Convert each into object `{name, path}`  
    • Log solution count if DEBUG=1
 
-2. **Create Single Output File for All Solutions**
+2. **Parse Task Definitions**
+   • Read `.github/prompts/solution_tasks_list.prompt.md` to extract:
+     - All task directives (e.g., @task-restore-solution, @task-build-solution, etc.)
+     - Short descriptions for each task
+     - The complete "Variables available:" section content
+   • If DEBUG=1, print: `[debug][generate-solution-task-checklists] extracted {{task_count}} tasks from solution_tasks_list.prompt.md`
+   • Store the variables section for inclusion in each solution section
+
+3. **Create Single Output File for All Solutions**
    • New file: `./tasks/{repo_name}_solutions_checklist.md`  
    • Overwrite if it already exists  
    • This file will contain ALL solutions for this repository
    • Log creation if DEBUG=1
 
-3. **Write File Header**
+4. **Write File Header**
    ```
    # Solutions Checklist: {repo_name}
    Repository: {repo_url}
@@ -36,7 +44,7 @@ If DEBUG=1, print parameter values.
    ---
    ```
 
-4. **Generate Checklist Sections for ALL Solutions**
+5. **Generate Checklist Sections for ALL Solutions**
    For each solution in the solutions array:
    ```
    ## Solution {index}: {solution_name}
@@ -58,25 +66,18 @@ If DEBUG=1, print parameter values.
    (Variables set by tasks for this specific solution)
    - solution_path → `{solution_path}`
    - solution_name → `{solution_name}`
+   - build_attempt → 0
    - max_build_attempts → 3
-   - restore_status → NOT_EXECUTED
-   - build_status → NOT_EXECUTED
-   - kb_search_status → NOT_EXECUTED
-   - kb_file_path → N/A
-   - kb_article_status → NOT_EXECUTED
-   - fix_applied_attempt_1 → NOT_EXECUTED
-   - retry_build_status_attempt_1 → NOT_EXECUTED
-   - fix_applied_attempt_2 → NOT_EXECUTED
-   - retry_build_status_attempt_2 → NOT_EXECUTED
-   - fix_applied_attempt_3 → NOT_EXECUTED
-   - retry_build_status_attempt_3 → NOT_EXECUTED
+   
+   [Content dynamically extracted from .github/prompts/solution_tasks_list.prompt.md "Variables available:" section]
    
    ---
    ```
    • Insert `---` as a separator between solutions  
    • Log generated section name if DEBUG=1
+   • **Dynamic Variables Section:** Extract the entire "Variables available:" section from .github/prompts/solution_tasks_list.prompt.md and include it verbatim in each solution section under "### Solution Variables Available" heading
 
-5. **Write and Close File**
+6. **Write and Close File**
    • Confirm file written successfully  
    • Log solution count if DEBUG=1
 
@@ -103,8 +104,26 @@ Prefix: `[debug][generate-solution-task-checklists]`
 
 Log messages for:
 • START (with input parameters)  
+• Task extraction from .github/prompts/solution_tasks_list.prompt.md
 • File creation  
 • Each solution section  
 • Completion summary  
 • EXIT status
 
+---
+
+## Implementation Notes
+1. **THIS IS SCRIPTABLE**: Generate a Python/PowerShell/Bash script to execute this task
+2. **Dynamic Task Extraction**: Parse .github/prompts/solution_tasks_list.prompt.md to get:
+   - Task list and descriptions
+   - Variables section (extract entire "### Variables available:" section)
+3. **Variables Section Format**: Include the extracted variables section exactly as it appears in .github/prompts/solution_tasks_list.prompt.md, preserving markdown formatting and variable descriptions
+4. **Contract Compliance**: Always save JSON output file with all fields regardless of success/failure
+5. **Markdown Format**: Use `- [ ]` for unchecked, `- [x]` for checked checkboxes
+6. **Timestamp Format**: Use ISO 8601 format (e.g., "2025-10-27T14:30:00")
+7. **Error Handling**: If solutions_json_path not found, set status=FAIL and return with empty results
+8. **Script Location**: Save generated script to temp-script/ directory with naming pattern: generate_solution_checklists.py (or .ps1/.sh)
+9. **Environment**: Set DEBUG=1 environment variable at the start of the script if debug output is desired
+10. **Single File Output**: All solutions for a repository go into ONE consolidated checklist file, not separate files per solution
+
+````

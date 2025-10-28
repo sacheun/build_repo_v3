@@ -9,11 +9,11 @@ Task name: generate-repo-task-checklists
 ## Description:
 This task generates task checklists for all repositories in the input file. The checklists allow agents to pick up work or resume when a previous run stops. This is a file generation task that CAN be implemented as a script.
 
-** THIS TASK IS SCRIPTABLE **
+**THIS TASK IS SCRIPTABLE**
 
 This task can be implemented as a Python script that:
 1. Reads repository URLs from input file
-2. Parses task definitions from repo_tasks_list.md
+2. Parses task definitions from .github/prompts/repo_tasks_list.md
 3. Generates master checklist tracking all repositories
 4. Generates individual checklist files for each repository
 5. Supports append mode to add new repositories without replacing existing ones
@@ -136,9 +136,9 @@ This task can be implemented as a Python script that:
      2. If YES and {{readme_content}} is not blank and not "NONE", execute @task-scan-readme
      3. If {{commands_extracted}} is not blank and not "NONE", execute @task-execute-readme
      4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
-     
-     **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-clone-repo`) as defined in `repo_tasks_list.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
-     
+
+     **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-clone-repo`) as defined in `.github/prompts/repo_tasks_list.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
+
      **Quick Reference:**
      - [MANDATORY] tasks must be completed in numbered order (#1 → #2 → #3 → #4)
      - [CONDITIONAL] [NON-SCRIPTABLE] @task-scan-readme executes when {{readme_content}} is not blank and not "NONE"
@@ -149,14 +149,16 @@ This task can be implemented as a Python script that:
      
      ## Repo Variables Available
      
-     [Content dynamically extracted from repo_tasks_list.md "Variables available:" section]
+     ### Variables available:
+     [Content dynamically extracted from .github/prompts/repo_tasks_list.md "Variables available:" section]
+     
      ```
    - Task classification:
      - MANDATORY (sequential): @task-clone-repo (#1), @task-search-readme (#2), @task-find-solutions (#3), @generate-solution-task-checklists (#4)
      - CONDITIONAL: @task-scan-readme, @task-execute-readme
      - SCRIPTABLE: @task-clone-repo, @task-search-readme, @task-find-solutions, @generate-solution-task-checklists
      - NON-SCRIPTABLE: @task-scan-readme, @task-execute-readme
-   - **Dynamic Variables Section:** Extract the entire "Variables available:" section from repo_tasks_list.md and include it verbatim in each generated checklist under "## Repo Variables Available" heading
+   - **Dynamic Variables Section:** Extract the entire "### Variables available:" section from repo_tasks_list.prompt.md and include it verbatim in each generated checklist under "## Repo Variables Available" heading
 
 8. Structured Output: Save JSON object to output/generate-repo-task-checklists.json with:
    - input_file: path to input file used
@@ -172,49 +174,6 @@ This task can be implemented as a Python script that:
 
 9. DEBUG Exit Trace: If DEBUG=1, print:
    "[debug][generate-repo-task-checklists] EXIT status={{status}} processed={{repositories_processed}} generated={{checklists_generated}}"
-
-Conditional Verbose Output (DEBUG):
-- Purpose: Provide clear trace of checklist generation process.
-- Activation: Only when DEBUG environment variable equals "1".
-- Format Guarantees: Always starts with prefix [debug][generate-repo-task-checklists] allowing simple grep filtering.
-- Entry Message: "[debug][generate-repo-task-checklists] START input='<file>' append=<bool>" emitted before step 1.
-- Parameter Messages: "[debug][generate-repo-task-checklists] using input_file: <file>, append_mode: <bool>".
-- Directory Messages: "[debug][generate-repo-task-checklists] cleaned tasks directory" or "preserving existing tasks".
-- Count Messages: "[debug][generate-repo-task-checklists] found <N> repositories in input file".
-- Mode Messages: "[debug][generate-repo-task-checklists] processing all <N> repositories" or "found <E> existing, <N> new repos".
-- Task Extraction: "[debug][generate-repo-task-checklists] extracted <N> tasks from repo_tasks_list.md".
-- Generation Messages: "[debug][generate-repo-task-checklists] generating checklist for: <repo_name>" for each repository.
-- Skip Messages: "[debug][generate-repo-task-checklists] skipping existing: <repo_name>" when append=true.
-- Exit Message: "[debug][generate-repo-task-checklists] EXIT status=<SUCCESS|FAIL> processed=<N> generated=<N>" emitted after step 8.
-- Non-Interference: Does not modify success criteria or output contract; purely informational.
-
-Output Contract:
-- input_file: string (path to input file with repository URLs)
-- append_mode: boolean (whether append mode was used)
-- repositories_total: integer (total repositories found in input file)
-- repositories_processed: integer (repositories for which checklists were generated)
-- repositories_skipped: integer (repositories skipped due to existing checklists in append mode)
-- checklists_generated: integer (number of individual checklist files created)
-- master_checklist_path: string (path to master checklist file)
-- individual_checklists_path: string (directory containing individual checklists)
-- status: SUCCESS | FAIL
-- timestamp: string (ISO 8601 datetime when task completed)
-
-Variables available:
-- {{input_file}} → text file path with repository URLs
-- {{append}} → boolean flag to append new repositories instead of replacing all
-- {{tasks_dir}} → directory where checklists are saved (./tasks)
-
-Output Contract:
-- repositories_total: integer (total in input file)
-- repositories_processed: integer (new repos added if append=true, all if append=false)
-- repositories_skipped: integer (existing repos if append=true, 0 if append=false)
-- append_mode: boolean
-- checklists_generated: integer (number of individual checklist files created)
-- master_checklist_path: string
-- individual_checklists_path: string
-- generated_at: timestamp
-- status: SUCCESS | FAIL
 
 Implementation Notes:
 1. **THIS IS SCRIPTABLE**: Generate a Python/PowerShell/Bash script to execute this task
