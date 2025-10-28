@@ -222,11 +222,7 @@ The AI agent must analyze the README content intelligently to understand context
 
 9. Result Tracking:
    - Use create_file or replace_string_in_file to append the result to:
-     - results/repo-results.md (Markdown table row)
      - results/repo-results.csv (CSV row)
-   - Update the progress table:
-     - In results/repo-progress.md, find the row for {{repo_name}} and column for "task-scan-readme"
-     - Change [ ] to [x] to mark task as completed
 
 10. DEBUG Exit Trace: Use run_in_terminal to emit:
    "[debug][task-scan-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} commands_extracted={{total_commands}}"

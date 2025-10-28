@@ -83,15 +83,10 @@ This task can be implemented as a Python script that:
 
 6. Result Tracking:
    - Append the result to:
-     - results/repo-results.md (Markdown table row)
      - results/repo-results.csv (CSV row)
    - Row format: timestamp | repo_name | task-clone-repo | status | symbol (✓ or ✗)
 
-7. Progress Update:
-   - In results/repo-progress.md, find the row for {{repo_name}} and column for "task-clone-repo"
-   - Change [ ] to [x] to mark task as completed (only on SUCCESS)
-
-8. DEBUG Exit Trace: If DEBUG=1, print:
+7. DEBUG Exit Trace: If DEBUG=1, print:
    "[debug][task-clone-repo] EXIT repo_name='{{repo_name}}' status={{clone_status}} operation={{operation}} repo_directory='{{repo_directory}}'"
 
 Conditional Verbose Output (DEBUG):

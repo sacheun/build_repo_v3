@@ -10,7 +10,7 @@ Task name: task-execute-readme
 
 This task takes the commands extracted by task-scan-readme, determines which commands are safe to execute, and executes them in the repository directory. This task requires AI structural reasoning for safety classification and CANNOT be scripted.
 
-** CRITICAL ** DO NOT GENERATE OR EXECUTE A SCRIPT FOR THIS TASK.
+** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
 
 This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
 
@@ -217,17 +217,11 @@ The AI agent must use reasoning to determine command safety and execute safe com
 
 8. Result Tracking:
    - Use create_file or replace_string_in_file to append the result to:
-     - results/repo-results.md (Markdown table row)
      - results/repo-results.csv (CSV row)
    - Row format: timestamp | repo_name | task-execute-readme | status | symbol
    - Status is SUCCESS if execution completed (even if individual commands failed)
 
-9. Progress Update:
-   - Use replace_string_in_file to update results/repo-progress.md
-   - Find row for {{repo_name}} and column for "task-execute-readme"
-   - Change [ ] to [x] to mark task as completed
-
-10. DEBUG Exit Trace: Use run_in_terminal to emit:
+9. DEBUG Exit Trace: Use run_in_terminal to emit:
     "[debug][task-execute-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} executed={{safe_count}} skipped={{unsafe_count}}"
 
 Conditional Verbose Output (DEBUG):

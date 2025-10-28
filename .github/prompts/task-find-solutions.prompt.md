@@ -77,15 +77,10 @@ This task can be implemented as a Python script that:
 
 6. Result Tracking:
    - Append the result to:
-     - results/repo-results.md (Markdown table row)
      - results/repo-results.csv (CSV row)
    - Row format: timestamp | repo_name | task-find-solutions | {{solution_count}} solutions | status | symbol (✓ or ✗)
 
-7. Progress Update:
-   - In results/repo-progress.md, find the row for {{repo_name}} and column for "task-find-solutions"
-   - Change [ ] to [x] to mark task as completed (on SUCCESS only)
-
-8. DEBUG Exit Trace: If DEBUG=1, print:
+7. DEBUG Exit Trace: If DEBUG=1, print:
    "[debug][task-find-solutions] EXIT repo_directory='{{repo_directory}}' status={{status}} solution_count={{solution_count}}"
 
 Conditional Verbose Output (DEBUG):
