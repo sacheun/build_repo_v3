@@ -76,9 +76,7 @@ This tasks performs NuGet package restore for a Visual Studio solution file usin
      * If success=false: "NuGet restore failed - {{error_count}} errors, {{warning_count}} warnings"
    - Status: "SUCCESS" if success=true, "FAIL" if success=false
 
-8. Logging: Emits debug messages showing input payload, fallback decisions, NuGet invocation details, and final result summary (success flag, counts of errors/warnings).
-
-9. DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), emit a final line to stdout (or terminal) after all processing completes:
+8. DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), emit a final line to stdout (or terminal) after all processing completes:
    "[debug][task-restore-solution] END solution='{{solution_name}}' status={{success}}"
    This line marks task completion and provides quick status visibility for debugging pipeline execution.
 
