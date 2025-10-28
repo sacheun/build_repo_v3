@@ -237,8 +237,16 @@ error_type: "NuGet"
    - This helps trace when the task completes and its outcome.
 
 2. **Log to Decision Log:**
-   - Append to: results/decision-log.csv
-   - Append row with: "{{timestamp}},{{repo_name}},{{solution_name}},task-search-knowledge-base,{{message}},{{status}}"
+   - Call @task-update-decision-log to log task execution:
+   ```
+   @task-update-decision-log 
+     timestamp="{{timestamp}}" 
+     repo_name="{{repo_name}}" 
+     solution_name="{{solution_name}}" 
+     task="task-search-knowledge-base" 
+     message="{{message}}" 
+     status="{{status}}"
+   ```
    - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
    - Message format:
      * If build_status == SUCCESS: "Build succeeded - search skipped"

@@ -47,10 +47,18 @@ This task can be implemented as a Python/PowerShell/Bash script that:
    - timestamp: ISO 8601 format datetime when task completed
 
 5a. Log to Decision Log:
-   - Append to: results/decision-log.csv
-   - Append row with: "{{timestamp}},{{repo_name}},,task-search-readme,{{message}},{{status}}"
+   - Call @task-update-decision-log to log task execution:
+   ```
+   @task-update-decision-log 
+     timestamp="{{timestamp}}" 
+     repo_name="{{repo_name}}" 
+     solution_name="" 
+     task="task-search-readme" 
+     message="{{message}}" 
+     status="{{status}}"
+   ```
    - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-   - The solution_name column (third column) is blank since this is a repository-level task
+   - The solution_name is blank since this is a repository-level task
    - Message format:
      * If README found: "Found README: {{readme_filename}}" (e.g., "Found README: README.md")
      * If README not found: "No README file found"

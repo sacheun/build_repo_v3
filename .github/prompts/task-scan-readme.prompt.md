@@ -18,7 +18,8 @@ This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
 4. Use create_file tool to save the parsed command list to JSON output
 5. Use replace_string_in_file tool to update progress/results files
 
-** NEVER create a Python/PowerShell/Bash script for this task **
+** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
+
 ** NEVER use regex or simple text parsing - use structural reasoning **
 
 The AI agent must analyze the README content intelligently to understand context and extract meaningful setup commands.
@@ -201,13 +202,23 @@ The AI agent must analyze the README content intelligently to understand context
    - timestamp: ISO 8601 format datetime
 
 8a. Log to Decision Log:
-   - Append to: results/decision-log.csv
-   - For each section identified, append row with: "{{timestamp}},{{repo_name}},,task-scan-readme,Found setup section: {{section_heading}},SUCCESS"
+   - Call @task-update-decision-log to log task execution:
+   ```
+   @task-update-decision-log 
+     timestamp="{{timestamp}}" 
+     repo_name="{{repo_name}}" 
+     solution_name="" 
+     task="task-scan-readme" 
+     message="{{message}}" 
+     status="{{status}}"
+   ```
    - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-   - The solution_name column (third column) is blank since this is a repository-level task
-   - If no sections found but README exists, append: "{{timestamp}},{{repo_name}},,task-scan-readme,No setup sections found in README,NONE"
-   - If README not found (status=SKIPPED), append: "{{timestamp}},{{repo_name}},,task-scan-readme,README not found - scan skipped,SKIPPED"
-   - If scan failed (status=FAIL), append: "{{timestamp}},{{repo_name}},,task-scan-readme,Scan failed: {{error_reason}},FAIL"
+   - The solution_name is blank since this is a repository-level task
+   - Message format:
+     * If sections found: "Found {{section_count}} setup sections across {{file_count}} files"
+     * If no sections found but README exists: "No setup sections found in README"
+     * If README not found (status=SKIPPED): "README not found - scan skipped"
+     * If scan failed (status=FAIL): "Scan failed: {{error_reason}}"
 
 9. Result Tracking:
    - Use create_file or replace_string_in_file to append the result to:

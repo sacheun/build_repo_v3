@@ -2,7 +2,7 @@
 
 Task name: verify-repo-tasks-completed
 
-**THIS TASK IS SCRIPTABLE**
+** THIS TASK IS SCRIPTABLE **
 
 ## Description:
 Verify that all repository-level tasks have been completed successfully.

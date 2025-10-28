@@ -10,6 +10,8 @@ This tasks performs NuGet package restore for a Visual Studio solution file usin
 
 ** Important **: Do not deviate from the command list provided. Always use the exact same commands each time you run this prompt.
 
+** THIS TASK IS SCRIPTABLE **
+
 ## Behavior (Follow this Step by Step)
 0. DEBUG Entry Trace: If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
    "[debug][task-restore-solution] START solution='{{solution_name}}' path='{{solution_path}}'"
@@ -56,6 +58,23 @@ This tasks performs NuGet package restore for a Visual Studio solution file usin
    - Returns JSON object with fields: success (boolean), stdout (string, last 8KB), stderr (string, last 8KB), errors (array of strings, max 50), warnings (array of strings, max 50).
    - Writes to stdout for workflow consumption.
    - If DEBUG=1, print to console: `[debug][task-restore-solution] writing JSON output to stdout ({{json_size}} bytes)`
+
+7a. Log to Decision Log:
+   - Call @task-update-decision-log to log task completion:
+   ```
+   @task-update-decision-log 
+     timestamp="{{timestamp}}" 
+     repo_name="{{repo_name}}" 
+     solution_name="{{solution_name}}" 
+     task="task-restore-solution" 
+     message="{{message}}" 
+     status="{{status}}"
+   ```
+   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+   - Message format:
+     * If success=true: "NuGet packages restored successfully"
+     * If success=false: "NuGet restore failed - {{error_count}} errors, {{warning_count}} warnings"
+   - Status: "SUCCESS" if success=true, "FAIL" if success=false
 
 8. Logging: Emits debug messages showing input payload, fallback decisions, NuGet invocation details, and final result summary (success flag, counts of errors/warnings).
 

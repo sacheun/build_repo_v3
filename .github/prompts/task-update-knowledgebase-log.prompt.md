@@ -11,7 +11,7 @@ This task updates the knowledgebase usage log by appending a new entry and then 
 1. **knowledgebase.log** - Detailed log of each knowledgebase application attempt
 2. **knowledgebase-stats.csv** - Aggregated statistics per knowledgebase file and option
 
-** ⚠️ CRITICAL - THIS TASK IS SCRIPTABLE ⚠️ **
+** THIS TASK IS SCRIPTABLE **
 
 This task can be fully automated as it follows deterministic file operations.
 
@@ -141,21 +141,7 @@ DO NOT:
    - entry_logged: boolean (true if new entry appended)
    - stats_updated: boolean (true if stats file regenerated)
 
-2. **Log to Decision Log (Optional):**
-   - Call @task-update-decision-log to log task execution:
-   ```
-   @task-update-decision-log 
-     timestamp="{{timestamp}}" 
-     repo_name="{{repo_name}}" 
-     solution_name="" 
-     task="task-update-knowledgebase-log" 
-     message="Updated KB log: {{knowledgebase_file}} option {{option}}" 
-     status="{{status}}"
-   ```
-   - Use ISO 8601 format for timestamp
-   - Note: repo_name may be empty if task is called outside repo context
-
-3. **DEBUG Exit Trace:**
+2. **DEBUG Exit Trace:**
    - If environment variable DEBUG=1, emit a line to stdout before returning:
    - `[debug][task-update-knowledgebase-log] END log_status='{{log_status}}' entry_logged={{entry_logged}} stats_updated={{stats_updated}}`
    - This helps trace when the task completes and its outcome.

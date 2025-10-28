@@ -1,9 +1,8 @@
-````prompt
 @verify-solution-tasks-completed
 
 Task name: verify-solution-tasks-completed
 
-**THIS TASK IS SCRIPTABLE**
+** THIS TASK IS SCRIPTABLE **
 
 ## Description:
 Verify that all solution-level tasks have been completed successfully.
@@ -247,4 +246,4 @@ DEBUG=1 python verify_solution_tasks_completed.py
 - "FAILED" variables indicate tasks were attempted but failed (acceptable, shows execution)
 - Only "NONE", "N/A", blank/empty, and "NOT_EXECUTED" are invalid variable values
 
-````
+

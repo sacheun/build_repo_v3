@@ -157,7 +157,9 @@ The AI agent must use reasoning to determine command safety and execute safe com
       - If DEBUG=1, print: `[debug][task-execute-readme] command exit_code={{exit_code}}`
       - If exit_code != 0 and DEBUG=1, print: `[debug][task-execute-readme] command failed, stderr: {{stderr[:200]}}`
       - Record result in executed_commands array
-      - **Log to Decision Log**: Call @task-update-decision-log:
+   
+   d. Log Command Execution:
+      - Call @task-update-decision-log to log each command execution:
         ```
         @task-update-decision-log 
           timestamp="{{timestamp}}" 
@@ -172,7 +174,7 @@ The AI agent must use reasoning to determine command safety and execute safe com
         * message: the actual command that was executed
         * status: "SUCCESS" if exit_code is 0, "FAIL" if exit_code is non-zero, "TIMEOUT" if command timed out, "ERROR" if execution failed
    
-   d. Error Handling:
+   e. Error Handling:
       - If command times out: record as executed with status="TIMEOUT"
       - If command fails (exit_code != 0): record as executed with status="FAIL" (don't stop, continue with other commands)
       - If tool call fails: record as executed with status="ERROR"

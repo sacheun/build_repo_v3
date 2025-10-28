@@ -11,7 +11,7 @@ This task updates the decision log by appending a new entry. It maintains a CSV 
 
 The decision log file: **results/decision-log.csv**
 
-** ⚠️ CRITICAL - THIS TASK IS SCRIPTABLE ⚠️ **
+** THIS TASK IS SCRIPTABLE **
 
 This task can be fully automated as it follows deterministic file operations.
 

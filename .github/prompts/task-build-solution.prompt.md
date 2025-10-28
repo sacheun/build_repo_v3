@@ -10,6 +10,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 
 ** Important **: Do not deviate from the command list provided. Always use the exact same commands each time you run this prompt.
 
+** THIS TASK IS SCRIPTABLE **
 
 ## Behavior (Follow this Step by Step)
 0. DEBUG Entry Trace: If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
@@ -75,10 +76,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
    - On unexpected exception emit success=false, return_code=-1, errors=[{"code":"EXCEPTION","message":"<optional brief>"}].
    - Always emit warnings array (empty if none).
 
-10. Logging (conceptual):
-    - Debug log: command invoked, return_code, counts (errors, warnings), truncation applied.
-
-11. DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), emit a final line to stdout (or terminal) after all processing completes:
+10. DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), emit a final line to stdout (or terminal) after all processing completes:
     "[debug][task-build-solution] END solution='{{solution_name}}' status={{success}} errors={{error_count}} warnings={{warning_count}}"
     This line marks task completion and provides quick status visibility for debugging pipeline execution.
 
