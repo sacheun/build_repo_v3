@@ -183,6 +183,10 @@ Based on task type identified in Step 3:
 
 **⚠️ CRITICAL: DO NOT execute commands directly! Call the task prompts:**
 
+**📋 IMPORTANT REMINDER FOR RETRY TASKS (#6, #8, #10):**
+After every retry build completes, you MUST call @task-update-knowledgebase-log to track KB fix effectiveness.
+This is a mandatory step - do not skip it. See step 6 in the retry workflow below for details.
+
 **For "Restore packages for {solution_name}":**
 1. **Call @task-restore-solution** (let the task prompt handle execution):
    ```
@@ -281,24 +285,40 @@ Based on task type identified in Step 3:
 3. **Call @task-restore-solution** again (if restore failed initially)
 4. **Call @task-build-solution** again
 5. Capture output from task prompts and update variables (same as build task)
-6. **[MANDATORY] Call @task-update-knowledgebase-log** after rebuild to log the KB fix result:
-   - Extract knowledgebase_file from {{kb_file_path}} (filename only, e.g., "nu1008_central_package_management.md")
-   - Use option number from the corresponding attempt:
-     * For Attempt 1: Use {{kb_option_applied_attempt_1}}
-     * For Attempt 2: Use {{kb_option_applied_attempt_2}}
-     * For Attempt 3: Use {{kb_option_applied_attempt_3}}
-   - Use status based on retry build result:
+
+**🔴 CRITICAL STEP 6 - DO NOT SKIP:**
+
+6. **[MANDATORY] Call @task-update-knowledgebase-log** after EVERY rebuild to log the KB fix result:
+   
+   **⚠️ THIS STEP IS REQUIRED - DO NOT SKIP THIS STEP ⚠️**
+   
+   You MUST call this task immediately after the rebuild completes to track which KB fixes work.
+   
+   **Parameters to extract:**
+   - `knowledgebase_file`: Extract filename from {{kb_file_path}} (filename only, e.g., "code_analyzer_errors_ide0040_ca1859.md")
+   - `option`: Use the option number from the corresponding attempt:
+     * For Task #6 (Attempt 1): Use {{kb_option_applied_attempt_1}} value
+     * For Task #8 (Attempt 2): Use {{kb_option_applied_attempt_2}} value
+     * For Task #10 (Attempt 3): Use {{kb_option_applied_attempt_3}} value
+   - `status`: Use the retry build result:
      * If retry_build_status == SUCCEEDED → status="SUCCESS"
      * If retry_build_status == FAILED → status="FAIL"
-   - Call the task:
-     ```
-     @task-update-knowledgebase-log knowledgebase_file="{kb_filename}" option="{option_number}" status="{status}" repo_name="{repo_name}"
-     ```
-   - Example for Attempt 1:
-     ```
-     @task-update-knowledgebase-log knowledgebase_file="nu1008_central_package_management.md" option="1" status="SUCCESS" repo_name="ic3_spool_cosine-dep-spool"
-     ```
-   - This updates the knowledgebase usage log and statistics
+   - `repo_name`: Use {{repo_name}}
+   
+   **How to call:**
+   ```
+   @task-update-knowledgebase-log knowledgebase_file="{kb_filename}" option="{option_number}" status="{status}" repo_name="{repo_name}"
+   ```
+   
+   **Example for this case (Attempt 1):**
+   ```
+   @task-update-knowledgebase-log knowledgebase_file="code_analyzer_errors_ide0040_ca1859.md" option="1" status="FAIL" repo_name="ic3_spool_cosine-dep-spool"
+   ```
+   
+   **This updates:**
+   - Knowledgebase usage log (results/knowledgebase-usage-log.csv)
+   - KB statistics (which fixes work, which don't)
+
 7. Log to decision-log.csv
 8. If build still fails AND retry_count < 3:
    - Go back to "Search knowledge base" task for new error

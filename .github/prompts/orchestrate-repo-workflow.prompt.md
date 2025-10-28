@@ -13,21 +13,33 @@ This task orchestrates the complete repository workflow by:
 2. Finding all incomplete repository checklists
 3. Executing tasks for each repository sequentially until all are complete
 
-This is a workflow orchestration task that CAN be implemented as a script.
+This is a workflow orchestration task that MUST be implemented as a script.
 
 ** THIS TASK IS SCRIPTABLE **
 
-This task can be implemented as a Python script that:
-1. Optionally cleans results/tasks/output directories (if append=false)
-2. Calls copilot to generate repository checklists
-3. Discovers all *_repo_checklist.md files
-4. Filters for repositories with incomplete tasks
-5. Executes tasks for each repository one by one
-6. Waits for each execution to complete before proceeding to next
+**IMPORTANT: When this prompt is invoked, you must GENERATE and SAVE a Python script to ./tools/orchestrate_repo_workflow.py that implements this workflow. DO NOT execute the script - the user will run it themselves. The script will call copilot commands using subprocess.run().**
+
+The Python script you generate must:
+1. Optionally clean results/tasks/output directories (if append=false)
+2. Use subprocess.run() to call: `copilot --prompt "/generate-repo-task-checklists ..." --allow-all-tools`
+3. Discover all *_repo_checklist.md files
+4. Filter for repositories with incomplete tasks
+5. Use subprocess.run() to call: `copilot --prompt "/execute-repo-task ..." --allow-all-tools` for each repository
+6. Wait for each execution to complete before proceeding to next
 
 ## Behavior (Follow this Step by Step)
 
-0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][orchestrate-repo-workflow] START append={{append}}`
+**CRITICAL: These steps describe what the PYTHON SCRIPT you generate must do. You are ONLY creating the script file - DO NOT execute it.**
+
+0. Script Generation: 
+   - Create a Python script at ./tools/orchestrate_repo_workflow.py
+   - The script must implement all the following steps
+   - The script must use subprocess.run() to call other scripts and copilot commands
+   - After generating the script, STOP. The user will execute it themselves.
+
+**The following steps describe what YOUR GENERATED SCRIPT must implement:**
+
+0a. DEBUG Entry Trace: If DEBUG=1, print: `[debug][orchestrate-repo-workflow] START append={{append}}`
 
 1. Input Parameters: You are given append (boolean) from the calling context.
    Defaults:
@@ -40,17 +52,18 @@ This task can be implemented as a Python script that:
    - Remove all files in ./results directory (keep directory)
    - Remove all files in ./tasks directory (keep directory)
    - Remove all files in ./output directory (keep directory)
-   - Remove all files in ./temp-script directory (keep directory)
-   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] cleaned results, tasks, output, temp-script directories`
+   - **DO NOT clean ./tools directory** (preserve running scripts)
+   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] cleaned results, tasks, output directories`
    
    **If append = true:**
    - Skip cleaning, preserve all existing files
    - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] preserving existing files (append=true)`
 
 3. Generate Repository Checklists:
-   - Build command: `copilot --prompt "@generate-repo-task-checklists input=\"repositories_small.txt\" append={{append}}" --allow-all-tools`
-   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] executing: copilot --prompt "@generate-repo-task-checklists input=\"repositories_small.txt\" append={{append}}" --allow-all-tools`
-   - Execute the command
+   - Build command: `copilot --prompt "/generate-repo-task-checklists input=\"repositories_small.txt\" append={{append}}" --allow-all-tools`
+   - Note: append should be boolean value (true or false, not string)
+   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] executing: copilot --prompt "/generate-repo-task-checklists input=\"repositories_small.txt\" append={{append}}" --allow-all-tools`
+   - Execute the command using subprocess.run()
    - Wait for completion
    - Capture exit code
    - If exit code != 0:
@@ -67,8 +80,11 @@ This task can be implemented as a Python script that:
 5. Filter for Incomplete Repositories:
    - For each checklist file found:
      - Read the file content
-     - Find all task lines in "## Repo Tasks" section
-     - Check if any tasks are marked with `- [ ]` (incomplete)
+     - Find the section that starts with "## Repo Tasks" (may have additional text after "Repo Tasks")
+       - Use regex: `r'## Repo Tasks.*?\n(.*?)(?=\n##|\Z)'` with re.DOTALL flag
+       - This matches section starting with "## Repo Tasks" followed by any text until next section or end of file
+     - Within that section, check if any tasks are marked with `- [ ]` (incomplete)
+       - Use regex: `r'- \[ \]'` to find incomplete task markers
      - If any incomplete tasks found, add to processing list
    - Create list of repositories with incomplete tasks
    - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] found {{count}} repositories with incomplete tasks`
@@ -87,7 +103,7 @@ This task can be implemented as a Python script that:
         - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] processing repository: {{repo_name}}`
      
      b. Build execute command:
-        - Command: `copilot --prompt "@execute-repo-task repo_checklist=\"{{checklist_path}}\" clone=\"./clone_repos\"" --allow-all-tools`
+        - Command: `copilot --prompt "/execute-repo-task repo_checklist=\"{{checklist_path}}\" clone=\"./clone_repos\"" --allow-all-tools`
         - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] executing: {{command}}`
      
      c. Execute the command:
@@ -107,7 +123,7 @@ This task can be implemented as a Python script that:
           - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] continuing to next repository despite failure`
      
      e. Update master checklist:
-        - Build command: `copilot --prompt "@task-update-all-repo-checklist repo_name=\"{{repo_name}}\"" --allow-all-tools`
+        - Build command: `copilot --prompt "/task-update-all-repo-checklist repo_name=\"{{repo_name}}\"" --allow-all-tools`
         - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] updating master checklist for {{repo_name}}`
         - Execute the command
         - Wait for completion
@@ -121,8 +137,9 @@ This task can be implemented as a Python script that:
    - If DEBUG=1, print full summary
 
 9. Print Script Location:
-   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] script saved to: ./temp-script/orchestrate_repo_workflow.py`
-   - Always print: `Script generated: ./temp-script/orchestrate_repo_workflow.py`
+   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] script saved to: ./tools/orchestrate_repo_workflow.py`
+   - Always print: `Script generated: ./tools/orchestrate_repo_workflow.py`
+   - Always print: `To execute: $env:DEBUG = "1"; python ./tools/orchestrate_repo_workflow.py`
 
 10. Structured Output: Save JSON object to output/orchestrate-repo-workflow.json with:
    - append_mode: boolean (value of append parameter)
@@ -142,21 +159,6 @@ This task can be implemented as a Python script that:
    - end_time: ISO 8601 timestamp
    - duration_seconds: float
    - status: SUCCESS | FAIL
-
-9a. Log to Decision Log:
-   - Call @task-update-decision-log to log workflow execution:
-   ```
-   @task-update-decision-log 
-     timestamp="{{timestamp}}" 
-     repo_name="ALL" 
-     solution_name="" 
-     task="orchestrate-repo-workflow" 
-     message="{{message}}" 
-     status="{{status}}"
-   ```
-   - Use ISO 8601 format for timestamp
-   - Message format: "Processed {{processed_count}} repositories: {{success_count}} successful, {{failure_count}} failed"
-   - Status: "SUCCESS" if all successful, "PARTIAL_SUCCESS" if some failed, "FAIL" if all failed
 
 11. DEBUG Exit Trace: If DEBUG=1, print:
     "[debug][orchestrate-repo-workflow] EXIT status={{workflow_status}} processed={{processed_count}} successful={{success_count}} failed={{failure_count}}"
@@ -183,7 +185,7 @@ Variables available:
 - {{tasks_dir}} → Directory where checklists are stored (./tasks)
 - {{output_dir}} → Directory where outputs are stored (./output)
 - {{results_dir}} → Directory where results are stored (./results)
-- {{temp_script_dir}} → Directory where generated scripts are stored (./temp-script)
+- {{tools_dir}} → Directory where generated scripts are stored (./tools)
 - {{clone_path}} → Directory where repositories are cloned (./clone_repos)
 
 Output Contract:
@@ -233,26 +235,36 @@ Special Cases:
 - Return summary with all error details
 
 Implementation Notes:
-1. **Sequential Processing**: Process one repository at a time to avoid resource conflicts
-2. **Wait for Completion**: Each copilot command must complete before starting the next
-3. **Error Handling**: Individual repository failures should not stop the entire workflow
-4. **Master Checklist Updates**: Update master checklist after each repository completes
-5. **Idempotent**: Can be re-run - will only process repositories with incomplete tasks
-6. **Progress Tracking**: Detailed logging for monitoring long-running workflows
-7. **Programming Language**: All code generated should be written in Python
-8. **Script Location**: Save generated script to ./temp-script/orchestrate_repo_workflow.py
-9. **Subprocess Execution**: Use subprocess.run() to execute copilot commands
-10. **Exit Code Checking**: Validate exit codes for all subprocess calls
+1. **Script Generation Only**: Generate a complete Python script at ./tools/orchestrate_repo_workflow.py and STOP
+2. **User Execution**: The user will execute the script themselves - do not run it
+3. **Copilot Commands**: The script calls copilot commands (not Python scripts directly)
+4. **Sequential Processing**: The script must process one repository at a time to avoid resource conflicts
+5. **Wait for Completion**: Each subprocess call in the script must complete before starting the next
+6. **Error Handling**: Individual repository failures should not stop the entire workflow
+7. **Master Checklist Updates**: Update master checklist after each repository completes
+8. **Idempotent**: Can be re-run - will only process repositories with incomplete tasks
+9. **Progress Tracking**: Detailed logging for monitoring long-running workflows
+10. **Programming Language**: The generated script must be written in Python
+11. **Subprocess Execution**: The script must use subprocess.run() with shell=True to execute commands
+12. **Exit Code Checking**: Validate exit codes for all subprocess calls in the script
+13. **No Decision Logging**: Do NOT call /task-update-decision-log - removed from workflow
 
 Example Usage:
-```python
+```bash
+# When you invoke this prompt with copilot, it will:
+# 1. Generate ./tools/orchestrate_repo_workflow.py
+# 2. Print the command to run it
+# 3. STOP (you run it yourself)
+
+# After the script is generated, the user runs it:
+
 # Fresh start - clean all directories and process all repositories
-DEBUG=1 python orchestrate_repo_workflow.py
+$env:DEBUG = "1"; python ./tools/orchestrate_repo_workflow.py
 
 # Append mode - preserve existing work and process only new/incomplete repositories
-DEBUG=1 python orchestrate_repo_workflow.py --append
+$env:DEBUG = "1"; python ./tools/orchestrate_repo_workflow.py --append
 
-# Via copilot prompt
+# To regenerate the script via copilot prompt:
 copilot --prompt "@orchestrate-repo-workflow append=false" --allow-all-tools
 copilot --prompt "@orchestrate-repo-workflow append=true" --allow-all-tools
 ```
@@ -337,12 +349,12 @@ Workflow Sequence:
 3. Discover all *_repo_checklist.md files
 4. Filter for repositories with [ ] tasks
 5. For each incomplete repository:
-   a. Execute @execute-repo-task
+   a. Execute /execute-repo-task
    b. Wait for completion
-   c. Update master checklist with @task-update-all-repo-checklist
+   c. Update master checklist with /task-update-all-repo-checklist
    d. Move to next repository
 6. Generate summary report
-7. Log to decision log
+7. Save JSON output
 ```
 
 This orchestrator enables fully autonomous, sequential repository processing with complete traceability and error handling.
