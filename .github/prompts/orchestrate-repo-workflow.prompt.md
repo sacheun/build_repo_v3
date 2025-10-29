@@ -72,6 +72,25 @@ The Python script you generate must:
      - Return error result
    - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] generate-repo-task-checklists completed successfully`
 
+3a. Verify Repository Checklist Format:
+   
+   **The Python script must call the verify-repo-checklist-format task as a scriptable function:**
+   
+   - Read the verification steps from: `./.github/prompts/verify-repo-checklist-format.prompt.md`
+   - Parse the prompt file to extract the verification logic and requirements
+   - Implement the verification steps directly in the script based on the prompt instructions
+   - Execute the verification logic inline (do not call copilot)
+   - Save results to: `./output/verify-repo-checklist-format.json`
+   - Save report to: `./results/repo-checklist-format-verification.md`
+   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] executing inline verification from verify-repo-checklist-format.prompt.md`
+   
+   - Check the JSON output for `overall_status` field
+   - If overall_status != "PASS":
+     - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] ERROR: verify-repo-checklist-format failed - checklists have format issues`
+     - Set status=FAIL
+     - Return error result with message about format verification failure
+   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] verify-repo-checklist-format completed successfully - all checklists properly formatted`
+
 4. Discover Repository Checklists:
    - Search for all files matching pattern: `./tasks/*_repo_checklist.md`
    - Exclude: `all_repository_checklist.md`
@@ -128,6 +147,25 @@ The Python script you generate must:
         - Execute the command
         - Wait for completion
         - If DEBUG=1 and exit code == 0, print: `[debug][orchestrate-repo-workflow] master checklist updated for {{repo_name}}`
+
+7a. Verify Repository Tasks Completed:
+   
+   **The Python script must call the verify-repo-tasks-completed task as a scriptable function:**
+   
+   - Read the verification steps from: `./.github/prompts/verify-repo-tasks-completed.prompt.md`
+   - Parse the prompt file to extract the verification logic and requirements
+   - Implement the verification steps directly in the script based on the prompt instructions
+   - Execute the verification logic inline (do not call copilot)
+   - Save results to: `./output/verify-repo-tasks-completed.json`
+   - Save report to: `./results/repo-tasks-verification.md`
+   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] executing inline verification from verify-repo-tasks-completed.prompt.md`
+   
+   - Check the JSON output for `overall_status` field
+   - If overall_status != "PASS":
+     - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] ERROR: verify-repo-tasks-completed failed - some repositories have incomplete tasks or invalid variables`
+     - Set status=FAIL
+     - Return error result with message about task completion verification failure
+   - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] verify-repo-tasks-completed completed successfully - all repositories have completed tasks`
 
 8. Generate Summary Report:
    - Total repositories processed: {{count}}
@@ -346,15 +384,17 @@ Workflow Sequence:
 ```
 1. [Optional] Clean directories (if append=false)
 2. Generate repository checklists
-3. Discover all *_repo_checklist.md files
-4. Filter for repositories with [ ] tasks
-5. For each incomplete repository:
-   a. Execute /execute-repo-task
+3. Verify repository checklist format (stop if FAIL)
+4. Discover all *_repo_checklist.md files
+5. Filter for repositories with [ ] tasks
+6. For each incomplete repository:
+   a. Execute @execute-repo-task
    b. Wait for completion
-   c. Update master checklist with /task-update-all-repo-checklist
+   c. Update master checklist with @task-update-all-repo-checklist
    d. Move to next repository
-6. Generate summary report
-7. Save JSON output
+7. Verify repository tasks completed (stop if FAIL)
+8. Generate summary report
+9. Save JSON output
 ```
 
 This orchestrator enables fully autonomous, sequential repository processing with complete traceability and error handling.
