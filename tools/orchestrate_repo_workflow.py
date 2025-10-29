@@ -36,6 +36,7 @@ OUTPUT_DIR = Path('./output')
 RESULTS_DIR = Path('./results')
 TOOLS_DIR = Path('./tools')
 CLONE_DIR = Path('./clone_repos')
+TEMP_SCRIPT_DIR = Path('./temp-script')
 LOG_FILE = Path('./orchestrate_repo_workflow.log')
 
 
@@ -46,10 +47,10 @@ def debug_print(message: str):
 
 
 def clean_directories():
-    """Remove all files in results, tasks, and output directories."""
-    debug_print("cleaned results, tasks, output directories")
+    """Remove all files in results, tasks, output, and temp-script directories."""
+    debug_print("cleaned results, tasks, output, temp-script directories")
     
-    for directory in [RESULTS_DIR, TASKS_DIR, OUTPUT_DIR]:
+    for directory in [RESULTS_DIR, TASKS_DIR, OUTPUT_DIR, TEMP_SCRIPT_DIR]:
         if directory.exists():
             for item in directory.iterdir():
                 if item.is_file():
@@ -330,9 +331,11 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
         
         for repo_name in repo_results.keys():
             # Look for task-find-solutions row for this repository
-            # Format: timestamp|repo_name|task-find-solutions|N solutions|SUCCESS|✓
+            # Format can be either:
+            #   timestamp|repo_name|task-find-solutions|N solutions|SUCCESS|✓
+            #   timestamp|repo_name|task-find-solutions|SUCCESS|✓
             # Note: CSV may use either | or , as delimiter
-            pattern = rf'{re.escape(repo_name)}[|,]task-find-solutions[|,](\d+) solutions?[|,]'
+            pattern = rf'{re.escape(repo_name)}[|,]task-find-solutions[|,]'
             match = re.search(pattern, csv_content)
             
             if not match:
@@ -357,11 +360,25 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
                         "completed_tasks": repo_results[repo_name].get("completed_tasks", 0)
                     })
             else:
-                solution_count = int(match.group(1))
-                debug_print(f"  {repo_name} has {solution_count} solutions in repo-results.csv")
+                # Extract solution count if present
+                # Pattern: timestamp|repo_name|task-find-solutions|N solutions|...
+                count_pattern = rf'{re.escape(repo_name)}[|,]task-find-solutions[|,](\d+) solutions?[|,]'
+                count_match = re.search(count_pattern, csv_content)
                 
-                # Store solution count for later verification
-                repo_results[repo_name]["expected_solutions"] = solution_count
+                if count_match:
+                    solution_count = int(count_match.group(1))
+                    debug_print(
+                        f"  {repo_name} has {solution_count} solutions "
+                        "in repo-results.csv"
+                    )
+                    # Store solution count for later verification
+                    repo_results[repo_name]["expected_solutions"] = solution_count
+                else:
+                    # Entry exists but no solution count specified
+                    debug_print(
+                        f"  {repo_name} has task-find-solutions entry "
+                        "(solution count not specified)"
+                    )
     else:
         debug_print("ERROR: repo-results.csv not found - marking all repositories as incomplete")
         # Mark all repositories as incomplete if repo-results.csv doesn't exist
@@ -475,6 +492,7 @@ def generate_repo_task_checklists(input_file: str, append: bool) -> bool:
 def reset_repo_tasks(checklist_path: str, incomplete_tasks: List[str]) -> bool:
     """
     Reset incomplete tasks in a repository checklist from [x] to [ ].
+    Also removes corresponding rows from repo-results.csv.
     
     Args:
         checklist_path: Path to the repository checklist file
@@ -486,6 +504,10 @@ def reset_repo_tasks(checklist_path: str, incomplete_tasks: List[str]) -> bool:
     debug_print(f"resetting tasks in {checklist_path}")
     
     try:
+        # Extract repo name from checklist path
+        checklist_file = Path(checklist_path)
+        repo_name = checklist_file.stem.replace('_repo_checklist', '')
+        
         with open(checklist_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
@@ -518,6 +540,39 @@ def reset_repo_tasks(checklist_path: str, incomplete_tasks: List[str]) -> bool:
             f.write(new_content)
         
         debug_print(f"successfully reset tasks in {checklist_path}")
+        
+        # Remove rows from repo-results.csv for this repository
+        repo_results_csv = RESULTS_DIR / 'repo-results.csv'
+        if repo_results_csv.exists():
+            debug_print(f"removing {repo_name} entries from repo-results.csv")
+            
+            with open(repo_results_csv, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            # Keep header and lines that don't match this repo
+            filtered_lines = []
+            removed_count = 0
+            
+            for line in lines:
+                # Check if this line is for the current repository
+                # CSV format: timestamp|repo_name|task|status|symbol
+                if line.strip():
+                    parts = line.split('|')
+                    if len(parts) >= 2:
+                        line_repo_name = parts[1].strip()
+                        if line_repo_name == repo_name:
+                            removed_count += 1
+                            debug_print(f"  removed: {line.strip()}")
+                            continue
+                
+                filtered_lines.append(line)
+            
+            # Write back filtered content
+            with open(repo_results_csv, 'w', encoding='utf-8') as f:
+                f.writelines(filtered_lines)
+            
+            debug_print(f"removed {removed_count} entries for {repo_name} from repo-results.csv")
+        
         return True
         
     except Exception as e:
@@ -694,12 +749,20 @@ def main():
         action='store_true', 
         help='Append mode (preserve existing files)'
     )
+    parser.add_argument(
+        '--solutions-only',
+        action='store_true',
+        help='Skip repository processing and go straight to solution processing'
+    )
     args = parser.parse_args()
     
     append_mode = args.append
+    solutions_only = args.solutions_only
     
-    debug_print(f"START append={append_mode}")
+    debug_print(f"START append={append_mode} solutions_only={solutions_only}")
     debug_print(f"using append_mode: {append_mode}")
+    if solutions_only:
+        debug_print("solutions_only mode: skipping repository processing")
     
     start_time = datetime.datetime.now(datetime.timezone.utc)
     
@@ -708,180 +771,238 @@ def main():
         log.write(f"Orchestrate Repository Workflow Log\n")
         log.write(f"Started: {start_time.isoformat()}\n")
         log.write(f"Append Mode: {append_mode}\n")
+        log.write(f"Solutions Only: {solutions_only}\n")
         log.write(f"{'='*80}\n\n")
     
     # Initialize result tracking
     repository_details = []
     successful_count = 0
     failed_count = 0
+    total_repositories = 0
+    incomplete_repos = []
     
     try:
-        # Step 2: Clean directories if append=false
-        if not append_mode:
+        # Step 2: Clean directories if append=false and not solutions_only
+        if not append_mode and not solutions_only:
             clean_directories()
         else:
-            debug_print("preserving existing files (append=true)")
+            if append_mode:
+                debug_print("preserving existing files (append=true)")
+            if solutions_only:
+                debug_print("solutions_only mode: preserving existing files")
         
         # Ensure directories exist
         for directory in [TASKS_DIR, OUTPUT_DIR, RESULTS_DIR, TOOLS_DIR]:
             directory.mkdir(exist_ok=True)
         
-        # Step 3: Generate repository checklists
-        if not generate_repo_task_checklists('repositories_small.txt', append_mode):
-            result = {
-                "append_mode": append_mode,
-                "workflow_status": "FAIL",
-                "error_message": "Failed to generate repository task checklists",
-                "status": "FAIL"
-            }
-            with open(OUTPUT_DIR / 'orchestrate-repo-workflow.json', 'w') as f:
-                json.dump(result, f, indent=2)
-            return 1
+        # Skip repository processing if solutions_only mode
+        if not solutions_only:
+            # Step 3: Generate repository checklists
+            if not generate_repo_task_checklists('repositories_small.txt', append_mode):
+                result = {
+                    "append_mode": append_mode,
+                    "workflow_status": "FAIL",
+                    "error_message": "Failed to generate repository task checklists",
+                    "status": "FAIL"
+                }
+                with open(OUTPUT_DIR / 'orchestrate-repo-workflow.json', 'w') as f:
+                    json.dump(result, f, indent=2)
+                return 1
+            
+            # Step 3a: Verify repository checklist format
+            if not verify_repo_checklist_format():
+                result = {
+                    "append_mode": append_mode,
+                    "workflow_status": "FAIL",
+                    "error_message": "Repository checklist format verification failed",
+                    "status": "FAIL"
+                }
+                with open(OUTPUT_DIR / 'orchestrate-repo-workflow.json', 'w') as f:
+                    json.dump(result, f, indent=2)
+                return 1
+            
+            # Step 4-6: Discover incomplete repositories
+            incomplete_repos = discover_incomplete_repositories()
         
-        # Step 3a: Verify repository checklist format
-        if not verify_repo_checklist_format():
-            result = {
-                "append_mode": append_mode,
-                "workflow_status": "FAIL",
-                "error_message": "Repository checklist format verification failed",
-                "status": "FAIL"
-            }
-            with open(OUTPUT_DIR / 'orchestrate-repo-workflow.json', 'w') as f:
-                json.dump(result, f, indent=2)
-            return 1
-        
-        # Step 4-6: Discover incomplete repositories
-        incomplete_repos = discover_incomplete_repositories()
-        
-        # Count total repositories
-        all_checklist_files = list(TASKS_DIR.glob('*_repo_checklist.md'))
-        total_repositories = len([
-            f for f in all_checklist_files 
-            if f.name != 'all_repository_checklist.md'
-        ])
-        
-        if not incomplete_repos:
-            debug_print("All repositories already complete")
-            result = {
-                "append_mode": append_mode,
-                "total_repositories": total_repositories,
-                "incomplete_repositories": 0,
-                "processed_repositories": 0,
-                "successful_repositories": 0,
-                "failed_repositories": 0,
-                "repository_details": [],
-                "workflow_status": "SUCCESS",
-                "start_time": start_time.isoformat(),
-                "end_time": datetime.datetime.now(
-                    datetime.timezone.utc
-                ).isoformat(),
-                "duration_seconds": (
-                    datetime.datetime.now(datetime.timezone.utc) - start_time
-                ).total_seconds(),
-                "status": "SUCCESS"
-            }
-            with open(OUTPUT_DIR / 'orchestrate-repo-workflow.json', 'w') as f:
-                json.dump(result, f, indent=2)
+            # Count total repositories
+            all_checklist_files = list(TASKS_DIR.glob('*_repo_checklist.md'))
+            total_repositories = len([
+                f for f in all_checklist_files 
+                if f.name != 'all_repository_checklist.md'
+            ])
             
-            debug_print("EXIT status=SUCCESS processed=0 successful=0 failed=0")
-            return 0
-        
-        # Step 7: Process each repository sequentially
-        for repo in incomplete_repos:
-            repo_name = repo['repo_name']
-            checklist_path = repo['checklist_path']
-            
-            # Execute repository tasks
-            result_detail = execute_repo_task(repo_name, checklist_path, "./clone_repos")
-            repository_details.append(result_detail)
-            
-            # Update counters based on execution status
-            if result_detail['execution_status'] == 'SUCCESS':
-                successful_count += 1
-            else:
-                failed_count += 1
-            
-            # Update master checklist
-#            cmd = (
-#                f'copilot --prompt "/task-update-all-repo-checklist '
-#                f'repo_name=\\"{repo_name}\\"" --allow-all-tools'
-#            )
-#            debug_print(f"updating master checklist for {repo_name}")
-#            exit_code, stdout, stderr = run_copilot_command(cmd)
-            
-#            if exit_code == 0:
-#                debug_print(f"master checklist updated for {repo_name}")
-#            else:
-#                debug_print(
-#                    f"WARNING: failed to update master checklist for {repo_name}"
-#                )
-
-        # Step 7a: Verify repository tasks completed
-        incomplete_from_verification = verify_repo_tasks_completed()
-        if len(incomplete_from_verification) > 0:
-            debug_print(
-                f"ERROR: verify-repo-tasks-completed found {len(incomplete_from_verification)} "
-                "repositories with incomplete tasks or invalid variables"
-            )
-            if DEBUG:
-                debug_print("Incomplete repositories from verification:")
-                for repo in incomplete_from_verification:
-                    debug_print(f"  - {repo['repo_name']}: {len(repo['incomplete_tasks'])} incomplete tasks")
-            
-            # Step 7a.1: Retry incomplete repositories
-            debug_print(f"Retrying {len(incomplete_from_verification)} incomplete repositories")
-            
-            retry_successful_count = 0
-            retry_failed_count = 0
-            
-            for repo_info in incomplete_from_verification:
-                repo_name = repo_info['repo_name']
-                checklist_path = repo_info['checklist_path']
-                incomplete_tasks = repo_info['incomplete_tasks']
+            if not incomplete_repos:
+                debug_print("All repositories already complete")
+                result = {
+                    "append_mode": append_mode,
+                    "total_repositories": total_repositories,
+                    "incomplete_repositories": 0,
+                    "processed_repositories": 0,
+                    "successful_repositories": 0,
+                    "failed_repositories": 0,
+                    "repository_details": [],
+                    "workflow_status": "SUCCESS",
+                    "start_time": start_time.isoformat(),
+                    "end_time": datetime.datetime.now(
+                        datetime.timezone.utc
+                    ).isoformat(),
+                    "duration_seconds": (
+                        datetime.datetime.now(datetime.timezone.utc) - start_time
+                    ).total_seconds(),
+                    "status": "SUCCESS"
+                }
+                with open(OUTPUT_DIR / 'orchestrate-repo-workflow.json', 'w') as f:
+                    json.dump(result, f, indent=2)
                 
-                debug_print(f"retrying repository: {repo_name}")
+                debug_print("EXIT status=SUCCESS processed=0 successful=0 failed=0")
+                # Don't return, continue to solution processing
+            
+            # Step 7: Process each repository sequentially
+            for repo in incomplete_repos:
+                repo_name = repo['repo_name']
+                checklist_path = repo['checklist_path']
                 
-                # Reset tasks from [x] to [ ]
-                if not reset_repo_tasks(checklist_path, incomplete_tasks):
-                    debug_print(f"ERROR: Failed to reset tasks for {repo_name}, skipping retry")
-                    retry_failed_count += 1
-                    continue
-                
-                # Re-execute repository tasks
+                # Execute repository tasks
                 result_detail = execute_repo_task(repo_name, checklist_path, "./clone_repos")
-                
-                # Update repository_details (append retry result)
-                repository_details.append({
-                    **result_detail,
-                    "retry": True
-                })
+                repository_details.append(result_detail)
                 
                 # Update counters based on execution status
                 if result_detail['execution_status'] == 'SUCCESS':
-                    retry_successful_count += 1
                     successful_count += 1
                 else:
-                    retry_failed_count += 1
                     failed_count += 1
+                
+                # Update master checklist
+#                cmd = (
+#                    f'copilot --prompt "/task-update-all-repo-checklist '
+#                    f'repo_name=\\"{repo_name}\\"" --allow-all-tools'
+#                )
+#                debug_print(f"updating master checklist for {repo_name}")
+#                exit_code, stdout, stderr = run_copilot_command(cmd)
+                
+#                if exit_code == 0:
+#                    debug_print(f"master checklist updated for {repo_name}")
+#                else:
+#                    debug_print(
+#                        f"WARNING: failed to update master checklist for {repo_name}"
+#                    )
+
+            # Step 7a: Verify repository tasks completed
+            incomplete_from_verification = verify_repo_tasks_completed()
+            if len(incomplete_from_verification) > 0:
+                debug_print(
+                    f"ERROR: verify-repo-tasks-completed found {len(incomplete_from_verification)} "
+                    "repositories with incomplete tasks or invalid variables"
+                )
+                if DEBUG:
+                    debug_print("Incomplete repositories from verification:")
+                    for repo in incomplete_from_verification:
+                        debug_print(f"  - {repo['repo_name']}: {len(repo['incomplete_tasks'])} incomplete tasks")
+                
+                # Step 7a.1: Retry incomplete repositories
+                debug_print(f"Retrying {len(incomplete_from_verification)} incomplete repositories")
+                
+                retry_successful_count = 0
+                retry_failed_count = 0
+                
+                for repo_info in incomplete_from_verification:
+                    repo_name = repo_info['repo_name']
+                    checklist_path = repo_info['checklist_path']
+                    incomplete_tasks = repo_info['incomplete_tasks']
+                    
+                    debug_print(f"retrying repository: {repo_name}")
+                    
+                    # Reset tasks from [x] to [ ]
+                    if not reset_repo_tasks(checklist_path, incomplete_tasks):
+                        debug_print(f"ERROR: Failed to reset tasks for {repo_name}, skipping retry")
+                        retry_failed_count += 1
+                        continue
+                    
+                    # Re-execute repository tasks
+                    result_detail = execute_repo_task(repo_name, checklist_path, "./clone_repos")
+                    
+                    # Update repository_details (append retry result)
+                    repository_details.append({
+                        **result_detail,
+                        "retry": True
+                    })
+                    
+                    # Update counters based on execution status
+                    if result_detail['execution_status'] == 'SUCCESS':
+                        retry_successful_count += 1
+                        successful_count += 1
+                    else:
+                        retry_failed_count += 1
+                        failed_count += 1
+                
+                debug_print(
+                    f"retry complete: successful={retry_successful_count} "
+                    f"failed={retry_failed_count}"
+                )
+        
+            # Step 7a.2: Verify repository tasks completed again after retries
+            debug_print("Re-verifying repository tasks completion after retries")
+            final_incomplete_repos = verify_repo_tasks_completed()
+        else:
+            # solutions_only mode: skip verification, assume repos complete
+            debug_print("solutions_only mode: skipping repository verification")
+            final_incomplete_repos = []
+        
+        # Build set of repository names that have solution checklists to process
+        # A repository should process solutions if it has completed task-find-solutions
+        # (i.e., has solutions logged in repo-results.csv), regardless of whether
+        # all repo tasks are complete
+        repos_with_solutions = set()
+        repo_results_csv_path = RESULTS_DIR / 'repo-results.csv'
+        
+        if repo_results_csv_path.exists():
+            with open(repo_results_csv_path, 'r', encoding='utf-8') as f:
+                csv_content = f.read()
             
-            debug_print(
-                f"retry complete: successful={retry_successful_count} "
-                f"failed={retry_failed_count}"
-            )
+            if DEBUG:
+                debug_print("Searching for task-find-solutions entries in repo-results.csv")
+                debug_print(f"CSV content length: {len(csv_content)} bytes")
+            
+            # Find all repositories that have task-find-solutions entry
+            # CSV Format: timestamp,repo_name,task,status,symbol
+            # Examples:
+            #   2025-10-29T16:35:25Z,sync_calling_concore-conversation,task-find-solutions,13 solutions,SUCCESS,✓
+            #   2025-10-29T16:22:03Z,ic3_spool_cosine-dep-spool,task-find-solutions,SUCCESS,✓
+            #   2025-10-29T16:26:49Z|people_spool_usertokenmanagement|task-find-solutions|5 solutions|SUCCESS|✓
+            # Support both | and , as separators
+            import re
+            
+            # Match ANY entry with task-find-solutions, extract repo name
+            # Pattern: timestamp (sep) repo_name (sep) task-find-solutions (sep) ...
+            pattern_all = r'[^|,]+[|,]([^|,]+)[|,]task-find-solutions[|,]'
+            all_matches = re.findall(pattern_all, csv_content)
+            
+            if DEBUG:
+                debug_print(f"Found {len(all_matches)} task-find-solutions entries total")
+            
+            for repo_name in all_matches:
+                repo_name = repo_name.strip()
+                repos_with_solutions.add(repo_name)
+                if DEBUG:
+                    debug_print(f"Repository '{repo_name}' has task-find-solutions entry")
+            
+            # Also try to extract solution counts where available for logging
+            pattern_with_count = r'[^|,]+[|,]([^|,]+)[|,]task-find-solutions[|,](\d+) solutions?[|,]'
+            count_matches = re.findall(pattern_with_count, csv_content)
+            
+            if DEBUG and count_matches:
+                debug_print(f"Repositories with solution counts:")
+                for repo_name, solution_count in count_matches:
+                    debug_print(f"  - {repo_name}: {solution_count} solutions")
+        else:
+            debug_print("WARNING: repo-results.csv not found, cannot determine repos with solutions")
         
-        # Step 7a.2: Verify repository tasks completed again after retries
-        debug_print("Re-verifying repository tasks completion after retries")
-        final_incomplete_repos = verify_repo_tasks_completed()
+        if DEBUG:
+            debug_print(f"Repositories with solutions to process: {sorted(repos_with_solutions)}")
         
-        # Build set of completed repository names
-        completed_repo_names = set()
-        all_checklist_files = list(TASKS_DIR.glob('*_repo_checklist.md'))
-        for checklist_path in all_checklist_files:
-            if checklist_path.name != 'all_repository_checklist.md':
-                repo_name = checklist_path.stem.replace('_repo_checklist', '')
-                # Check if repo is in the incomplete list
-                if not any(r['repo_name'] == repo_name for r in final_incomplete_repos):
-                    completed_repo_names.add(repo_name)
+        if len(repos_with_solutions) == 0:
+            debug_print("WARNING: No repositories with task-find-solutions entries found")
+            debug_print("Solution processing will be skipped")
         
         if len(final_incomplete_repos) > 0:
             debug_print(
@@ -893,8 +1014,8 @@ def main():
                 for repo in final_incomplete_repos:
                     debug_print(f"  - {repo['repo_name']}: {len(repo['incomplete_tasks'])} incomplete tasks")
             debug_print(
-                f"Will only process solutions for {len(completed_repo_names)} "
-                "completed repositories"
+                f"Will only process solutions for {len(repos_with_solutions)} "
+                "repositories with solutions"
             )
         else:
             debug_print("All repositories completed successfully after retries")
@@ -919,18 +1040,26 @@ def main():
             solution_filename = checklist_path.stem.replace('_solution_checklist', '')
             
             # Determine the repository name this solution belongs to
-            # We need to check if any completed repo name is a prefix of the solution name
-            belongs_to_completed_repo = False
+            # Check if any repo with solutions has a name that is
+            # a prefix of the solution name
+            belongs_to_repo_with_solutions = False
             parent_repo = None
-            for repo_name in completed_repo_names:
+            for repo_name in repos_with_solutions:
                 # Check if solution name starts with repo name
                 if solution_filename.startswith(repo_name):
-                    belongs_to_completed_repo = True
+                    belongs_to_repo_with_solutions = True
                     parent_repo = repo_name
                     break
             
-            # Skip solutions from incomplete repositories
-            if not belongs_to_completed_repo:
+            # Debug: show why solution is being skipped
+            if DEBUG and not belongs_to_repo_with_solutions:
+                debug_print(
+                    f"Solution '{solution_filename}' - checking against "
+                    f"repos with solutions: {sorted(repos_with_solutions)}"
+                )
+            
+            # Skip solutions from repositories that don't have solutions
+            if not belongs_to_repo_with_solutions:
                 debug_print(
                     f"Skipping solution {solution_filename} - "
                     "parent repository not completed"
