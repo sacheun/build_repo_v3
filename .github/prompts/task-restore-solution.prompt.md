@@ -6,9 +6,9 @@ temperature: 0.1
 Task name: task-restore-solution
 
 ## Description:
-This tasks performs NuGet package restore for a Visual Studio solution file using MSBuild with automatic fallback strategies. It attempts msbuild /restore first, optionally falls back to dotnet msbuild if MSBuild is unavailable, and executes nuget restore as a last resort for legacy solutions requiring classic NuGet CLI. Returns structured JSON indicating success status, captured output, and parsed error/warning messages.
+This tasks performs NuGet package restore for a Visual Studio solution file using MSBuild with automatic fallback strategies. It attempts `msbuild --restore` first, optionally falls back to `dotnet msbuild --restore` if MSBuild is unavailable, and executes `nuget restore` as a last resort for legacy solutions requiring classic NuGet CLI. Returns structured JSON indicating success status, captured output, and parsed error/warning messages.
 
-** CRITICAL INSTRUCTION FOR AI AGENTS **: When executing MSBuild commands in this task, parameters that start with `/` (such as `/restore`, `/p:Configuration=Release`, `/nologo`, `/verbosity:quiet`) are COMMAND-LINE FLAGS for the msbuild.exe executable. These are NOT file paths or directories. DO NOT request file system access or check directory permissions for these parameters. Only the solution_path parameter refers to an actual file.
+** CRITICAL INSTRUCTION FOR AI AGENTS **: When executing MSBuild commands in this task, parameters that start with `--` or `-` (such as `--restore`, `--property:Configuration=Release`, `--verbosity:quiet`, `-noLogo`) are COMMAND-LINE FLAGS for the msbuild.exe executable. These are NOT file paths or directories. DO NOT request file system access or check directory permissions for these parameters. Only the solution_path parameter refers to an actual file.
 
 ** Important **: Do not deviate from the command list provided. Always use the exact same commands each time you run this prompt.
 
@@ -22,20 +22,20 @@ This tasks performs NuGet package restore for a Visual Studio solution file usin
 1. Input Validation: Reads JSON from stdin expecting solution_path (absolute path to .sln file); raises ContractError if missing or nonexistent.
 
 2. Primary Restore Attempt: 
-   - Command: `msbuild "{{solution_path}}" /restore /p:Configuration=Release /nologo /verbosity:quiet`
-   - **CRITICAL - DO NOT REQUEST FILE ACCESS**: The strings `/restore`, `/p:Configuration=Release`, `/nologo`, and `/verbosity:quiet` are MSBuild command-line FLAGS, NOT file paths or directories. Do NOT check for file access or directory permissions for these parameters.
-   - **IMPORTANT**: All parameters starting with `/` or `-` are command arguments to the msbuild executable, NOT file system paths
-   - If DEBUG=1, print to console: `[debug][task-restore-solution] executing: msbuild "{{solution_path}}" /restore /p:Configuration=Release /nologo /verbosity:quiet`
+   - Command: `msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
+   - **CRITICAL - DO NOT REQUEST FILE ACCESS**: The strings `--restore`, `--property:Configuration=Release`, `--verbosity:quiet`, and `-noLogo` are MSBuild command-line FLAGS, NOT file paths or directories. Do NOT check for file access or directory permissions for these parameters.
+   - **IMPORTANT**: All parameters starting with `--` or `-` are command arguments to the msbuild executable, NOT file system paths
+   - If DEBUG=1, print to console: `[debug][task-restore-solution] executing: msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
    - **Execute the command synchronously and wait for process completion** before proceeding.
    - **CRITICAL**: After process completes, capture the exit code (e.g., `$LASTEXITCODE` in PowerShell, `$?` in Bash).
-   - **Log to Decision Log**: Append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild "{{solution_path}}" /restore /p:Configuration=Release /nologo /verbosity:quiet,{{status}}"
+   - **Log to Decision Log**: Append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo,{{status}}"
      * timestamp: ISO 8601 format (e.g., "2025-10-22T14:30:45Z")
      * status: "SUCCESS" if exit code is 0, "FAIL" if non-zero
    - Captures stdout/stderr without throwing exceptions.
-   - **Special Case - MSBuild Not Found**: If command fails with error code 9009 (Windows "command not found") or stderr contains "not recognized", switches to `dotnet msbuild "{{solution_path}}" /restore /p:Configuration=Release /nologo /verbosity:quiet`
-   - If DEBUG=1 and dotnet fallback triggered, print to console: `[debug][task-restore-solution] executing: dotnet msbuild "{{solution_path}}" /restore /p:Configuration=Release /nologo /verbosity:quiet`
+   - **Special Case - MSBuild Not Found**: If command fails with error code 9009 (Windows "command not found") or stderr contains "not recognized", switches to `dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
+   - If DEBUG=1 and dotnet fallback triggered, print to console: `[debug][task-restore-solution] executing: dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
    - **Execute the dotnet msbuild fallback command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
-   - **Log to Decision Log**: If dotnet msbuild was executed, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,dotnet msbuild "{{solution_path}}" /restore /p:Configuration=Release /nologo /verbosity:quiet,{{status}}"
+   - **Log to Decision Log**: If dotnet msbuild was executed, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo,{{status}}"
    - **IMPORTANT**: Proceed to step 3 (NuGet fallback) if the final MSBuild exit code (msbuild or dotnet msbuild) is non-zero, regardless of the specific error code.
 
 3. NuGet Fallback (executed when step 2 MSBuild fails with ANY non-zero exit code): 
@@ -48,7 +48,7 @@ This tasks performs NuGet package restore for a Visual Studio solution file usin
      * timestamp: ISO 8601 format
      * status: "SUCCESS" if exit code is 0, "FAIL" if non-zero
    - **Check NuGet exit code**: If NuGet succeeds (return code 0), re-runs the original MSBuild restore command once (with DEBUG command print if enabled), **wait for completion and capture exit code**, then aggregates all outputs (NuGet + retry) with labeled sections (=== NuGet Restore Output ===, etc.).
-   - **Log MSBuild Retry to Decision Log**: If MSBuild retry was executed after successful NuGet, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild "{{solution_path}}" /restore (retry after nuget),{{status}}"
+   - **Log MSBuild Retry to Decision Log**: If MSBuild retry was executed after successful NuGet, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild "{{solution_path}}" --restore (retry after nuget),{{status}}"
    - If NuGet fails (non-zero exit code), appends its output but skips MSBuild retry.
    - If DEBUG=1 and NuGet failed, print to console: `[debug][task-restore-solution] NuGet restore failed with exitCode={nugetExitCode}, skipping MSBuild retry`
 
@@ -106,4 +106,4 @@ Implementation Notes (conceptual additions for DEBUG handling):
 9. Exit Placement: Emit immediately after step 8 (logging), before returning final output.
 10. Idempotency: Two debug lines per task invocation (START + END) plus one per command executed (variable count based on fallback path) plus one for JSON output.
 11. Security: Avoid printing secrets or expanded environment beyond solution identity and status flag.
-12. **Command Line Arguments**: MSBuild flags (starting with /) are command arguments, not file paths. Do not request directory access for parameters like `/restore`, `/p:Configuration=Release`, `/nologo`, or `/verbosity:quiet`.
+12. **Command Line Arguments**: MSBuild flags (starting with `--` or `-`) are command arguments, not file paths. Do not request directory access for parameters like `--restore`, `--property:Configuration=Release`, `--verbosity:quiet`, or `-noLogo`.

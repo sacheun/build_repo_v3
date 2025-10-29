@@ -306,11 +306,11 @@ npm run build
 Restore packages:
 ```
 msbuild MySolution.sln \
-  /restore \
-  /p:Configuration=Release
+  --restore \
+  --property:Configuration=Release
 ```
 ```
-→ Joins lines: `msbuild MySolution.sln /restore /p:Configuration=Release`
+→ Joins lines: `msbuild MySolution.sln --restore --property:Configuration=Release`
 → Category: build_tool
 
 **Example 4: Context-Based Filtering**

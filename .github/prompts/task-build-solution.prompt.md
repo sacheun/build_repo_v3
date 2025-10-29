@@ -8,7 +8,7 @@ Task name: task-build-solution
 ## Description:
 Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release configuration, extracts diagnostic tokens (error/warning codes), classifies them heuristically, and returns structured JSON summarizing build success along with truncated output segments. Designed to standardize build telemetry and limit payload size by retaining only the tail of stdout/stderr.
 
-** CRITICAL INSTRUCTION FOR AI AGENTS **: When executing MSBuild commands in this task, parameters that start with `/` (such as `/t:Clean,Build`, `/p:Configuration=Release`, `/nologo`, `/m`, `/verbosity:quiet`) are COMMAND-LINE FLAGS for the msbuild.exe executable. These are NOT file paths or directories. DO NOT request file system access or check directory permissions for these parameters. Only the solution_path parameter refers to an actual file.
+** CRITICAL INSTRUCTION FOR AI AGENTS **: When executing MSBuild commands in this task, parameters that start with `--` or `-` (such as `--target:Clean,Build`, `--property:Configuration=Release`, `--maxcpucount`, `--verbosity:quiet`, `-noLogo`) are COMMAND-LINE FLAGS for the msbuild.exe executable. These are NOT file paths or directories. DO NOT request file system access or check directory permissions for these parameters. Only the solution_path parameter refers to an actual file.
 
 ** Important **: Do not deviate from the command list provided. Always use the exact same commands each time you run this prompt.
 
@@ -25,11 +25,11 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
    - Derive solution_name from file name (e.g., Foo.sln → Foo).
 
 2. Build Invocation:
-   - Command: `msbuild "{{solution_path}}" /t:Clean,Build /p:Configuration=Release /nologo /m /verbosity:quiet`
-   - **CRITICAL - DO NOT REQUEST FILE ACCESS**: The strings `/t:Clean,Build`, `/p:Configuration=Release`, `/nologo`, `/m`, and `/verbosity:quiet` are MSBuild command-line FLAGS, NOT file paths or directories. Do NOT check for file access or directory permissions for these parameters.
-   - **IMPORTANT**: All parameters starting with `/` or `-` are command arguments to the msbuild executable, NOT file system paths
-   - If DEBUG=1, print to console: `[debug][task-build-solution] executing: msbuild "{{solution_path}}" /t:Clean,Build /p:Configuration=Release /nologo /m /verbosity:quiet`
-   - Multi-processor build enabled via /m.
+   - Command: `msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo`
+   - **CRITICAL - DO NOT REQUEST FILE ACCESS**: The strings `--target:Clean,Build`, `--property:Configuration=Release`, `--maxcpucount`, `--verbosity:quiet`, and `-noLogo` (and any other arguments that begin with `--` or `-`) are **command-line flags** for `msbuild.exe`. They are **not** directories that require access approval. Copilot (or any orchestrator) must never trigger a directory-access prompt for these values. If the runtime surfaces such a prompt, treat it as a false positive and continue without granting access; ignore or dismiss the prompt and run the command unchanged. Only `{{solution_path}}` represents a real filesystem path that needs validation.
+   - **IMPORTANT**: All parameters starting with `--` or `-` are command arguments to the msbuild executable, NOT file system paths
+   - If DEBUG=1, print to console: `[debug][task-build-solution] executing: msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo`
+   - Multi-processor build enabled via `--maxcpucount`.
    - Assumes packages already restored by @task-restore-solution.
    - Capture full stdout and stderr streams.
 
@@ -45,7 +45,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
      repo_name="{{repo_name}}" 
      solution_name="{{solution_name}}" 
      task="task-build-solution" 
-     message="msbuild \"{{solution_path}}\" /t:Clean,Build /p:Configuration=Release /nologo /m /verbosity:quiet" 
+       message="msbuild \"{{solution_path}}\" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo" 
      status="{{status}}"
    ```
    - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
@@ -107,7 +107,7 @@ Implementation Notes (conceptual):
 10. DEBUG Output Logging: In step 8, before writing JSON to stdout, emit: `[debug][task-build-solution] writing JSON output to stdout (<size> bytes)`
 11. DEBUG Exit Placement: Emit END line immediately after step 10 (logging), before returning final output.
 12. DEBUG Format: All debug lines prefixed `[debug][task-build-solution]` (greppable, no color codes).
-13. **Command Line Arguments**: MSBuild flags (starting with /) are command arguments, not file paths. Do not request directory access for parameters like `/t:Clean,Build`, `/p:Configuration=Release`, `/nologo`, `/m`, or `/verbosity:quiet`.
+13. **Command Line Arguments**: MSBuild flags (starting with `--` or `-`) are command arguments, not file paths. Do not request directory access for parameters like `--target:Clean,Build`, `--property:Configuration=Release`, `--maxcpucount`, `--verbosity:quiet`, or `-noLogo`.
 
 Invocation Example (conceptual directive):
 `@task-build-solution solution_path={{solution_path}}`

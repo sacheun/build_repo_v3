@@ -474,7 +474,7 @@ def generate_repo_task_checklists(input_file: str, append: bool) -> bool:
     cmd = (
         f'copilot --prompt "/generate-repo-task-checklists '
         f'input=\\"{input_file}\\" '
-        f'append={str(append).lower()}" --allow-all-tools'
+        f'append={str(append).lower()}" --allow-all-tools --allow-all-paths'
     )
     exit_code, stdout, stderr = run_copilot_command(cmd)
     
@@ -604,7 +604,7 @@ def execute_repo_task(repo_name: str, checklist_path: str, clone_dir: str = "./c
     cmd = (
         f'copilot --prompt "/execute-repo-task '
         f'repo_checklist=\\"{checklist_path}\\" '
-        f'clone=\\"{clone_dir}\\"" --allow-all-tools'
+        f'clone=\\"{clone_dir}\\"" --allow-all-tools --allow-all-paths'
     )
     exit_code, stdout, stderr = run_copilot_command(cmd)
     
@@ -655,7 +655,7 @@ def execute_solution_task(solution_name: str, solution_checklist_path: str) -> D
     # Execute solution tasks
     cmd = (
         f'copilot --prompt "/execute-solution-task '
-        f'solution_checklist=\\"{solution_checklist_path}\\"" --allow-all-tools'
+        f'solution_checklist=\\"{solution_checklist_path}\\"" --allow-all-tools --allow-all-paths'
     )
     debug_print(f"executing: {cmd}")
     exit_code, stdout, stderr = run_copilot_command(cmd)
@@ -1031,13 +1031,16 @@ def main():
         
         # 7b.b: Filter for incomplete solutions
         incomplete_solutions = []
+        skipped_solutions = []
         for checklist_path in solution_checklist_files:
             with open(checklist_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
             # Extract repository name from solution checklist filename
             # Format: {org}_{repo}_{solution}_solution_checklist.md
-            solution_filename = checklist_path.stem.replace('_solution_checklist', '')
+            solution_filename = checklist_path.stem.replace(
+                '_solution_checklist', ''
+            )
             
             # Determine the repository name this solution belongs to
             # Check if any repo with solutions has a name that is
@@ -1086,41 +1089,109 @@ def main():
                 if alternative_tasks_match:
                     solution_tasks_section = alternative_tasks_match.group(1)
 
-            has_incomplete_tasks = False
+            mandatory_incomplete: List[str] = []
             if solution_tasks_section:
-                has_incomplete_tasks = re.search(r'- \[ \]', solution_tasks_section) is not None
+                mandatory_matches = re.findall(
+                    r'- \[(?P<status>[ xX])\]\s+\[MANDATORY[^\]]*\]\s+(.+)',
+                    solution_tasks_section
+                )
+                for status, description in mandatory_matches:
+                    if status.lower() != 'x':
+                        mandatory_incomplete.append(description.strip())
             else:
                 if DEBUG:
                     debug_print(
-                        f"  WARNING: Solution checklist '{checklist_path.name}' "
-                        "missing tasks section"
+                        (
+                            "  WARNING: Solution checklist "
+                            f"'{checklist_path.name}' missing tasks section"
+                        )
                     )
 
-            # Always add solutions from repos with solutions
-            solution_name = checklist_path.stem.replace('_solution_checklist', '')
-            incomplete_solutions.append({
-                'solution_name': solution_name,
-                'checklist_path': str(checklist_path),
-                'parent_repo': parent_repo,
-                'has_incomplete_tasks': has_incomplete_tasks
-            })
+            solution_variables_match = re.search(
+                r'### Solution Variables.*?\n(.*?)(?=\n###|\n##|\Z)',
+                content,
+                re.DOTALL
+            )
+            variables_section = (
+                solution_variables_match.group(1).strip()
+                if solution_variables_match
+                else ''
+            )
+            variables_set = bool(variables_section)
 
-            if DEBUG:
-                status = "incomplete" if has_incomplete_tasks else "complete"
-                debug_print(f"  Added solution '{solution_name}' ({status})")
+            solution_name = checklist_path.stem.replace(
+                '_solution_checklist', ''
+            )
+
+            if not variables_set:
+                skipped_solutions.append({
+                    'solution_name': solution_name,
+                    'checklist_path': str(checklist_path),
+                    'parent_repo': parent_repo,
+                    'reason': 'Solution Variables section missing or empty'
+                })
+                if DEBUG:
+                    debug_print(
+                        (
+                            "  Skipping solution '{name}' - "
+                            "solution variables not set"
+                        ).format(name=solution_name)
+                    )
+                continue
+
+            if mandatory_incomplete:
+                incomplete_solutions.append({
+                    'solution_name': solution_name,
+                    'checklist_path': str(checklist_path),
+                    'parent_repo': parent_repo,
+                    'mandatory_incomplete': mandatory_incomplete
+                })
+                if DEBUG:
+                    debug_print(
+                        (
+                            "  Added solution '{name}' (missing mandatory "
+                            "tasks: {count})"
+                        ).format(
+                            name=solution_name,
+                            count=len(mandatory_incomplete)
+                        )
+                    )
+            else:
+                if DEBUG:
+                    debug_print(
+                        (
+                            "  All mandatory tasks complete for solution "
+                            "'{name}' - skipping"
+                        ).format(name=solution_name)
+                    )
         
         debug_print(
-            f"found {len(incomplete_solutions)} solution checklists to process "
-            f"from repositories with solutions"
+            (
+                "found {count} solution checklists to process from "
+                "repositories with solutions"
+            ).format(count=len(incomplete_solutions))
         )
         
+        if skipped_solutions and DEBUG:
+            debug_print("skipping solution checklists due to unset variables:")
+            for skipped in skipped_solutions:
+                debug_print(
+                    f"  - {skipped['checklist_path']} ({skipped['reason']})"
+                )
+
         # 7b.c: Print incomplete solution list
         if DEBUG and incomplete_solutions:
             debug_print("solution checklists to process:")
             for solution in incomplete_solutions:
                 debug_print(f"  - {solution['checklist_path']}")
         elif not DEBUG and incomplete_solutions:
-            print(f"Processing {len(incomplete_solutions)} solution checklists with incomplete tasks")
+            processing_count = len(incomplete_solutions)
+            print(
+                (
+                    "Processing {count} solution checklists with "
+                    "incomplete tasks"
+                ).format(count=processing_count)
+            )
         
         # 7b.d: Process each solution checklist sequentially
         for solution in incomplete_solutions:
@@ -1128,7 +1199,10 @@ def main():
             solution_checklist_path = solution['checklist_path']
             
             # Execute solution tasks
-            result_detail = execute_solution_task(solution_name, solution_checklist_path)
+            result_detail = execute_solution_task(
+                solution_name,
+                solution_checklist_path
+            )
             solution_details.append(result_detail)
             
             # Update counters based on execution status
@@ -1174,6 +1248,8 @@ def main():
             "successful_solutions": solution_successful_count,
             "failed_solutions": solution_failed_count,
             "solution_details": solution_details,
+            "skipped_solutions": skipped_solutions,
+            "skipped_solutions_count": len(skipped_solutions),
             "workflow_status": workflow_status,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
@@ -1187,17 +1263,35 @@ def main():
         # Log final summary to log file
         with open(LOG_FILE, 'a', encoding='utf-8') as log:
             log.write(f"\n{'='*80}\n")
-            log.write(f"Workflow Completed\n")
+            log.write("Workflow Completed\n")
             log.write(f"End Time: {end_time.isoformat()}\n")
             log.write(f"Duration: {duration:.2f} seconds\n")
             log.write(f"Workflow Status: {workflow_status}\n")
-            log.write(f"Repositories: {successful_count} successful, {failed_count} failed\n")
-            log.write(f"Solutions: {solution_successful_count} successful, {solution_failed_count} failed\n")
+            log.write(
+                (
+                    "Repositories: {success} successful, {failed} failed\n"
+                ).format(
+                    success=successful_count,
+                    failed=failed_count
+                )
+            )
+            log.write(
+                (
+                    "Solutions: {success} successful, {failed} failed\n"
+                ).format(
+                    success=solution_successful_count,
+                    failed=solution_failed_count
+                )
+            )
             log.write(f"{'='*80}\n")
         
         # Print summary
         if DEBUG:
-            debug_print(f"Total repositories processed: {len(repository_details)}")
+            debug_print(
+                (
+                    "Total repositories processed: {count}"
+                ).format(count=len(repository_details))
+            )
             debug_print(f"Successful: {successful_count}")
             debug_print(f"Failed: {failed_count}")
             debug_print(f"Total solutions processed: {len(solution_details)}")
@@ -1233,8 +1327,14 @@ def main():
 if __name__ == '__main__':
     debug_print("script saved to: ./tools/orchestrate_repo_workflow.py")
     print("\nScript generated: ./tools/orchestrate_repo_workflow.py")
-    print('To execute: $env:DEBUG = "1"; python ./tools/orchestrate_repo_workflow.py')
-    print('All command output will be logged to: ./orchestrate_repo_workflow.log')
+    print(
+        'To execute: $env:DEBUG = "1"; '
+        'python ./tools/orchestrate_repo_workflow.py'
+    )
+    print(
+        'All command output will be logged to: '
+        './orchestrate_repo_workflow.log'
+    )
     
     # Execute the workflow
     sys.exit(main())
