@@ -177,6 +177,63 @@ The Python script you generate must:
      - Return error result with message about task completion verification failure
    - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] verify-repo-tasks-completed completed successfully - all repositories have completed tasks`
 
+7b. Process Solution Checklists:
+   
+   **Discover and process solution checklists with incomplete tasks:**
+   
+   a. Discover Solution Checklists:
+      - Search for all files matching pattern: `./tasks/*_solution_checklist.md`
+      - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] found {{count}} solution checklist files`
+   
+   b. Filter for Incomplete Solutions:
+      - For each solution checklist file found:
+        - Read the file content
+        - Find the section that starts with "## Solution Tasks" (may have additional text after "Solution Tasks")
+          - Use regex: `r'## Solution Tasks.*?\n(.*?)(?=\n##|\Z)'` with re.DOTALL flag
+        - Within that section, check if any tasks are marked with `- [ ]` (incomplete)
+          - Use regex: `r'- \[ \]'` to find incomplete task markers
+        - If any incomplete tasks found, add to processing list
+      - Create list of solution checklists with incomplete tasks
+      - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] found {{count}} solution checklists with incomplete tasks`
+   
+   c. Print Incomplete Solution List:
+      - If DEBUG=1:
+        - Print: `[debug][orchestrate-repo-workflow] solution checklists to process:`
+        - For each solution checklist in list:
+          - Print: `[debug][orchestrate-repo-workflow]   - {{solution_checklist_path}}`
+      - If not DEBUG mode:
+        - Print: `Processing {{count}} solution checklists with incomplete tasks`
+   
+   d. Process Each Solution Checklist Sequentially:
+      - Initialize solution counters: processed=0, success=0, failure=0
+      - For each solution checklist in the incomplete list:
+        
+        i. Extract solution name from checklist filename
+           - Pattern: `./tasks/{solution_name}_solution_checklist.md`
+           - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] processing solution: {{solution_name}}`
+        
+        ii. Build execute command:
+            - Command: `copilot --prompt "/execute-solution-task solution_checklist=\"{{solution_checklist_path}}\"" --allow-all-tools`
+            - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] executing: {{command}}`
+        
+        iii. Execute the command:
+             - Run command and wait for completion
+             - Capture stdout, stderr, and exit code
+             - If DEBUG=1 and exit code != 0, print: `[debug][orchestrate-repo-workflow] ERROR: execute-solution-task failed for {{solution_name}} with exit code {{exit_code}}`
+             - If DEBUG=1 and exit code == 0, print: `[debug][orchestrate-repo-workflow] execute-solution-task completed for {{solution_name}}`
+        
+        iv. Handle execution result:
+            - If exit code == 0:
+              - Increment solution success counter
+            - If exit code != 0:
+              - Increment solution failure counter
+              - Log error details
+              - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] continuing to next solution despite failure`
+            - Increment solution processed counter
+   
+   e. Log Solution Processing Summary:
+      - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] solution processing complete: processed={{solution_processed}} successful={{solution_success}} failed={{solution_failure}}`
+
 8. Generate Summary Report:
    - Total repositories processed: {{count}}
    - Successful: {{success_count}}
@@ -198,6 +255,17 @@ The Python script you generate must:
    - failed_repositories: integer (failed executions)
    - repository_details: array of objects:
      - repo_name: string
+     - checklist_path: string
+     - execution_status: "SUCCESS" | "FAIL" | "SKIPPED"
+     - exit_code: integer
+     - error_message: string | null
+   - total_solutions: integer (total solution checklists found)
+   - incomplete_solutions: integer (solution checklists with incomplete tasks)
+   - processed_solutions: integer (solution checklists processed)
+   - successful_solutions: integer (successfully completed solutions)
+   - failed_solutions: integer (failed solution executions)
+   - solution_details: array of objects:
+     - solution_name: string
      - checklist_path: string
      - execution_status: "SUCCESS" | "FAIL" | "SKIPPED"
      - exit_code: integer
@@ -225,6 +293,12 @@ Conditional Verbose Output (DEBUG):
 - Repository Processing: "[debug][orchestrate-repo-workflow] processing repository: <repo_name>"
 - Success/Failure: "[debug][orchestrate-repo-workflow] execute-repo-task completed/failed for <repo_name>"
 - Master Checklist: "[debug][orchestrate-repo-workflow] updating master checklist for <repo_name>"
+- Solution Discovery: "[debug][orchestrate-repo-workflow] found <count> solution checklist files"
+- Solution Incomplete Filter: "[debug][orchestrate-repo-workflow] found <count> solution checklists with incomplete tasks"
+- Solution List: "[debug][orchestrate-repo-workflow] solution checklists to process:" followed by each solution checklist path
+- Solution Processing: "[debug][orchestrate-repo-workflow] processing solution: <solution_name>"
+- Solution Success/Failure: "[debug][orchestrate-repo-workflow] execute-solution-task completed/failed for <solution_name>"
+- Solution Summary: "[debug][orchestrate-repo-workflow] solution processing complete: processed=<count> successful=<count> failed=<count>"
 - Script Location: "[debug][orchestrate-repo-workflow] script saved to: ./temp-script/orchestrate_repo_workflow.py"
 - Exit Message: "[debug][orchestrate-repo-workflow] EXIT status=<STATUS> processed=<count> successful=<count> failed=<count>"
 
@@ -245,6 +319,17 @@ Output Contract:
 - failed_repositories: integer
 - repository_details: array of objects
   - repo_name: string
+  - checklist_path: string
+  - execution_status: "SUCCESS" | "FAIL" | "SKIPPED"
+  - exit_code: integer
+  - error_message: string | null
+- total_solutions: integer
+- incomplete_solutions: integer
+- processed_solutions: integer
+- successful_solutions: integer
+- failed_solutions: integer
+- solution_details: array of objects
+  - solution_name: string
   - checklist_path: string
   - execution_status: "SUCCESS" | "FAIL" | "SKIPPED"
   - exit_code: integer
@@ -349,6 +434,20 @@ Expected Output (Success):
       "error_message": null
     }
   ],
+  "total_solutions": 8,
+  "incomplete_solutions": 8,
+  "processed_solutions": 8,
+  "successful_solutions": 8,
+  "failed_solutions": 0,
+  "solution_details": [
+    {
+      "solution_name": "ic3_spool_cosine-dep-spool_AcsAdminConsoleApp",
+      "checklist_path": "./tasks/ic3_spool_cosine-dep-spool_AcsAdminConsoleApp_solution_checklist.md",
+      "execution_status": "SUCCESS",
+      "exit_code": 0,
+      "error_message": null
+    }
+  ],
   "workflow_status": "SUCCESS",
   "start_time": "2025-10-28T14:30:00Z",
   "end_time": "2025-10-28T15:45:30Z",
@@ -382,6 +481,27 @@ Expected Output (Partial Success):
       "error_message": "execute-repo-task failed with exit code 1"
     }
   ],
+  "total_solutions": 5,
+  "incomplete_solutions": 3,
+  "processed_solutions": 3,
+  "successful_solutions": 2,
+  "failed_solutions": 1,
+  "solution_details": [
+    {
+      "solution_name": "people_spool_usertokenmanagement_UserTokenService",
+      "checklist_path": "./tasks/people_spool_usertokenmanagement_UserTokenService_solution_checklist.md",
+      "execution_status": "SUCCESS",
+      "exit_code": 0,
+      "error_message": null
+    },
+    {
+      "solution_name": "people_spool_usertokenmanagement_TokenTests",
+      "checklist_path": "./tasks/people_spool_usertokenmanagement_TokenTests_solution_checklist.md",
+      "execution_status": "FAIL",
+      "exit_code": 1,
+      "error_message": "execute-solution-task failed with exit code 1"
+    }
+  ],
   "workflow_status": "PARTIAL_SUCCESS",
   "start_time": "2025-10-28T16:00:00Z",
   "end_time": "2025-10-28T17:30:15Z",
@@ -403,9 +523,15 @@ Workflow Sequence:
    c. Update master checklist with @task-update-all-repo-checklist
    d. Move to next repository
 7. Verify repository tasks completed (stop if FAIL)
-8. Generate summary report
-9. Save JSON output
+8. Discover all *_solution_checklist.md files
+9. Filter for solution checklists with [ ] tasks
+10. For each incomplete solution checklist:
+   a. Execute @execute-solution-task
+   b. Wait for completion
+   c. Move to next solution
+11. Generate summary report
+12. Save JSON output
 ```
 
-This orchestrator enables fully autonomous, sequential repository processing with complete traceability and error handling.
+This orchestrator enables fully autonomous, sequential repository and solution processing with complete traceability and error handling.
 ````

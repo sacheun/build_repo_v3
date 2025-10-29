@@ -41,10 +41,12 @@ Generated: {timestamp}
 
 - [ ] [MANDATORY #1] Clone repository to local directory @task-clone-repo
 - [ ] [MANDATORY #2] Search for README file in repository @task-search-readme
-- [ ] [CONDITIONAL - NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
-- [ ] [CONDITIONAL - NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
+- [ ] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
+- [ ] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
 - [ ] [MANDATORY #3] Find all solution files in repository @task-find-solutions
 - [ ] [MANDATORY #4] Generate solution-specific task sections in checklist @generate-solution-task-checklists
+
+Note: Tasks 3 and 4 may also use format `[CONDITIONAL - NON-SCRIPTABLE]` - both formats are valid.
 
 ## Task Variables
 
@@ -100,14 +102,15 @@ For each repo checklist file, verify:
 - [ ] Empty line before section
 - [ ] Empty line after section header
 - [ ] Exactly 6 tasks listed in correct order:
-  1. `- [ ] [MANDATORY #1] Clone repository to local directory @task-clone-repo`
-  2. `- [ ] [MANDATORY #2] Search for README file in repository @task-search-readme`
-  3. `- [ ] [CONDITIONAL - NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme`
-  4. `- [ ] [CONDITIONAL - NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme`
-  5. `- [ ] [MANDATORY #3] Find all solution files in repository @task-find-solutions`
-  6. `- [ ] [MANDATORY #4] Generate solution-specific task sections in checklist @generate-solution-task-checklists`
+  1. Task contains `MANDATORY #1` and `@task-clone-repo`
+  2. Task contains `MANDATORY #2` and `@task-search-readme`
+  3. Task contains `CONDITIONAL` and `NON-SCRIPTABLE` and `@task-scan-readme` (format flexible: may use dash or brackets)
+  4. Task contains `CONDITIONAL` and `NON-SCRIPTABLE` and `@task-execute-readme` (format flexible: may use dash or brackets)
+  5. Task contains `MANDATORY #3` and `@task-find-solutions`
+  6. Task contains `MANDATORY #4` and `@generate-solution-task-checklists`
 - [ ] Empty line after tasks
 - [ ] Tasks may be checked `[x]` or unchecked `[ ]`
+- [ ] Note: Conditional task format may be `[CONDITIONAL - NON-SCRIPTABLE]` or `[CONDITIONAL] [NON-SCRIPTABLE]` - both are valid
 
 **C. Task Variables Section:**
 - [ ] Section header: `## Task Variables` (exact match)
@@ -161,7 +164,8 @@ Compare all repo checklist files to ensure:
 3. **Task List Consistency:**
    - All 6 tasks in exact same order
    - Same task numbering (#1, #2, #3, #4)
-   - Same labels (MANDATORY, CONDITIONAL - NON-SCRIPTABLE)
+   - Same labels (MANDATORY, CONDITIONAL)
+   - Note: CONDITIONAL tasks may use `[CONDITIONAL - NON-SCRIPTABLE]` or `[CONDITIONAL] [NON-SCRIPTABLE]` - both valid
    - Same task directive names (@task-clone-repo, etc.)
 
 4. **Formatting Consistency:**
