@@ -331,7 +331,8 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
         for repo_name in repo_results.keys():
             # Look for task-find-solutions row for this repository
             # Format: timestamp|repo_name|task-find-solutions|N solutions|SUCCESS|✓
-            pattern = rf'{re.escape(repo_name)}\|task-find-solutions\|(\d+) solutions?\|'
+            # Note: CSV may use either | or , as delimiter
+            pattern = rf'{re.escape(repo_name)}[|,]task-find-solutions[|,](\d+) solutions?[|,]'
             match = re.search(pattern, csv_content)
             
             if not match:
@@ -814,7 +815,7 @@ def main():
 #                debug_print(
 #                    f"WARNING: failed to update master checklist for {repo_name}"
 #                )
-        
+
         # Step 7a: Verify repository tasks completed
         incomplete_from_verification = verify_repo_tasks_completed()
         if len(incomplete_from_verification) > 0:
