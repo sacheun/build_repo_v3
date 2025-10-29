@@ -1066,28 +1066,52 @@ def main():
                 )
                 continue
             
-            # Find Solution Tasks section using regex
+            # Find Solution Tasks section using regex (support legacy formats)
+            solution_tasks_section = ''
             solution_tasks_match = re.search(
-                r'## Solution Tasks.*?\n(.*?)(?=\n##|\Z)', 
-                content, 
+                r'## Solution Tasks.*?\n(.*?)(?=\n##|\Z)',
+                content,
                 re.DOTALL
             )
-            
+
             if solution_tasks_match:
                 solution_tasks_section = solution_tasks_match.group(1)
-                
-                # Check for incomplete tasks
-                if re.search(r'- \[ \]', solution_tasks_section):
-                    solution_name = checklist_path.stem.replace('_solution_checklist', '')
-                    incomplete_solutions.append({
-                        'solution_name': solution_name,
-                        'checklist_path': str(checklist_path),
-                        'parent_repo': parent_repo
-                    })
+            else:
+                # Some checklists use "### Tasks" instead
+                alternative_tasks_match = re.search(
+                    r'### Tasks.*?\n(.*?)(?=\n##|\n###|\Z)',
+                    content,
+                    re.DOTALL
+                )
+                if alternative_tasks_match:
+                    solution_tasks_section = alternative_tasks_match.group(1)
+
+            has_incomplete_tasks = False
+            if solution_tasks_section:
+                has_incomplete_tasks = re.search(r'- \[ \]', solution_tasks_section) is not None
+            else:
+                if DEBUG:
+                    debug_print(
+                        f"  WARNING: Solution checklist '{checklist_path.name}' "
+                        "missing tasks section"
+                    )
+
+            # Always add solutions from repos with solutions
+            solution_name = checklist_path.stem.replace('_solution_checklist', '')
+            incomplete_solutions.append({
+                'solution_name': solution_name,
+                'checklist_path': str(checklist_path),
+                'parent_repo': parent_repo,
+                'has_incomplete_tasks': has_incomplete_tasks
+            })
+
+            if DEBUG:
+                status = "incomplete" if has_incomplete_tasks else "complete"
+                debug_print(f"  Added solution '{solution_name}' ({status})")
         
         debug_print(
-            f"found {len(incomplete_solutions)} solution checklists with incomplete tasks "
-            f"from completed repositories"
+            f"found {len(incomplete_solutions)} solution checklists to process "
+            f"from repositories with solutions"
         )
         
         # 7b.c: Print incomplete solution list
