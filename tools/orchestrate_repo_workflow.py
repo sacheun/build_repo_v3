@@ -9,6 +9,7 @@ This script orchestrates the complete repository workflow by:
 4. Executing tasks for each repository sequentially
 5. Updating master checklist
 6. Verifying all tasks completed
+7. Processing solution checklists
 
 Usage:
     python ./tools/orchestrate_repo_workflow.py [--append]
@@ -35,6 +36,7 @@ OUTPUT_DIR = Path('./output')
 RESULTS_DIR = Path('./results')
 TOOLS_DIR = Path('./tools')
 CLONE_DIR = Path('./clone_repos')
+LOG_FILE = Path('./orchestrate_repo_workflow.log')
 
 
 def debug_print(message: str):
@@ -61,11 +63,20 @@ def clean_directories():
 def run_copilot_command(command: str) -> Tuple[int, str, str]:
     """
     Execute a copilot command using subprocess.
+    Logs all output to orchestrate_repo_workflow.log
     
     Returns:
         Tuple of (exit_code, stdout, stderr)
     """
     debug_print(f"executing: {command}")
+    
+    # Log command to file
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with open(LOG_FILE, 'a', encoding='utf-8') as log:
+        log.write(f"\n{'='*80}\n")
+        log.write(f"[{timestamp}] Executing command:\n")
+        log.write(f"{command}\n")
+        log.write(f"{'='*80}\n\n")
     
     result = subprocess.run(
         command,
@@ -73,6 +84,20 @@ def run_copilot_command(command: str) -> Tuple[int, str, str]:
         capture_output=True,
         text=True
     )
+    
+    # Log output to file
+    with open(LOG_FILE, 'a', encoding='utf-8') as log:
+        log.write(f"Exit Code: {result.returncode}\n\n")
+        
+        if result.stdout:
+            log.write("STDOUT:\n")
+            log.write(result.stdout)
+            log.write("\n\n")
+        
+        if result.stderr:
+            log.write("STDERR:\n")
+            log.write(result.stderr)
+            log.write("\n\n")
     
     return result.returncode, result.stdout, result.stderr
 
@@ -274,6 +299,40 @@ def verify_repo_tasks_completed() -> bool:
         else:
             debug_print(f"  {repo_name} all tasks completed")
     
+    # Verify repo-results.csv has solution count for each repository
+    repo_results_csv_path = RESULTS_DIR / 'repo-results.csv'
+    if repo_results_csv_path.exists():
+        debug_print("verifying repo-results.csv for solution counts")
+        
+        with open(repo_results_csv_path, 'r', encoding='utf-8') as f:
+            csv_content = f.read()
+        
+        for repo_name in repo_results.keys():
+            # Look for task-find-solutions row for this repository
+            # Format: timestamp|repo_name|task-find-solutions|N solutions|SUCCESS|✓
+            pattern = rf'{re.escape(repo_name)}\|task-find-solutions\|(\d+) solutions?\|'
+            match = re.search(pattern, csv_content)
+            
+            if not match:
+                debug_print(
+                    f"  ERROR: {repo_name} missing task-find-solutions entry in repo-results.csv"
+                )
+                repo_results[repo_name]["all_completed"] = False
+                if "incomplete_tasks" not in repo_results[repo_name]:
+                    repo_results[repo_name]["incomplete_tasks"] = []
+                repo_results[repo_name]["incomplete_tasks"].append(
+                    "Missing task-find-solutions entry in repo-results.csv"
+                )
+                all_passed = False
+            else:
+                solution_count = int(match.group(1))
+                debug_print(f"  {repo_name} has {solution_count} solutions in repo-results.csv")
+                
+                # Store solution count for later verification
+                repo_results[repo_name]["expected_solutions"] = solution_count
+    else:
+        debug_print("WARNING: repo-results.csv not found - skipping solution count verification")
+    
     # Save results
     result = {
         "total_repositories": len(checklist_files),
@@ -399,6 +458,13 @@ def main():
     debug_print(f"using append_mode: {append_mode}")
     
     start_time = datetime.datetime.now(datetime.timezone.utc)
+    
+    # Initialize log file
+    with open(LOG_FILE, 'w', encoding='utf-8') as log:
+        log.write(f"Orchestrate Repository Workflow Log\n")
+        log.write(f"Started: {start_time.isoformat()}\n")
+        log.write(f"Append Mode: {append_mode}\n")
+        log.write(f"{'='*80}\n\n")
     
     # Initialize result tracking
     repository_details = []
@@ -551,16 +617,119 @@ def main():
         
         # Step 7a: Verify repository tasks completed
         if not verify_repo_tasks_completed():
-            debug_print("WARNING: verify-repo-tasks-completed reported issues")
+            debug_print(
+                "ERROR: verify-repo-tasks-completed failed - "
+                "some repositories have incomplete tasks or invalid variables"
+            )
+            # Note: We continue to process solutions even if repo verification fails
+            # The final status will reflect the overall workflow state
+        
+        # Step 7b: Process Solution Checklists
+        solution_details = []
+        solution_successful_count = 0
+        solution_failed_count = 0
+        
+        # 7b.a: Discover solution checklists
+        solution_checklist_files = list(TASKS_DIR.glob('*_solution_checklist.md'))
+        debug_print(f"found {len(solution_checklist_files)} solution checklist files")
+        
+        # 7b.b: Filter for incomplete solutions
+        incomplete_solutions = []
+        for checklist_path in solution_checklist_files:
+            with open(checklist_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Find Solution Tasks section using regex
+            solution_tasks_match = re.search(
+                r'## Solution Tasks.*?\n(.*?)(?=\n##|\Z)', 
+                content, 
+                re.DOTALL
+            )
+            
+            if solution_tasks_match:
+                solution_tasks_section = solution_tasks_match.group(1)
+                
+                # Check for incomplete tasks
+                if re.search(r'- \[ \]', solution_tasks_section):
+                    solution_name = checklist_path.stem.replace('_solution_checklist', '')
+                    incomplete_solutions.append({
+                        'solution_name': solution_name,
+                        'checklist_path': str(checklist_path)
+                    })
+        
+        debug_print(
+            f"found {len(incomplete_solutions)} solution checklists with incomplete tasks"
+        )
+        
+        # 7b.c: Print incomplete solution list
+        if DEBUG and incomplete_solutions:
+            debug_print("solution checklists to process:")
+            for solution in incomplete_solutions:
+                debug_print(f"  - {solution['checklist_path']}")
+        elif not DEBUG and incomplete_solutions:
+            print(f"Processing {len(incomplete_solutions)} solution checklists with incomplete tasks")
+        
+        # 7b.d: Process each solution checklist sequentially
+        for solution in incomplete_solutions:
+            solution_name = solution['solution_name']
+            solution_checklist_path = solution['checklist_path']
+            
+            debug_print(f"processing solution: {solution_name}")
+            
+            # Execute solution tasks
+            cmd = (
+                f'copilot --prompt "/execute-solution-task '
+                f'solution_checklist=\\"{solution_checklist_path}\\"" --allow-all-tools'
+            )
+            debug_print(f"executing: {cmd}")
+            exit_code, stdout, stderr = run_copilot_command(cmd)
+            
+            if exit_code == 0:
+                debug_print(f"execute-solution-task completed for {solution_name}")
+                solution_successful_count += 1
+                solution_details.append({
+                    "solution_name": solution_name,
+                    "checklist_path": solution_checklist_path,
+                    "execution_status": "SUCCESS",
+                    "exit_code": exit_code,
+                    "error_message": None
+                })
+            else:
+                debug_print(
+                    f"ERROR: execute-solution-task failed for {solution_name} "
+                    f"with exit code {exit_code}"
+                )
+                debug_print("continuing to next solution despite failure")
+                solution_failed_count += 1
+                solution_details.append({
+                    "solution_name": solution_name,
+                    "checklist_path": solution_checklist_path,
+                    "execution_status": "FAIL",
+                    "exit_code": exit_code,
+                    "error_message": (
+                        f"execute-solution-task failed with exit code {exit_code}"
+                    )
+                })
+        
+        # 7b.e: Log solution processing summary
+        debug_print(
+            f"solution processing complete: "
+            f"processed={len(solution_details)} "
+            f"successful={solution_successful_count} "
+            f"failed={solution_failed_count}"
+        )
         
         # Step 8-10: Generate summary and output
         end_time = datetime.datetime.now(datetime.timezone.utc)
         duration = (end_time - start_time).total_seconds()
         
         # Determine workflow status
-        if failed_count == 0:
+        total_failed = failed_count + solution_failed_count
+        total_successful = successful_count + solution_successful_count
+        
+        if total_failed == 0:
             workflow_status = "SUCCESS"
-        elif successful_count > 0:
+        elif total_successful > 0:
             workflow_status = "PARTIAL_SUCCESS"
         else:
             workflow_status = "FAIL"
@@ -573,6 +742,12 @@ def main():
             "successful_repositories": successful_count,
             "failed_repositories": failed_count,
             "repository_details": repository_details,
+            "total_solutions": len(solution_checklist_files),
+            "incomplete_solutions": len(incomplete_solutions),
+            "processed_solutions": len(solution_details),
+            "successful_solutions": solution_successful_count,
+            "failed_solutions": solution_failed_count,
+            "solution_details": solution_details,
             "workflow_status": workflow_status,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
@@ -583,11 +758,25 @@ def main():
         with open(OUTPUT_DIR / 'orchestrate-repo-workflow.json', 'w') as f:
             json.dump(result, f, indent=2)
         
+        # Log final summary to log file
+        with open(LOG_FILE, 'a', encoding='utf-8') as log:
+            log.write(f"\n{'='*80}\n")
+            log.write(f"Workflow Completed\n")
+            log.write(f"End Time: {end_time.isoformat()}\n")
+            log.write(f"Duration: {duration:.2f} seconds\n")
+            log.write(f"Workflow Status: {workflow_status}\n")
+            log.write(f"Repositories: {successful_count} successful, {failed_count} failed\n")
+            log.write(f"Solutions: {solution_successful_count} successful, {solution_failed_count} failed\n")
+            log.write(f"{'='*80}\n")
+        
         # Print summary
         if DEBUG:
             debug_print(f"Total repositories processed: {len(repository_details)}")
             debug_print(f"Successful: {successful_count}")
             debug_print(f"Failed: {failed_count}")
+            debug_print(f"Total solutions processed: {len(solution_details)}")
+            debug_print(f"Solutions successful: {solution_successful_count}")
+            debug_print(f"Solutions failed: {solution_failed_count}")
             debug_print(f"Processing time: {duration:.2f} seconds")
         
         debug_print(
@@ -619,6 +808,7 @@ if __name__ == '__main__':
     debug_print("script saved to: ./tools/orchestrate_repo_workflow.py")
     print("\nScript generated: ./tools/orchestrate_repo_workflow.py")
     print('To execute: $env:DEBUG = "1"; python ./tools/orchestrate_repo_workflow.py')
+    print('All command output will be logged to: ./orchestrate_repo_workflow.log')
     
     # Execute the workflow
     sys.exit(main())
