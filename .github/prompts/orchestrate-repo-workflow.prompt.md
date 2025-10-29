@@ -84,6 +84,16 @@ The Python script you generate must:
    - Save report to: `./results/repo-checklist-format-verification.md`
    - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] executing inline verification from verify-repo-checklist-format.prompt.md`
    
+   **IMPORTANT - Format Verification Logic:**
+   - Check each checklist file for required sections:
+     * Must have: `# Task Checklist: {repo_name}` header
+     * Must have: `## Repo Tasks` section
+     * Must have EITHER: `## Task Variables` OR `## Repo Variables Available` section
+   - **Note**: `## Task Variables` section is created by execute-repo-task when first task runs
+   - Newly generated checklists will only have `## Repo Variables Available` (documentation)
+   - This is NORMAL and should NOT fail verification
+   - Only fail if BOTH `## Task Variables` AND `## Repo Variables Available` are missing
+   
    - Check the JSON output for `overall_status` field
    - If overall_status != "PASS":
      - If DEBUG=1, print: `[debug][orchestrate-repo-workflow] ERROR: verify-repo-checklist-format failed - checklists have format issues`
