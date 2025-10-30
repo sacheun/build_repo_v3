@@ -5,3 +5,6 @@ https://skype.visualstudio.com/SCC/_git/sync_calling_concore-conversation
 https://skype.visualstudio.com/SCC/_git/async_messaging_chatentityservice
 https://skype.visualstudio.com/SCC/_git/async_calling_recorder
 https://skype.visualstudio.com/SCC/_git/media_stack_all
+https://skype.visualstudio.com/SCC/_git/sync_calling_concore-platform-apps
+https://skype.visualstudio.com/SCC/_git/media_service_core
+

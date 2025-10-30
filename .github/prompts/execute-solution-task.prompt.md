@@ -178,7 +178,7 @@ Before executing the task, gather all required variables from the "### Solution 
 - Extract solution_path from "Path:" line in solution section
 - Initialize all variables with default values (e.g., NOT_EXECUTED, N/A, SKIPPED)
 
-**Step 3: Execute Corresponding Task Prompt**
+**Step 4: Execute Corresponding Task Prompt**
 Based on task type identified in Step 3:
 
 **⚠️ CRITICAL: DO NOT execute commands directly! Call the task prompts:**
@@ -338,9 +338,9 @@ This is a mandatory step - do not skip it. See step 6 in the retry workflow belo
 - Call @task-apply-knowledge-base-fix prompt ✅
 - Let task prompts decide scriptable vs non-scriptable ✅
 
-**Step 4: Update Checklist After Task Execution**
+**Step 5: Update Checklist After Task Execution**
 
-**Step 6a: [MANDATORY] Log task execution to solution_result.csv**
+**Step 6: [MANDATORY] Log task execution to solution_result.csv**
 1. **After each task is performed (regardless of success, failure, or skip), add 1 row to results/solution_result.csv:**
    - Column 1 (repo): {repo_name} (e.g., "ic3_spool_cosine-dep-spool")
    - Column 2 (solution): {solution_name} (e.g., "ResourceProvider")
@@ -366,7 +366,7 @@ This is a mandatory step - do not skip it. See step 6 in the retry workflow belo
      * "- [x] [CONDITIONAL #7 - Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix - SKIPPED (previous retry succeeded)"
 6. Write updated content back to file
 
-**Step 5: Update Variables Section in Markdown**
+**Step 7: Update Variables Section in Markdown**
 1. Find the **Solution Variables** section in the current solution section
 2. Update variable values based on task execution results:
    
@@ -453,7 +453,7 @@ ALL solution_checklist.md files MUST follow this exact format for Solution Varia
 - If format is incorrect or section is missing, recreate it with the correct structure
 - If you're creating a new solution_checklist.md file, always include this section
 
-**Step 6: Loop Back to Process Next Unmarked Task**
+**Step 8: Loop Back to Process Next Unmarked Task**
 1. After updating checklist and variables, return to **Step 1**
 2. Step 1 will read the updated checklist and find the NEXT unmarked [ ] task in the solution
 3. If found, Steps 2-5 will execute that task
