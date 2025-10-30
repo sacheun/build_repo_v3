@@ -79,6 +79,20 @@ def ensure_solution_results_csv():
     debug_print("initialized solution_result.csv in results directory")
 
 
+def ensure_repo_results_csv():
+    """Create repo_result.csv with expected header when missing."""
+    csv_path = RESULTS_DIR / 'repo_result.csv'
+
+    if csv_path.exists():
+        return
+
+    RESULTS_DIR.mkdir(exist_ok=True)
+    with open(csv_path, 'w', encoding='utf-8', newline='') as handle:
+        handle.write('repo,task name,status\n')
+
+    debug_print("initialized repo_result.csv in results directory")
+
+
 def run_copilot_command(command: str) -> Tuple[int, str, str]:
     """
     Execute a copilot command using subprocess.
@@ -340,10 +354,10 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
         else:
             debug_print(f"  {repo_name} all tasks completed")
 
-    # Verify repo-results.csv has solution count for each repository
-    repo_results_csv_path = RESULTS_DIR / 'repo-results.csv'
+    # Verify repo_result.csv has solution count for each repository
+    repo_results_csv_path = RESULTS_DIR / 'repo_result.csv'
     if repo_results_csv_path.exists():
-        debug_print("verifying repo-results.csv for solution counts")
+        debug_print("verifying repo_result.csv for solution counts")
 
         with open(repo_results_csv_path, 'r', encoding='utf-8') as f:
             csv_content = f.read()
@@ -359,13 +373,16 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
 
             if not match:
                 debug_print(
-                    f"  ERROR: {repo_name} missing task-find-solutions entry in repo-results.csv"
+                    (
+                        "  ERROR: {repo} missing task-find-solutions entry in "
+                        "repo_result.csv"
+                    ).format(repo=repo_name)
                 )
                 repo_results[repo_name]["all_completed"] = False
                 if "incomplete_tasks" not in repo_results[repo_name]:
                     repo_results[repo_name]["incomplete_tasks"] = []
                 repo_results[repo_name]["incomplete_tasks"].append(
-                    "Missing task-find-solutions entry in repo-results.csv"
+                    "Missing task-find-solutions entry in repo_result.csv"
                 )
                 all_passed = False
 
@@ -374,7 +391,9 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
                     incomplete_repos.append({
                         "repo_name": repo_name,
                         "checklist_path": str(TASKS_DIR / f"{repo_name}_repo_checklist.md"),
-                        "incomplete_tasks": ["Missing task-find-solutions entry in repo-results.csv"],
+                        "incomplete_tasks": [
+                            "Missing task-find-solutions entry in repo_result.csv"
+                        ],
                         "total_tasks": repo_results[repo_name].get("total_tasks", 0),
                         "completed_tasks": repo_results[repo_name].get("completed_tasks", 0)
                     })
@@ -387,8 +406,9 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
                 if count_match:
                     solution_count = int(count_match.group(1))
                     debug_print(
-                        f"  {repo_name} has {solution_count} solutions "
-                        "in repo-results.csv"
+                        (
+                            "  {repo} has {count} solutions in repo_result.csv"
+                        ).format(repo=repo_name, count=solution_count)
                     )
                     # Store solution count for later verification
                     repo_results[repo_name]["expected_solutions"] = solution_count
@@ -399,14 +419,16 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
                         "(solution count not specified)"
                     )
     else:
-        debug_print("ERROR: repo-results.csv not found - marking all repositories as incomplete")
-        # Mark all repositories as incomplete if repo-results.csv doesn't exist
+        debug_print(
+            "ERROR: repo_result.csv not found - marking all repositories as incomplete"
+        )
+    # Mark all repositories as incomplete if repo_result.csv doesn't exist
         for repo_name in repo_results.keys():
             repo_results[repo_name]["all_completed"] = False
             if "incomplete_tasks" not in repo_results[repo_name]:
                 repo_results[repo_name]["incomplete_tasks"] = []
             repo_results[repo_name]["incomplete_tasks"].append(
-                "repo-results.csv file not found"
+                "repo_result.csv file not found"
             )
             all_passed = False
 
@@ -415,7 +437,7 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
                 incomplete_repos.append({
                     "repo_name": repo_name,
                     "checklist_path": str(TASKS_DIR / f"{repo_name}_repo_checklist.md"),
-                    "incomplete_tasks": ["repo-results.csv file not found"],
+                    "incomplete_tasks": ["repo_result.csv file not found"],
                     "total_tasks": repo_results[repo_name].get("total_tasks", 0),
                     "completed_tasks": repo_results[repo_name].get("completed_tasks", 0)
                 })
@@ -511,7 +533,7 @@ def generate_repo_task_checklists(input_file: str, append: bool) -> bool:
 def reset_repo_tasks(checklist_path: str, incomplete_tasks: List[str]) -> bool:
     """
     Reset incomplete tasks in a repository checklist from [x] to [ ].
-    Also removes corresponding rows from repo-results.csv.
+    Also removes corresponding rows from repo_result.csv.
 
     Args:
         checklist_path: Path to the repository checklist file
@@ -560,10 +582,12 @@ def reset_repo_tasks(checklist_path: str, incomplete_tasks: List[str]) -> bool:
 
         debug_print(f"successfully reset tasks in {checklist_path}")
 
-        # Remove rows from repo-results.csv for this repository
-        repo_results_csv = RESULTS_DIR / 'repo-results.csv'
+        # Remove rows from repo_result.csv for this repository
+        repo_results_csv = RESULTS_DIR / 'repo_result.csv'
         if repo_results_csv.exists():
-            debug_print(f"removing {repo_name} entries from repo-results.csv")
+            debug_print(
+                f"removing {repo_name} entries from repo_result.csv"
+            )
 
             with open(repo_results_csv, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
@@ -590,7 +614,9 @@ def reset_repo_tasks(checklist_path: str, incomplete_tasks: List[str]) -> bool:
             with open(repo_results_csv, 'w', encoding='utf-8') as f:
                 f.writelines(filtered_lines)
 
-            debug_print(f"removed {removed_count} entries for {repo_name} from repo-results.csv")
+            debug_print(
+                f"removed {removed_count} entries for {repo_name} from repo_result.csv"
+            )
 
         return True
 
@@ -1021,6 +1047,7 @@ def main():
             directory.mkdir(exist_ok=True)
 
         ensure_solution_results_csv()
+        ensure_repo_results_csv()
 
         # Skip repository processing if solutions_only mode
         if not solutions_only:
@@ -1176,54 +1203,55 @@ def main():
             final_incomplete_repos = []
             processed_repo_count = 0
 
-        # Build set of repository names that have solution checklists to process
-        # A repository should process solutions if it has completed task-find-solutions
-        # (i.e., has solutions logged in repo-results.csv), regardless of whether
-        # all repo tasks are complete
+        # Build set of repository names that have solution checklists to process.
+        # We process solutions if task-find-solutions succeeded (entry in repo_result.csv)
+        # even when some repo tasks still need retries.
         repos_with_solutions = set()
-        repo_results_csv_path = RESULTS_DIR / 'repo-results.csv'
+        repo_results_csv_path = RESULTS_DIR / 'repo_result.csv'
 
         if repo_results_csv_path.exists():
-            with open(repo_results_csv_path, 'r', encoding='utf-8') as f:
-                csv_content = f.read()
+            with open(repo_results_csv_path, 'r', encoding='utf-8') as handle:
+                csv_content = handle.read()
 
             if DEBUG:
-                debug_print("Searching for task-find-solutions entries in repo-results.csv")
-                debug_print(f"CSV content length: {len(csv_content)} bytes")
+                debug_print(
+                    "Searching for task-find-solutions entries in repo_result.csv"
+                )
+                debug_print(
+                    f"CSV content length: {len(csv_content)} bytes"
+                )
 
-            # Find all repositories that have task-find-solutions entry
-            # CSV Format: timestamp,repo_name,task,status,symbol
-            # Examples:
-            #   2025-10-29T16:35:25Z,sync_calling_concore-conversation,task-find-solutions,13 solutions,SUCCESS,✓
-            #   2025-10-29T16:22:03Z,ic3_spool_cosine-dep-spool,task-find-solutions,SUCCESS,✓
-            #   2025-10-29T16:26:49Z|people_spool_usertokenmanagement|task-find-solutions|5 solutions|SUCCESS|✓
-            # Support both | and , as separators
-            import re
-
-            # Match ANY entry with task-find-solutions, extract repo name
-            # Pattern: timestamp (sep) repo_name (sep) task-find-solutions (sep) ...
             pattern_all = r'[^|,]+[|,]([^|,]+)[|,]task-find-solutions[|,]'
             all_matches = re.findall(pattern_all, csv_content)
 
             if DEBUG:
-                debug_print(f"Found {len(all_matches)} task-find-solutions entries total")
+                debug_print(
+                    f"Found {len(all_matches)} task-find-solutions entries total"
+                )
 
-            for repo_name in all_matches:
-                repo_name = repo_name.strip()
+            for name in all_matches:
+                repo_name = name.strip()
                 repos_with_solutions.add(repo_name)
                 if DEBUG:
-                    debug_print(f"Repository '{repo_name}' has task-find-solutions entry")
+                    debug_print(
+                        (
+                            "Repository '{repo}' has task-find-solutions entry"
+                        ).format(repo=repo_name)
+                    )
 
-            # Also try to extract solution counts where available for logging
-            pattern_with_count = r'[^|,]+[|,]([^|,]+)[|,]task-find-solutions[|,](\d+) solutions?[|,]'
+            pattern_with_count = (
+                r'[^|,]+[|,]([^|,]+)[|,]task-find-solutions[|,](\d+) solutions?[|,]'
+            )
             count_matches = re.findall(pattern_with_count, csv_content)
 
             if DEBUG and count_matches:
-                debug_print(f"Repositories with solution counts:")
-                for repo_name, solution_count in count_matches:
-                    debug_print(f"  - {repo_name}: {solution_count} solutions")
+                debug_print("Repositories with solution counts:")
+                for name, solution_count in count_matches:
+                    debug_print(f"  - {name}: {solution_count} solutions")
         else:
-            debug_print("WARNING: repo-results.csv not found, cannot determine repos with solutions")
+            debug_print(
+                "WARNING: repo_result.csv not found, cannot determine repos with solutions"
+            )
 
         if DEBUG:
             debug_print(f"Repositories with solutions to process: {sorted(repos_with_solutions)}")
