@@ -81,16 +81,35 @@ def ensure_solution_results_csv():
 
 def ensure_repo_results_csv():
     """Create repo_result.csv with expected header when missing."""
-    csv_path = RESULTS_DIR / 'repo_result.csv'
-
-    if csv_path.exists():
-        return
-
     RESULTS_DIR.mkdir(exist_ok=True)
-    with open(csv_path, 'w', encoding='utf-8', newline='') as handle:
-        handle.write('repo,task name,status\n')
 
-    debug_print("initialized repo_result.csv in results directory")
+    headers = 'repo,task name,status\n'
+    created_files: List[str] = []
+
+    for filename in ('repo_result.csv', 'repo-results.csv'):
+        csv_path = RESULTS_DIR / filename
+        if csv_path.exists():
+            continue
+
+        with open(csv_path, 'w', encoding='utf-8', newline='') as handle:
+            handle.write(headers)
+
+        created_files.append(filename)
+
+    if created_files:
+        debug_print(
+            (
+                "initialized repo results tracking files: {files}"
+            ).format(files=', '.join(created_files))
+        )
+
+
+def iter_repo_results_files() -> List[Path]:
+    """Return candidate repo results CSV files (supports legacy names)."""
+    return [
+        RESULTS_DIR / 'repo_result.csv',
+        RESULTS_DIR / 'repo-results.csv'
+    ]
 
 
 def run_copilot_command(command: str) -> Tuple[int, str, str]:
@@ -354,13 +373,32 @@ def verify_repo_tasks_completed() -> List[Dict[str, any]]:
         else:
             debug_print(f"  {repo_name} all tasks completed")
 
-    # Verify repo_result.csv has solution count for each repository
-    repo_results_csv_path = RESULTS_DIR / 'repo_result.csv'
-    if repo_results_csv_path.exists():
-        debug_print("verifying repo_result.csv for solution counts")
+    # Verify repo results CSV has solution count for each repository
+    repo_results_paths = [
+        path for path in iter_repo_results_files() if path.exists()
+    ]
 
-        with open(repo_results_csv_path, 'r', encoding='utf-8') as f:
-            csv_content = f.read()
+    if repo_results_paths:
+        debug_print("verifying repo results CSV for solution counts")
+
+        csv_parts = []
+        for path in repo_results_paths:
+            try:
+                with open(path, 'r', encoding='utf-8') as handle:
+                    part = handle.read()
+                    csv_parts.append(part)
+                    if DEBUG:
+                        debug_print(
+                            f"  included repo results file: {path.name}"
+                        )
+            except Exception as exc:  # noqa: BLE001
+                debug_print(
+                    (
+                        "  WARNING: unable to read {path}: {error}"
+                    ).format(path=path.name, error=exc)
+                )
+
+        csv_content = "\n".join(csv_parts)
 
         for repo_name in repo_results.keys():
             # Look for task-find-solutions row for this repository
@@ -582,40 +620,59 @@ def reset_repo_tasks(checklist_path: str, incomplete_tasks: List[str]) -> bool:
 
         debug_print(f"successfully reset tasks in {checklist_path}")
 
-        # Remove rows from repo_result.csv for this repository
-        repo_results_csv = RESULTS_DIR / 'repo_result.csv'
-        if repo_results_csv.exists():
+        # Remove rows from repo results CSV files for this repository
+        for repo_results_csv in iter_repo_results_files():
+            if not repo_results_csv.exists():
+                continue
+
             debug_print(
-                f"removing {repo_name} entries from repo_result.csv"
+                f"removing {repo_name} entries from {repo_results_csv.name}"
             )
 
-            with open(repo_results_csv, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
+            try:
+                with open(repo_results_csv, 'r', encoding='utf-8') as handle:
+                    lines = handle.readlines()
+            except Exception as exc:  # noqa: BLE001
+                debug_print(
+                    (
+                        "  WARNING: unable to read {path}: {error}"
+                    ).format(path=repo_results_csv.name, error=exc)
+                )
+                continue
 
-            # Keep header and lines that don't match this repo
-            filtered_lines = []
+            filtered_lines: List[str] = []
             removed_count = 0
 
             for line in lines:
-                # Check if this line is for the current repository
-                # CSV format: timestamp|repo_name|task|status|symbol
                 if line.strip():
                     parts = line.split('|')
-                    if len(parts) >= 2:
-                        line_repo_name = parts[1].strip()
-                        if line_repo_name == repo_name:
-                            removed_count += 1
+                    if len(parts) >= 2 and parts[1].strip() == repo_name:
+                        removed_count += 1
+                        if DEBUG:
                             debug_print(f"  removed: {line.strip()}")
-                            continue
+                        continue
 
                 filtered_lines.append(line)
 
-            # Write back filtered content
-            with open(repo_results_csv, 'w', encoding='utf-8') as f:
-                f.writelines(filtered_lines)
+            try:
+                with open(repo_results_csv, 'w', encoding='utf-8') as handle:
+                    handle.writelines(filtered_lines)
+            except Exception as exc:  # noqa: BLE001
+                debug_print(
+                    (
+                        "  WARNING: unable to write {path}: {error}"
+                    ).format(path=repo_results_csv.name, error=exc)
+                )
+                continue
 
             debug_print(
-                f"removed {removed_count} entries for {repo_name} from repo_result.csv"
+                (
+                    "removed {count} entries for {repo_name} from {path}"
+                ).format(
+                    count=removed_count,
+                    repo_name=repo_name,
+                    path=repo_results_csv.name
+                )
             )
 
         return True
@@ -1207,15 +1264,34 @@ def main():
         # We process solutions if task-find-solutions succeeded (entry in repo_result.csv)
         # even when some repo tasks still need retries.
         repos_with_solutions = set()
-        repo_results_csv_path = RESULTS_DIR / 'repo_result.csv'
+        repo_results_contents: List[str] = []
+        for candidate in iter_repo_results_files():
+            if not candidate.exists():
+                continue
 
-        if repo_results_csv_path.exists():
-            with open(repo_results_csv_path, 'r', encoding='utf-8') as handle:
-                csv_content = handle.read()
+            try:
+                with open(candidate, 'r', encoding='utf-8') as handle:
+                    content = handle.read()
+                    repo_results_contents.append(content)
+                    if DEBUG:
+                        debug_print(
+                            (
+                                "Scanning {path} for task-find-solutions entries"
+                            ).format(path=candidate.name)
+                        )
+            except Exception as exc:  # noqa: BLE001
+                debug_print(
+                    (
+                        "WARNING: unable to read {path} for solutions lookup: {error}"
+                    ).format(path=candidate.name, error=exc)
+                )
+
+        if repo_results_contents:
+            csv_content = "\n".join(repo_results_contents)
 
             if DEBUG:
                 debug_print(
-                    "Searching for task-find-solutions entries in repo_result.csv"
+                    "Searching for task-find-solutions entries in repo results CSV"
                 )
                 debug_print(
                     f"CSV content length: {len(csv_content)} bytes"
@@ -1250,7 +1326,7 @@ def main():
                     debug_print(f"  - {name}: {solution_count} solutions")
         else:
             debug_print(
-                "WARNING: repo_result.csv not found, cannot determine repos with solutions"
+                "WARNING: repo results CSV not found, cannot determine repos with solutions"
             )
 
         if DEBUG:
