@@ -148,7 +148,7 @@ For tasks that need output from previous tasks:
 - Verify that all task requirements were fulfilled before changing `- [ ]` to `- [x]`
 - If a task was partially completed or skipped, leave it as `- [ ]` or mark it explicitly as SKIPPED
 
-1. **After the task is performed (regardless of success or failure), add 1 row to results/repo_result.csv:**
+1. **[MANDATORY] After the task is performed (regardless of success or failure), add 1 row to results/repo_result.csv:**
    - Column 1 (repo): {repo_name}
    - Column 2 (task name): {task_name}
    - Column 3 (status): SUCCESS | FAIL | BLOCKED | SKIPPED

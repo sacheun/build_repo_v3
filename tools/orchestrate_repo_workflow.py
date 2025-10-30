@@ -65,6 +65,20 @@ def clean_directories():
                     debug_print(f"  removed directory: {item}")
 
 
+def ensure_solution_results_csv():
+    """Create solution_result.csv with expected header when missing."""
+    csv_path = RESULTS_DIR / 'solution_result.csv'
+
+    if csv_path.exists():
+        return
+
+    RESULTS_DIR.mkdir(exist_ok=True)
+    with open(csv_path, 'w', encoding='utf-8', newline='') as handle:
+        handle.write('repo,solution,task name,status\n')
+
+    debug_print("initialized solution_result.csv in results directory")
+
+
 def run_copilot_command(command: str) -> Tuple[int, str, str]:
     """
     Execute a copilot command using subprocess.
@@ -592,14 +606,23 @@ def reset_solution_tasks(checklist_path: Path) -> bool:
             content = handle.read()
 
         section_match = re.search(
-            r'(## Solution Tasks.*?)(?=\n##|\Z)',
+            r'(### Tasks.*?)(?=\n###|\n##|\Z)',
             content,
             re.DOTALL
         )
 
         if not section_match:
+            section_match = re.search(
+                r'(## Solution Tasks.*?)(?=\n##|\Z)',
+                content,
+                re.DOTALL
+            )
+
+        if not section_match:
             debug_print(
-                f"WARNING: could not find solution tasks section in {checklist_path}"
+                (
+                    "WARNING: could not find solution tasks section in {path}"
+                ).format(path=checklist_path)
             )
             return False
 
@@ -996,6 +1019,8 @@ def main():
         # Ensure directories exist
         for directory in [TASKS_DIR, OUTPUT_DIR, RESULTS_DIR, TOOLS_DIR]:
             directory.mkdir(exist_ok=True)
+
+        ensure_solution_results_csv()
 
         # Skip repository processing if solutions_only mode
         if not solutions_only:
