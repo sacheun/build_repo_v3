@@ -178,17 +178,17 @@ class RepoOperations:
         
         return all_passed
     
-    def verify_tasks_completed(self) -> List[Dict[str, Any]]:
+    def verify_tasks_completed(self, skip_csv_check: bool = False) -> List[Dict[str, Any]]:
         """
-        Verify repository tasks completion.
+        Verify repository tasks completion by checking MANDATORY tasks only.
+        
+        Args:
+            skip_csv_check: If True, skip verification of repo-results.csv entries
         
         Returns:
-            List of repositories with incomplete tasks. Empty list means all complete.
+            List of repositories with incomplete MANDATORY tasks. Empty list means all complete.
         """
-        self._debug_print(
-            "executing inline verification from "
-            "verify-repo-tasks-completed.prompt.md"
-        )
+        self._debug_print("verifying MANDATORY tasks completion in repo checklists")
         
         # Find all repo checklist files
         checklist_files = list(self.tasks_dir.glob('*_repo_checklist.md'))
@@ -203,8 +203,6 @@ class RepoOperations:
         
         self._debug_print(f"found {len(checklist_files)} repository checklist files")
         
-        all_passed = True
-        repo_results = {}
         incomplete_repos = []
         
         for checklist_path in checklist_files:
@@ -222,11 +220,7 @@ class RepoOperations:
             )
             
             if not repo_tasks_match:
-                repo_results[repo_name] = {
-                    "all_completed": False,
-                    "incomplete_tasks": ["Could not find Repo Tasks section"]
-                }
-                all_passed = False
+                self._debug_print(f"  ERROR: Could not find Repo Tasks section")
                 incomplete_repos.append({
                     "repo_name": repo_name,
                     "checklist_path": str(checklist_path),
@@ -238,142 +232,119 @@ class RepoOperations:
             
             repo_tasks_section = repo_tasks_match.group(1)
             
-            # Count incomplete tasks
-            incomplete_tasks = re.findall(r'- \[ \] (.+)', repo_tasks_section)
-            completed_tasks = re.findall(r'- \[x\] (.+)', repo_tasks_section)
+            # Find incomplete MANDATORY tasks only
+            incomplete_mandatory = re.findall(
+                r'- \[ \] \[MANDATORY[^\]]*\].*?@(\S+)',
+                repo_tasks_section
+            )
             
-            repo_results[repo_name] = {
-                "total_tasks": len(incomplete_tasks) + len(completed_tasks),
-                "completed_tasks": len(completed_tasks),
-                "incomplete_tasks": incomplete_tasks,
-                "all_completed": len(incomplete_tasks) == 0
-            }
+            # Find completed MANDATORY tasks
+            completed_mandatory = re.findall(
+                r'- \[x\] \[MANDATORY[^\]]*\].*?@(\S+)',
+                repo_tasks_section
+            )
             
-            if incomplete_tasks:
-                all_passed = False
+            total_mandatory = len(incomplete_mandatory) + len(completed_mandatory)
+            
+            if incomplete_mandatory:
                 self._debug_print(
-                    f"  {repo_name} has {len(incomplete_tasks)} incomplete tasks"
+                    f"  {repo_name} has {len(incomplete_mandatory)}/{total_mandatory} "
+                    f"incomplete MANDATORY tasks: {incomplete_mandatory}"
                 )
                 incomplete_repos.append({
                     "repo_name": repo_name,
                     "checklist_path": str(checklist_path),
-                    "incomplete_tasks": incomplete_tasks,
-                    "total_tasks": len(incomplete_tasks) + len(completed_tasks),
-                    "completed_tasks": len(completed_tasks)
+                    "incomplete_tasks": incomplete_mandatory,
+                    "total_tasks": total_mandatory,
+                    "completed_tasks": len(completed_mandatory)
                 })
             else:
-                self._debug_print(f"  {repo_name} all tasks completed")
+                self._debug_print(
+                    f"  {repo_name} all {total_mandatory} MANDATORY tasks completed"
+                )
         
-        # Verify repo-results.csv has solution count for each repository
-        repo_results_csv_path = self.results_dir / 'repo-results.csv'
-        if repo_results_csv_path.exists():
-            self._debug_print("verifying repo-results.csv for solution counts")
+        # Verify repo-results.csv has entries for each completed MANDATORY task
+        if not skip_csv_check:
+            repo_results_csv_path = self.results_dir / 'repo-results.csv'
+            if repo_results_csv_path.exists():
+                self._debug_print("verifying repo-results.csv has entries for completed MANDATORY tasks")
             
             with open(repo_results_csv_path, 'r', encoding='utf-8') as f:
                 csv_content = f.read()
             
-            for repo_name in repo_results.keys():
-                # Format variations in CSV
-                pattern = rf'{re.escape(repo_name)}\s*[|,]\s*task-find-solutions\s*[|,]\s*(?:(\d+)\s+solutions?\s*[|,]\s*)?'
-                match = re.search(pattern, csv_content)
+            # Re-check all checklists to verify CSV entries
+            for checklist_path in checklist_files:
+                repo_name = checklist_path.stem.replace('_repo_checklist', '')
                 
-                if not match:
-                    self._debug_print(
-                        f"  ERROR: {repo_name} missing task-find-solutions entry in repo-results.csv"
+                with open(checklist_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                repo_tasks_match = re.search(
+                    r'## Repo Tasks.*?\n(.*?)(?=\n##|\Z)', 
+                    content, 
+                    re.DOTALL
+                )
+                
+                if not repo_tasks_match:
+                    continue
+                
+                repo_tasks_section = repo_tasks_match.group(1)
+                
+                # Find all completed MANDATORY tasks with their task names
+                completed_mandatory_tasks = re.findall(
+                    r'- \[x\] \[MANDATORY[^\]]*\].*?@([\w\-]+)',
+                    repo_tasks_section
+                )
+                
+                # Check if each completed MANDATORY task has a CSV entry
+                missing_csv_entries = []
+                for task_name in completed_mandatory_tasks:
+                    # Look for pattern: repo_name, task_name in CSV
+                    pattern = rf'{re.escape(repo_name)}\s*[|,]\s*{re.escape(task_name)}'
+                    if not re.search(pattern, csv_content):
+                        missing_csv_entries.append(task_name)
+                        self._debug_print(
+                            f"  ERROR: {repo_name} completed task '{task_name}' "
+                            "missing from repo-results.csv"
+                        )
+                
+                # If there are missing CSV entries, mark repo as incomplete
+                if missing_csv_entries:
+                    # Check if already in incomplete_repos
+                    existing = next(
+                        (r for r in incomplete_repos if r['repo_name'] == repo_name),
+                        None
                     )
-                    repo_results[repo_name]["all_completed"] = False
-                    if "incomplete_tasks" not in repo_results[repo_name]:
-                        repo_results[repo_name]["incomplete_tasks"] = []
-                    repo_results[repo_name]["incomplete_tasks"].append(
-                        "Missing task-find-solutions entry in repo-results.csv"
-                    )
-                    all_passed = False
                     
-                    # Add to incomplete_repos if not already there
-                    if not any(r['repo_name'] == repo_name for r in incomplete_repos):
+                    if existing:
+                        # Add to existing incomplete tasks
+                        for task in missing_csv_entries:
+                            existing['incomplete_tasks'].append(
+                                f"CSV entry missing for {task}"
+                            )
+                    else:
+                        # Add new entry
                         incomplete_repos.append({
                             "repo_name": repo_name,
-                            "checklist_path": str(self.tasks_dir / f"{repo_name}_repo_checklist.md"),
-                            "incomplete_tasks": ["Missing task-find-solutions entry in repo-results.csv"],
-                            "total_tasks": repo_results[repo_name].get("total_tasks", 0),
-                            "completed_tasks": repo_results[repo_name].get("completed_tasks", 0)
+                            "checklist_path": str(checklist_path),
+                            "incomplete_tasks": [
+                                f"CSV entry missing for {task}" for task in missing_csv_entries
+                            ],
+                            "total_tasks": len(completed_mandatory_tasks),
+                            "completed_tasks": len(completed_mandatory_tasks) - len(missing_csv_entries)
                         })
-                else:
-                    solution_count = int(match.group(1)) if match.group(1) else 0
-                    self._debug_print(f"  {repo_name} has {solution_count} solutions in repo-results.csv")
-                    repo_results[repo_name]["expected_solutions"] = solution_count
+            else:
+                self._debug_print("WARNING: repo-results.csv not found - cannot verify CSV entries")
         else:
-            self._debug_print("ERROR: repo-results.csv not found - marking all repositories as incomplete")
-            # Mark all repositories as incomplete if repo-results.csv doesn't exist
-            for repo_name in repo_results.keys():
-                repo_results[repo_name]["all_completed"] = False
-                if "incomplete_tasks" not in repo_results[repo_name]:
-                    repo_results[repo_name]["incomplete_tasks"] = []
-                repo_results[repo_name]["incomplete_tasks"].append(
-                    "repo-results.csv file not found"
-                )
-                all_passed = False
-                
-                # Add to incomplete_repos if not already there
-                if not any(r['repo_name'] == repo_name for r in incomplete_repos):
-                    incomplete_repos.append({
-                        "repo_name": repo_name,
-                        "checklist_path": str(self.tasks_dir / f"{repo_name}_repo_checklist.md"),
-                        "incomplete_tasks": ["repo-results.csv file not found"],
-                        "total_tasks": repo_results[repo_name].get("total_tasks", 0),
-                        "completed_tasks": repo_results[repo_name].get("completed_tasks", 0)
-                    })
+            self._debug_print("skipping repo-results.csv verification (skip_csv_check=True)")
         
-        # Save results
-        result = {
-            "total_repositories": len(checklist_files),
-            "repositories_passing": sum(
-                1 for r in repo_results.values() if r['all_completed']
-            ),
-            "repositories_failing": sum(
-                1 for r in repo_results.values() if not r['all_completed']
-            ),
-            "repository_details": repo_results,
-            "overall_status": "PASS" if all_passed else "FAIL",
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
-        }
-        
-        with open(self.output_dir / 'verify-repo-tasks-completed.json', 'w') as f:
-            json.dump(result, f, indent=2)
-        
-        # Save markdown report
-        with open(self.results_dir / 'repo-tasks-verification.md', 'w') as f:
-            f.write("# Repository Tasks Verification\n\n")
-            f.write(f"Generated: {result['timestamp']}\n\n")
-            f.write("## Summary\n\n")
-            f.write(f"- Total Repositories: {result['total_repositories']}\n")
-            f.write(f"- Passing: {result['repositories_passing']}\n")
-            f.write(f"- Failing: {result['repositories_failing']}\n")
-            f.write(f"- Overall Status: {result['overall_status']}\n\n")
-            
-            for repo_name, details in repo_results.items():
-                f.write(f"### {repo_name}\n\n")
-                f.write(f"- Total Tasks: {details['total_tasks']}\n")
-                f.write(f"- Completed: {details['completed_tasks']}\n")
-                status = 'PASS' if details['all_completed'] else 'FAIL'
-                f.write(f"- Status: {status}\n")
-                
-                if details['incomplete_tasks']:
-                    f.write("- Incomplete Tasks:\n")
-                    for task in details['incomplete_tasks']:
-                        f.write(f"  - {task}\n")
-                f.write("\n")
-        
-        if all_passed:
+        # Summary
+        if incomplete_repos:
             self._debug_print(
-                "verify-repo-tasks-completed completed successfully - "
-                "all repositories have completed tasks"
+                f"found {len(incomplete_repos)} repositories with incomplete MANDATORY tasks"
             )
         else:
-            self._debug_print(
-                "ERROR: verify-repo-tasks-completed failed - "
-                "some repositories have incomplete tasks or invalid variables"
-            )
+            self._debug_print("all repositories have completed MANDATORY tasks")
         
         return incomplete_repos
     

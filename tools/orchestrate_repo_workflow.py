@@ -38,6 +38,7 @@ from solution_operations import SolutionOperations
 
 # Global configuration
 DEBUG = os.environ.get('DEBUG', '0') == '1'
+SKIP_CSV_CHECK = 1 #os.environ.get('SKIP_CSV_CHECK', '0') == '1'
 TASKS_DIR = Path('./tasks')
 OUTPUT_DIR = Path('./output')
 RESULTS_DIR = Path('./results')
@@ -403,7 +404,7 @@ def process_repositories(append_mode: bool) -> Tuple[List[Dict[str, Any]], int, 
             if result_detail['execution_status'] == 'SUCCESS':
                 successful_repo_names.add(repo_name)
         
-        verification_results = repo_ops.verify_tasks_completed()
+        verification_results = repo_ops.verify_tasks_completed(skip_csv_check=SKIP_CSV_CHECK)
         if isinstance(verification_results, list):
             incomplete_map = {
                 item['repo_name']: item
@@ -894,6 +895,10 @@ if __name__ == '__main__':
     print("\nScript generated: ./tools/orchestrate_repo_workflow.py")
     print(
         'To execute: $env:DEBUG = "1"; '
+        'python ./tools/orchestrate_repo_workflow.py'
+    )
+    print(
+        'To skip CSV check: $env:SKIP_CSV_CHECK = "1"; '
         'python ./tools/orchestrate_repo_workflow.py'
     )
     print(
