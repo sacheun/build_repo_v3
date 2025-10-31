@@ -27,6 +27,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
@@ -429,6 +430,16 @@ def process_repositories(append_mode: bool) -> Tuple[List[Dict[str, Any]], int, 
                     successful_repo_names.discard(repo_name)
             else:
                 successful_repo_names.add(repo_name)
+        
+        # Wait 30 minutes after first attempt before retrying
+        if repo_attempt == 1 and next_pending:
+            wait_seconds = 30 * 60  # 30 minutes
+            debug_print(
+                f"first attempt completed. waiting {wait_seconds // 60} minutes "
+                f"before retry attempt..."
+            )
+            time.sleep(wait_seconds)
+            debug_print("wait completed. starting retry attempt")
         
         pending_repos = next_pending
         repo_attempt += 1

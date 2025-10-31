@@ -1,6 +1,6 @@
  @task-build-solution solution_path={{solution_path}}
 ---
-temperature: 0.1
+temperature: 0.0
 ---
 
 Task name: task-build-solution

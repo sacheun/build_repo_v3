@@ -1,3 +1,7 @@
+---
+temperature: 0.0
+---
+
 @verify-repo-tasks-completed
 
 Task name: verify-repo-tasks-completed

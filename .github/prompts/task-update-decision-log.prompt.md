@@ -1,7 +1,7 @@
 @task-update-decision-log timestamp={{timestamp}} repo_name={{repo_name}} solution_name={{solution_name}} task={{task}} message={{message}} status={{status}}
 
 ---
-temperature: 0.1
+temperature: 0.0
 ---
 
 Task name: task-update-decision-log
@@ -48,7 +48,7 @@ DO NOT:
 
 2. **If file does NOT exist, create it:**
    - Create directory if needed: `./results/`
-   - Create file with headers:
+   - Create file with headers using comma (`,`) as the separator:
    ```csv
    timestamp,repo_name,solution_name,task,message,status
    ```
@@ -67,7 +67,7 @@ DO NOT:
    - message: {{message}} (e.g., "Restore completed successfully", "Build failed with 3 errors")
    - status: {{status}} (e.g., "SUCCESS", "FAIL", "SKIPPED", "BLOCKED")
 
-2. **Format CSV row:**
+2. **Format CSV row using comma (`,`) as the separator:**
    - Handle empty values (use empty string for repo_name or solution_name if not provided)
    - Handle special characters in message (escape commas, quotes if needed)
    - Format: `{{timestamp}},{{repo_name}},{{solution_name}},{{task}},{{message}},{{status}}`

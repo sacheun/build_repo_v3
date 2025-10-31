@@ -1,5 +1,5 @@
 ---
-temperature: 0.1
+temperature: 0.0
 ---
 
 @task-find-solutions repo_directory={{repo_directory}} repo_name={{repo_name}}

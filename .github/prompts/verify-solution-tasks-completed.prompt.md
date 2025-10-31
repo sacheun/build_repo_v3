@@ -1,3 +1,7 @@
+---
+temperature: 0.0
+---
+
 @verify-solution-tasks-completed
 
 Task name: verify-solution-tasks-completed

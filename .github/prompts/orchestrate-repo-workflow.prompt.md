@@ -1,6 +1,6 @@
 ````prompt
 ---
-temperature: 0.1
+temperature: 0.0
 ---
 
 @orchestrate-repo-workflow append=<optional>

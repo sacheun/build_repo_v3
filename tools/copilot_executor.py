@@ -113,16 +113,33 @@ class CopilotExecutor:
             )
             # Executes: copilot --prompt "/execute-repo-task repo_checklist=\"...\" clone=\"...\"" --allow-all-tools
         """
+        # Read copilot-instructions.md content
+        instructions_path = Path('.github/copilot-instructions.md')
+        instructions_content = ""
+        if instructions_path.exists():
+            with open(instructions_path, 'r', encoding='utf-8') as f:
+                instructions_content = f.read().strip()
+        
         # Build parameter string
         param_str = ""
         if params:
             param_parts = [f'{key}=\\"{value}\\"' for key, value in params.items()]
             param_str = " " + " ".join(param_parts)
         
+        # Build prompt with instructions first, then task
+        prompt_parts = []
+        if instructions_content:
+            prompt_parts.append(instructions_content)
+        prompt_parts.append("Now perform task:")
+        prompt_parts.append(f"/{prompt_name}{param_str}")
+        
+        full_prompt = "\n".join(prompt_parts)
+        
         # Build full command
-        command = f'copilot --prompt "/{prompt_name}{param_str}"'
+        command = f'copilot --prompt "{full_prompt}"'
         if allow_all_tools:
             command += ' --allow-all-tools'
+        command += ' --allow-all-paths'
         
         return self.execute_command(command)
     

@@ -1,6 +1,6 @@
 ````prompt
 ---
-temperature: 0.1
+temperature: 0.0
 ---
 
 @task-update-all-repo-checklist repo_name={{repo_name}}

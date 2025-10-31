@@ -31,7 +31,7 @@ This prompt finds all unmarked tasks from a solution checklist markdown file and
       solution_checklist = <required> (path to solution checklist markdown file for ONE solution, e.g., "./tasks/ic3_spool_cosine-dep-spool_ResourceProvider_solution_checklist.md")
 2. **[MANDATORY] Initialize solution_result.csv tracking file:**
    - Check if file `results/solution_result.csv` exists
-   - If it does NOT exist, create it with the following header row:
+   - If it does NOT exist, create it with the following header row using comma (`,`) as the separator:
      ```
      repo,solution,task name,status
      ```
@@ -341,7 +341,7 @@ This is a mandatory step - do not skip it. See step 6 in the retry workflow belo
 **Step 5: Update Checklist After Task Execution**
 
 **Step 6: [MANDATORY] Log task execution to solution_result.csv**
-1. **After each task is performed (regardless of success, failure, or skip), add 1 row to results/solution_result.csv:**
+1. **After each task is performed (regardless of success, failure, or skip), add 1 row to results/solution_result.csv using comma (`,`) as the separator:**
    - Column 1 (repo): {repo_name} (e.g., "ic3_spool_cosine-dep-spool")
    - Column 2 (solution): {solution_name} (e.g., "ResourceProvider")
    - Column 3 (task name): {task_name} (e.g., "@task-restore-solution" or "@task-build-solution")

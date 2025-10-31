@@ -1,7 +1,7 @@
 @task-update-knowledgebase-log knowledgebase_file={{knowledgebase_file}} option={{option}} status={{status}} repo_name={{repo_name}}
 
 ---
-temperature: 0.1
+temperature: 0.0
 ---
 
 Task name: task-update-knowledgebase-log
@@ -50,7 +50,7 @@ DO NOT:
 
 2. **If file does NOT exist, create it:**
    - Create directory if needed: `./knowledge_base_markdown/`
-   - Create file with headers:
+   - Create file with headers using comma (`,`) as the separator:
    ```csv
    timestamp,knowledgebase_file,option,status
    ```
@@ -67,7 +67,7 @@ DO NOT:
    - option: {{option}} (e.g., "1", "2", "3")
    - status: {{status}} (e.g., "SUCCESS", "FAIL", "SKIPPED")
 
-2. **Append row to knowledgebase.log:**
+2. **Append row to knowledgebase.log using comma (`,`) as the separator:**
    - Use PowerShell to append:
    ```powershell
    Add-Content -Path ".\knowledge_base_markdown\knowledgebase.log" -Value "{{timestamp}},{{knowledgebase_file}},{{option}},{{status}}"
@@ -85,7 +85,7 @@ DO NOT:
    - Use read_file or file existence check
 
 2. **If file does NOT exist, create it:**
-   - Create file with headers:
+   - Create file with headers using comma (`,`) as the separator:
    ```csv
    knowledgebase_file,option,success,attempt
    ```

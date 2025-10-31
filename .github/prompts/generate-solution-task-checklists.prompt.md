@@ -1,3 +1,7 @@
+---
+temperature: 0.0
+---
+
 @generate-solution-task-checklists
 
 Task name: generate-repo-task-checklists
