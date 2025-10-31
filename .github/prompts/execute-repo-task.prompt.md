@@ -51,26 +51,31 @@ It processes all uncompleted tasks in the specified checklist until all are comp
 
 **Step 2: Prepare Task Parameters**
 Extract task_name (e.g., "@task-clone-repo")
-- **Prepare parameters using variables from checklist first**:
+- **Prepare parameters using variables from checklist "## Task Variables" section first**:
   - @task-clone-repo: [SCRIPTABLE]
     - repo_url: From checklist variables OR from all_repository_checklist.md
     - clone_path: From checklist variables OR from clone= parameter (required)
   - @task-search-readme: [SCRIPTABLE]
-    - repo_directory: **Read from checklist variables** (set by @task-clone-repo)
+    - repo_directory: **Read from checklist "## Task Variables" section** (must be set by @task-clone-repo)
     - repo_name: From checklist variables
+    - **If repo_directory is missing or "NONE"**: BLOCK with error - @task-clone-repo must be completed first
   - @task-scan-readme: [NON-SCRIPTABLE]
-    - repo_directory: **Read from checklist variables**
+    - repo_directory: **Read from checklist "## Task Variables" section**
     - repo_name: From checklist variables
     - readme_content_path: **Read from checklist variables** (set by @task-search-readme)
+    - **If repo_directory or readme_content_path is missing**: BLOCK with error
   - @task-execute-readme: [NON-SCRIPTABLE]
-    - repo_directory: **Read from checklist variables**
+    - repo_directory: **Read from checklist "## Task Variables" section**
     - repo_name: From checklist variables
     - commands_json_path: **Read from checklist variables** (set by @task-scan-readme)
+    - **If repo_directory or commands_json_path is missing**: BLOCK with error
   - @task-find-solutions: [SCRIPTABLE]
-    - repo_directory: **Read from checklist variables**
+    - repo_directory: **Read from checklist "## Task Variables" section** (must be set by @task-clone-repo)
+    - **If repo_directory is missing or "NONE"**: BLOCK with error - @task-clone-repo must be completed first
   - @generate-solution-task-checklists: [SCRIPTABLE]
     - repo_name: From checklist variables
     - solutions: **Read from checklist variables** (reference to solutions_json file, extract solutions array)
+    - **If solutions_json is missing**: BLOCK with error - @task-find-solutions must be completed first
 
 **Step 3: Gather Required Input Data**
 For tasks that need output from previous tasks:
@@ -166,7 +171,19 @@ For tasks that need output from previous tasks:
    - **Parse repo_tasks_list.prompt.md to get list of all available variables**:
      - Read the "Variables available:" section
      - Extract all variable names (e.g., {{repo_url}}, {{repo_directory}}, {{readme_content}}, etc.)
-   - Read task output data from execution result
+   - **Read task output data from the JSON output file**:
+     - @task-clone-repo [SCRIPTABLE] → Read output/{{repo_name}}_task1_clone.json
+       * Extract: repo_directory (absolute path to cloned repo)
+     - @task-search-readme [SCRIPTABLE] → Read output/{{repo_name}}_task2_search-readme.json
+       * Extract: readme_filename, readme_content_path
+     - @task-scan-readme [NON-SCRIPTABLE] → Read output/{{repo_name}}_task3_scan-readme.json
+       * Extract: commands_json_path, commands_extracted count
+     - @task-execute-readme [NON-SCRIPTABLE] → Read output/{{repo_name}}_task4_execute-readme.json
+       * Extract: executed_commands count, skipped_commands count
+     - @task-find-solutions [SCRIPTABLE] → Read output/{{repo_name}}_task5_find-solutions.json
+       * Extract: solutions_json path, solutions count
+     - @generate-solution-task-checklists [SCRIPTABLE] → Read output/{{repo_name}}_task6_generate-solution-checklists.json
+       * Extract: checklist_updated status
    - **Read existing checklist "## Task Variables" section to preserve previous values**
    - Update/add new variables based on which task was executed:
      - @task-clone-repo [SCRIPTABLE] → Sets: repo_directory

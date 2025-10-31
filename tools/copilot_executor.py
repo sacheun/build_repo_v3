@@ -67,12 +67,18 @@ class CopilotExecutor:
         self._log_to_file(f"{'='*80}\n\n")
         
         # Execute command
-        result = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True
-        )
+        try:
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=1800  # 30 minute timeout
+            )
+        except subprocess.TimeoutExpired:
+            self._log_to_file(f"ERROR: Command timed out after 1800 seconds\n\n")
+            self._debug_print("command timed out after 30 minutes")
+            return -1, "", "Command timed out after 1800 seconds"
         
         # Log output to file
         self._log_to_file(f"Exit Code: {result.returncode}\n\n")
@@ -114,11 +120,10 @@ class CopilotExecutor:
             # Executes: copilot --prompt "/execute-repo-task repo_checklist=\"...\" clone=\"...\"" --allow-all-tools
         """
         # Read copilot-instructions.md content
-        instructions_path = Path('.github/copilot-instructions.md')
-        instructions_content = ""
-        if instructions_path.exists():
-            with open(instructions_path, 'r', encoding='utf-8') as f:
-                instructions_content = f.read().strip()
+        instructions_content = """
+        *** Important ***
+        1. Execute the tasks in the markdown file one task at a time. Do not skip any task. Do not group scriptable and non scriptable tasks in 1 script."
+        """
         
         # Build parameter string
         param_str = ""
@@ -128,11 +133,17 @@ class CopilotExecutor:
         
         # Build prompt with instructions first, then task
         prompt_parts = []
-        if instructions_content:
-            prompt_parts.append(instructions_content)
-        prompt_parts.append("Now perform task:")
+        #if instructions_content:
+        #    prompt_parts.append(instructions_content)
+        #prompt_parts.append("Now perform task:")
         prompt_parts.append(f"/{prompt_name}{param_str}")
-        
+
+        # for some reason, these does not work. it just hjangs
+        #if instructions_content:
+        #    prompt_parts.append("\n")
+        #    prompt_parts.append(instructions_content)
+        #prompt_parts.append("Now perform task:")
+
         full_prompt = "\n".join(prompt_parts)
         
         # Build full command
