@@ -94,7 +94,7 @@ Output Contract (aggregate after pipeline completion):
 Implementation Notes (conceptual):
 1. Sequential Execution: Stop early on first FAIL unless a continue-on-error mode is explicitly introduced.
 2. Task Execution Model:
-   - Scriptable tasks (clone, search-readme, find-solutions, generate-solution-task-checklists): Generate Python/PowerShell/Bash scripts
+   - Scriptable tasks (clone, search-readme, find-solutions, generate-solution-task-checklists): Generate Python scripts
    - Non-scriptable tasks (scan-readme, execute-readme, process-solutions): Use direct tool calls with AI structural reasoning
 3. Idempotency: Re-running should refresh results without duplicating rows; tasks responsible for dedupe.
 4. Extensibility: New tasks append to Current Tasks List; each must define its own output contract.

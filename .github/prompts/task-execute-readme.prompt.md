@@ -10,6 +10,7 @@ Task name: task-execute-readme
 
 This task takes the commands extracted by task-scan-readme, determines which commands are safe to execute, and executes them in the repository directory. This task requires AI structural reasoning for safety classification and CANNOT be scripted.
 
+## Execution Policy
 ** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
 
 This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
@@ -20,32 +21,35 @@ This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
 4. Use create_file tool to save execution results to JSON output
 5. Use replace_string_in_file tool to update progress/results files
 
-** NEVER create a Python/PowerShell/Bash script for this task **
+** NEVER create a Python script for this task **
 ** NEVER batch-execute commands in a single script **
 ** EACH command must be evaluated individually for safety **
 
 The AI agent must use reasoning to determine command safety and execute safe commands one at a time.
 
-## Behavior (Follow this Step by Step)
+## Instructions (Follow this Step by Step)
+### Step 1 (MANDATORY)
+DEBUG Entry Trace: 
+   If DEBUG=1, print: `[debug][task-execute-readme] START repo_directory='{{repo_directory}}'
+   commands_json_path='{{commands_json_path}}'`
 
-0. DEBUG Entry Trace: Use run_in_terminal with echo/Write-Host:
-   "[debug][task-execute-readme] START repo_directory='{{repo_directory}}' commands_json_path='{{commands_json_path}}'"
-
-1. Input Parameters:
+### Step 2 (MANDATORY)
+Input Parameters:
    - repo_directory: absolute path to repository root
    - repo_name: repository name
    - commands_json_path: path to the JSON file containing extracted commands (from task-scan-readme output)
      Example: "output/{repo_name}_task3_scan-readme.json"
 
-2. Prerequisites Check:
+Prerequisites Check:
    - Use read_file to load the file specified in commands_json_path parameter
    - Extract the commands_extracted array from the JSON
-   - If task-scan-readme was SKIPPED (no README) or FAIL, skip execution
+   - If @task-scan-readme was SKIPPED (no README) or FAIL, skip execution
    - If DEBUG=1, print: `[debug][task-execute-readme] loaded {{command_count}} commands from {{commands_json_path}}`
    - If no commands or scan failed, set status=SKIPPED and proceed to output
    - If commands available, proceed with safety classification
 
-3. **Structural Reasoning - Safety Classification**:
+### Step 3 (MANDATORY)
+Structural Reasoning - Safety Classification:
    
    For EACH command in commands_extracted array, use AI reasoning to determine if it is SAFE or UNSAFE.
    
@@ -139,7 +143,8 @@ The AI agent must use reasoning to determine command safety and execute safe com
    - Check for command flags that change behavior (e.g., `rm -rf` vs `ls -l`)
    - If command does multiple things (chained with && or ;), evaluate each part
 
-4. **Command Execution** (SAFE commands only):
+### Step 4 (MANDATORY)
+  Command Execution** (SAFE commands only):
    
    For each SAFE command:
    
@@ -179,7 +184,7 @@ The AI agent must use reasoning to determine command safety and execute safe com
       - If command fails (exit_code != 0): record as executed with status="FAIL" (don't stop, continue with other commands)
       - If tool call fails: record as executed with status="ERROR"
 
-5. **Skipped Commands** (UNSAFE commands):
+**Skipped Commands** (UNSAFE commands):
    
    For each UNSAFE command:
    - If DEBUG=1, print: `[debug][task-execute-readme] skipping command [{{safety_category}}]: {{command}}, reason: {{reason}}`
@@ -189,11 +194,12 @@ The AI agent must use reasoning to determine command safety and execute safe com
      - category: safety category (destructive, system_mod, network, build, database, ambiguous)
      - source_section: from task-scan-readme output
 
-6. Summary:
+### Step 5 (MANDATORY)
    - If DEBUG=1, print: `[debug][task-execute-readme] execution summary: {{safe_count}} safe commands executed, {{unsafe_count}} unsafe commands skipped`
    - If DEBUG=1 and any failures, print: `[debug][task-execute-readme] {{failed_count}} commands failed during execution`
 
-7. Structured Output: Save JSON object to output/{repo_name}_task4_execute-readme.json with:
+### Step 6 (MANDATORY)
+Structured Output: Save JSON object to output/{repo_name}_task4_execute-readme.json with:
    - repo_directory: echoed from input
    - repo_name: echoed from input
    - total_commands_scanned: from task-scan-readme
@@ -215,31 +221,31 @@ The AI agent must use reasoning to determine command safety and execute safe com
    - status: SUCCESS (if execution completed, even if some commands failed)
    - timestamp: ISO 8601 format datetime
 
-8. Result Tracking:
+### Step 7 (MANDATORY)
+Result Tracking:
    - Use create_file or replace_string_in_file to append the result to:
      - results/repo-results.csv (CSV row)
-   - Row format: timestamp | repo_name | task-execute-readme | status | symbol
+   - Row format: timestamp | repo_name | task-execute-readme | status | symbol (✓ or ✗)
    - Status is SUCCESS if execution completed (even if individual commands failed)
 
-9. DEBUG Exit Trace: Use run_in_terminal to emit:
-    "[debug][task-execute-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} executed={{safe_count}} skipped={{unsafe_count}}"
+### Step 8 (MANDATORY)
+Repo Checklist Update:
+   - Open `tasks/{{repo_name}}_repo_checklist.md`
+   - Set `[x]` only on the `@task-execute-readme` entry for the current repository
+   - Do not modify other checklist items or other repositories' files
 
-Conditional Verbose Output (DEBUG):
-- Purpose: Provide detailed trace of safety reasoning and execution
-- Activation: Only when DEBUG environment variable equals "1"
-- Format: All messages start with [debug][task-execute-readme]
-- Entry: "[debug][task-execute-readme] START repo_directory='<path>' commands_json_path='<path>'"
-- Load: "[debug][task-execute-readme] loaded <N> commands from <path>"
-- Safe Classification: "[debug][task-execute-readme] SAFE [<category>]: <command>"
-- Unsafe Classification: "[debug][task-execute-readme] UNSAFE [<category>]: <command>"
-- Pre-execution: "[debug][task-execute-readme] executing command [<category>]: <command>"
-- Post-execution: "[debug][task-execute-readme] command exit_code=<N>"
-- Failure: "[debug][task-execute-readme] command failed, stderr: <text>"
-- Skip: "[debug][task-execute-readme] skipping command [<category>]: <command>, reason: <reason>"
-- Summary: "[debug][task-execute-readme] execution summary: <N> safe commands executed, <M> unsafe commands skipped"
-- Exit: "[debug][task-execute-readme] EXIT repo_directory='<path>' status=<status> executed=<N> skipped=<M>"
+### Step 9 (MANDATORY)
+Repo Variable Refresh:
+   - In the same `tasks/{{repo_name}}_repo_checklist.md` file, update the following variables with the latest values produced by this task:
+     * `{{executed_commands}}`
+     * `{{skipped_commands}}`
+   - Ensure each variable reflects the new clone/refresh results before saving the file
 
-Output Contract:
+### Step 10 (MANDATORY)
+DEBUG Exit Trace: 
+    If DEBUG=1, print: `[debug][task-execute-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} executed={{safe_count}} skipped={{unsafe_count}}`
+
+## Output Contract:
 - repo_directory: string
 - repo_name: string
 - total_commands_scanned: number (from task-scan-readme)
@@ -250,7 +256,7 @@ Output Contract:
 - status: SUCCESS | SKIPPED | FAIL
 - timestamp: string (ISO 8601)
 
-Implementation Notes (conceptual):
+## Implementation Notes:
 1. **THIS IS NOT A SCRIPT**: Use direct tool calls only
 2. **Individual Evaluation**: Each command is evaluated separately for safety
 3. **No Batch Execution**: Commands are executed one at a time using run_in_terminal

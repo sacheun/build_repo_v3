@@ -7,6 +7,7 @@ temperature: 0.1
 This prompt finds all unmarked tasks from a repository checklist markdown file and executes them sequentially.
 It processes all uncompleted tasks in the specified checklist until all are complete or an error occurs.
 
+## Execution Policy
 **CRITICAL REQUIREMENT:** After completing a task, you must update the designated repository markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
 
 **CRITICAL - SEQUENTIAL EXECUTION:**
@@ -23,9 +24,8 @@ It processes all uncompleted tasks in the specified checklist until all are comp
   - If readme_content exists → Execute @task-scan-readme
   - If readme_content does NOT exist → Mark as [x] SKIPPED
 
-## Behavior (Follow this Step by Step)
-
-**Step 0: Initialize Parameters**
+## Instructions (Follow this Step by Step)
+### Step 0: Initialize Parameters (MANDATORY)
 1. Required parameters:
       repo_checklist = <required> (path to repository checklist markdown file, e.g., "./tasks/ic3_spool_cosine-dep-spool_repo_checklist.md")
       clone = <required> (root directory for cloned repositories)
@@ -37,7 +37,7 @@ It processes all uncompleted tasks in the specified checklist until all are comp
      repo,task name,status
      ```
 
-**Step 1: Read Repository Task Checklist and Find Next Unmarked Task**
+### Step 1: Read Repository Task Checklist and Find Next Unmarked Task (MANDATORY)
 1. Read the repository checklist file specified by repo_checklist parameter
 2. Parse the "## Repo Tasks (Sequential Pipeline - Complete in Order)" section
 3. Find the FIRST task with `- [ ]` (unmarked/uncompleted)
@@ -49,7 +49,7 @@ It processes all uncompleted tasks in the specified checklist until all are comp
    - Store these values for use in task parameter preparation
 8. **Continue to next step to execute this task**
 
-**Step 2: Prepare Task Parameters**
+### Step 2: Prepare Task Parameters (MANDATORY)
 Extract task_name (e.g., "@task-clone-repo")
 - **Prepare parameters using variables from checklist "## Task Variables" section first**:
   - @task-clone-repo: [SCRIPTABLE]
@@ -77,7 +77,7 @@ Extract task_name (e.g., "@task-clone-repo")
     - solutions: **Read from checklist variables** (reference to solutions_json file, extract solutions array)
     - **If solutions_json is missing**: BLOCK with error - @task-find-solutions must be completed first
 
-**Step 3: Gather Required Input Data**
+### Step 3: Gather Required Input Data (MANDATORY)
 For tasks that need output from previous tasks:
 - **Primary Source: Check repo checklist "## Task Variables" section** for variable values
   - These values are preserved from previous task executions
@@ -125,7 +125,7 @@ For tasks that need output from previous tasks:
 - Return execution_status: BLOCKED with error message indicating missing dependency
 - Example: "Cannot execute @task-search-readme: Variable 'repo_directory' not set (previous task @task-clone-repo not completed)"
 
-**Step 4: Execute the Task**
+### Step 4: Execute the Task (MANDATORY)
 1. Log the execution attempt using @task-update-decision-log:
    - Invoke: @task-update-decision-log timestamp={current_timestamp} repo_name={repo_name} solution_name="" task={task_name} message="Starting task execution" status="IN_PROGRESS"
    - This will append a row to results/decision-log.csv with execution start details
@@ -144,138 +144,7 @@ For tasks that need output from previous tasks:
    - Stop processing remaining tasks in the checklist
    - Return execution_status: BLOCKED with blocking reason
 
-**Step 5: Update Checklist and Save Variables**
-
-**CRITICAL REQUIREMENT: Only mark tasks as complete [x] when they are ACTUALLY COMPLETE**
-- DO NOT mark a task as [x] if you did not execute all required steps
-- DO NOT mark a task as [x] if you only created output files without performing the actual work
-- DO NOT mark a task as [x] if you skipped execution steps
-- Verify that all task requirements were fulfilled before changing `- [ ]` to `- [x]`
-- If a task was partially completed or skipped, leave it as `- [ ]` or mark it explicitly as SKIPPED
-
-1. **[MANDATORY] After the task is performed (regardless of success or failure), add 1 row to results/repo_result.csv using comma (`,`) as the separator:**
-   - Column 1 (repo): {repo_name}
-   - Column 2 (task name): {task_name}
-   - Column 3 (status): SUCCESS | FAIL | BLOCKED | SKIPPED
-2. **Append the row to the existing CSV file** (do not overwrite the file)
-   Example row: `ic3_spool_cosine-dep-spool,@task-clone-repo,SUCCESS`
-
-3. If task completed successfully AND all required work was performed, update the repository checklist file directly:
-   - Read ./tasks/{repo_name}_repo_checklist.md
-   - Find the task line matching {task_name} in "## Repo Tasks" section
-   - **ONLY replace `- [ ]` with `- [x]` if the task was FULLY executed**
-   - **If task was skipped or not fully executed, DO NOT mark as [x]**
-   - Write the updated content back to the file
-   
-4. Extract and save task output variables to repository checklist:
-   - **Parse repo_tasks_list.prompt.md to get list of all available variables**:
-     - Read the "Variables available:" section
-     - Extract all variable names (e.g., {{repo_url}}, {{repo_directory}}, {{readme_content}}, etc.)
-   - **Read task output data from the JSON output file**:
-     - @task-clone-repo [SCRIPTABLE] → Read output/{{repo_name}}_task1_clone.json
-       * Extract: repo_directory (absolute path to cloned repo)
-     - @task-search-readme [SCRIPTABLE] → Read output/{{repo_name}}_task2_search-readme.json
-       * Extract: readme_filename, readme_content_path
-     - @task-scan-readme [NON-SCRIPTABLE] → Read output/{{repo_name}}_task3_scan-readme.json
-       * Extract: commands_json_path, commands_extracted count
-     - @task-execute-readme [NON-SCRIPTABLE] → Read output/{{repo_name}}_task4_execute-readme.json
-       * Extract: executed_commands count, skipped_commands count
-     - @task-find-solutions [SCRIPTABLE] → Read output/{{repo_name}}_task5_find-solutions.json
-       * Extract: solutions_json path, solutions count
-     - @generate-solution-task-checklists [SCRIPTABLE] → Read output/{{repo_name}}_task6_generate-solution-checklists.json
-       * Extract: checklist_updated status
-   - **Read existing checklist "## Task Variables" section to preserve previous values**
-   - Update/add new variables based on which task was executed:
-     - @task-clone-repo [SCRIPTABLE] → Sets: repo_directory
-     - @task-search-readme [SCRIPTABLE] → Sets: readme_content (reference to JSON file path), readme_filename
-     - @task-scan-readme [NON-SCRIPTABLE] → Sets: commands_extracted (reference to JSON file path or count)
-     - @task-execute-readme [NON-SCRIPTABLE] → Sets: executed_commands (count), skipped_commands (count)
-     - @task-find-solutions [SCRIPTABLE] → Sets: solutions_json (reference to JSON file path)
-     - @generate-solution-task-checklists [SCRIPTABLE] → Sets: checklist_updated (boolean indicating solution sections added)
-   - **Preserve all existing variable values** from previous tasks
-   - **Only update variables that this task produces**
-   
-5. Update repository checklist with variable values:
-   - Read ./tasks/{repo_name}_repo_checklist.md (if not already read in step 1)
-   - Find or create "## Task Variables" section
-     * If section doesn't exist, add it after "## Repo Variables Available" section
-     * If section exists, update it while preserving previous variables
-   - For each variable from completed tasks, write the appropriate value:
-   
-   **Variable Writing Rules:**
-   - After @task-clone-repo [SCRIPTABLE] completes:
-     * Write `repo_url`: {repo_url}
-     * Write `clone_path`: {clone_path}
-     * Write `repo_directory`: {absolute_path} (e.g., "C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool")
-     * Write `repo_name`: {repo_name}
-   
-   - After @task-search-readme [SCRIPTABLE] completes:
-     * Write `readme_content_path`: "output/{repo_name}_task2_search-readme.json"
-     * Write `readme_filename`: {actual_filename} (e.g., "README.md")
-     * If status is NOT_FOUND (no README found), write `readme_filename`: "NONE"
-   
-   - After @task-scan-readme [NON-SCRIPTABLE] completes:
-     * Write `commands_json_path`: "output/{repo_name}_task3_scan-readme.json"
-     * Write `commands_extracted`: "{count} commands" or "NONE (0 commands - {reason})"
-   
-   - After @task-execute-readme [NON-SCRIPTABLE] completes:
-     * Write `executed_commands`: "SKIPPED (0 commands executed - {reason})" or "{count} commands executed"
-     * Write `skipped_commands`: "SKIPPED (0 commands skipped - {reason})" or "{count} commands skipped"
-   
-   - After @task-find-solutions [SCRIPTABLE] completes:
-     * Write `solutions_json`: "output/{repo_name}_task5_find-solutions.json ({count} solutions found)"
-   
-   **⚠️ CRITICAL - FORMAT CONSISTENCY REQUIREMENT:**
-   
-   ALL {repo_name}_repo_checklist.md files MUST follow this exact format for Task Variables section:
-   
-   ```markdown
-   ## Task Variables
-   
-   Variables set by completed tasks:
-   - `repo_url`: {repo_url}
-   - `clone_path`: {clone_path}
-   - `repo_directory`: {absolute_path_to_cloned_repo}
-   - `repo_name`: {repo_name}
-   - `readme_content`: {description_with_character_count_or_NONE}
-   - `readme_filename`: {filename_or_NONE}
-   - `commands_extracted`: {count_and_source_or_NONE}
-   - `executed_commands`: {count_and_description_or_0}
-   - `skipped_commands`: {count_and_reason_or_0}
-   - `solutions_json`: {count_solutions_found_with_names_or_NONE}
-   ```
-   
-   **Format Rules (MANDATORY):**
-   1. Section header MUST be exactly: `## Task Variables`
-   2. Subheading MUST be exactly: `Variables set by completed tasks:`
-   3. Variable format MUST be: `` `variable_name`: {value} `` (backticks around variable name, colon separator)
-   4. Variables MUST be in the order listed above (repo_url first, solutions_json last)
-   5. All 10 variables MUST be present in every repo checklist
-   6. Variable names MUST use backticks: `` `repo_url` ``, `` `clone_path` ``, etc.
-   7. Values should be descriptive (e.g., "2892 characters - README.md found", "13 commands (from getting_started.md)")
-   8. If a task hasn't been completed, use placeholder values: NONE, 0, or descriptive text
-   
-   **Before updating any variables:**
-   - Verify the Task Variables section exists and follows this exact format
-   - If format is incorrect or section is missing, recreate it with the correct structure
-   - Preserve all existing variable values when updating
-   - Only update variables that the current task produces
-   
-   - For large data, provide descriptive summaries with counts instead of full content
-   - For simple values (paths, counts, filenames), embed directly with clear descriptions
-   - **Important**: Only include actual values for tasks that have been completed
-   - Write the updated checklist content back to the file
-
-**Step 6: Check for More Tasks and Continue** 
-Log completion using @task-update-decision-log:
-   - Invoke: @task-update-decision-log timestamp={current_timestamp} repo_name={repo_name} solution_name="" task={task_name} message={task_result_message} status="SUCCESS"
-   - This will append task completion to results/decision-log.csv
-
-**Step 7: Check for More Tasks and Continue**
-Save task output to ./output/ directory (if task produces JSON output):
-   - Filename: {repo_name}_{task_name}.json
-
-**Step 8: Check for More Tasks and Continue**
+### Step 5: Check for More Tasks and Continue
 1. After completing the current task, **return to Step 1**
 2. Read the checklist again to find the next unmarked task
 3. If more unmarked tasks exist, execute them
@@ -284,7 +153,7 @@ Save task output to ./output/ directory (if task produces JSON output):
    - A task fails (return FAIL with error details)
    - A task is blocked (return BLOCKED with blocking reason)
 
-**Step 9: Return Final Execution Summary**
+### Step 6: Return Final Execution Summary
 
 Return execution summary after all tasks are processed or execution stops.
 

@@ -9,26 +9,23 @@ Task name: generate-repo-task-checklists
 ## Description:
 This task generates task checklists for all repositories in the input file. The checklists allow agents to pick up work or resume when a previous run stops. This is a file generation task that CAN be implemented as a script.
 
+## Execution Policy
+**ALL STEPS BELOW ARE MANDATORY.**
+**DO NOT SKIP OR SUMMARIZE.**
 **THIS TASK IS SCRIPTABLE**
 
-This task can be implemented as a Python script that:
-1. Reads repository URLs from input file
-2. Parses task definitions from .github\prompts\repo_tasks_list.prompt.md
-3. Generates master checklist tracking all repositories
-4. Generates individual checklist files for each repository
-5. Supports append mode to add new repositories without replacing existing ones
+## Instructions (Follow this Step by Step)
+### Step 1 (MANDATORY)
+DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-repo-task-checklists] START input='{{input}}' append={{append}}`
 
-## Behavior (Follow this Step by Step)
-0. DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-repo-task-checklists] START input='{{input}}' append={{append}}`
-
-1. Input Parameters: You are given input (file path) and append (boolean) from the calling context.
+### Step 2 (MANDATORY)
+Input Parameters: You are given input (file path) and append (boolean) from the calling context.
    Defaults:
       input = "repositories.txt"
       append = false
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] using input_file: {{input}}, append_mode: {{append}}`
 
-2. Directory Preparation:
-   
+Directory Preparation:   
    **If append = false (default):**
    - **Remove the entire ./tasks directory if it exists** (including all files and subdirectories)
    - **Remove the entire ./output directory if it exists** (including all output JSON files)
@@ -44,12 +41,14 @@ This task can be implemented as a Python script that:
    - Create ./tasks, ./output, and ./temp-script directories if they don't exist
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] preserving existing tasks, output, and temp-script (append=true)`
 
-3. Read Input File: Read the input file to get all repository URLs
+### Step 3 (MANDATORY)
+Read Input File: Read the input file to get all repository URLs
    - Parse line by line, skip empty lines and comments (lines starting with #)
    - Extract repository URLs
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] found {{count}} repositories in input file`
 
-4. Determine Repositories to Process:
+### Step 4 (MANDATORY)
+Determine Repositories to Process:
    
    **If append = false:**
    - Process all repositories from input file
@@ -63,13 +62,15 @@ This task can be implemented as a Python script that:
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] found {{existing_count}} existing repos, {{new_count}} new repos`
    - Only process these new repositories
 
-5. Parse Task Definitions: Read .github\prompts\repo_tasks_list.prompt.md to extract:
+### Step 5 (MANDATORY)
+Parse Task Definitions: Read .github\prompts\repo_tasks_list.prompt.md to extract:
    - All task directives (e.g., @task-clone-repo, @task-search-readme, etc.)
    - Short descriptions for each task
    - The complete "Variables available:" section content
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] extracted {{task_count}} tasks from .github\prompts\repo_tasks_list.prompt.md`
 
-6. Generate or Update Master Checklist:
+### Step 6 (MANDATORY)
+Generate or Update Master Checklist:
    - File: ./tasks/all_repository_checklist.md
    
    **If append = false:**
@@ -101,7 +102,8 @@ This task can be implemented as a Python script that:
      - Create new file with new repositories only
      - If DEBUG=1, print: `[debug][generate-repo-task-checklists] creating master checklist (no existing file)`
 
-7. Generate Individual Checklist Files:
+### Step 8 (MANDATORY)
+Generate Individual Checklist Files:
    
    For each repository to process:
    - Extract repo_name from URL
@@ -164,7 +166,8 @@ This task can be implemented as a Python script that:
      - NON-SCRIPTABLE: @task-scan-readme, @task-execute-readme
    - **Dynamic Variables Section:** Extract the entire "### Variables available:" section from .github\prompts\repo_tasks_list.prompt.md and include it verbatim in each generated checklist under "## Repo Variables Available" heading
 
-8. Structured Output: Save JSON object to output/generate-repo-task-checklists.json with:
+### Step 8 (MANDATORY)
+Structured Output: Save JSON object to output/generate-repo-task-checklists.json with:
    - input_file: path to input file used
    - append_mode: boolean (true/false)
    - repositories_total: integer (total in input file)
@@ -176,11 +179,12 @@ This task can be implemented as a Python script that:
    - status: SUCCESS if all files generated, FAIL if error occurred
    - timestamp: ISO 8601 format datetime when task completed
 
-9. DEBUG Exit Trace: If DEBUG=1, print:
+### Step 9 (MANDATORY)
+DEBUG Exit Trace: If DEBUG=1, print:
    "[debug][generate-repo-task-checklists] EXIT status={{status}} processed={{repositories_processed}} generated={{checklists_generated}}"
 
-Implementation Notes:
-1. **THIS IS SCRIPTABLE**: Generate a Python/PowerShell/Bash script to execute this task
+## Implementation Notes:
+1. **THIS IS SCRIPTABLE**: Generate a Python script to execute this task
 2. URL Parsing: Extract friendly repo names from URLs (e.g., last segment after final /)
 3. Dynamic Task Extraction: Parse .github\prompts\repo_tasks_list.prompt.md to get task list and variables section
 4. Contract Compliance: Always save JSON output file with all fields regardless of success/failure
@@ -189,4 +193,4 @@ Implementation Notes:
 7. Error Handling: If input file not found, set status=FAIL and return with empty results
 8. Append Mode Logic: Compare normalized URLs (trim trailing slashes, case-insensitive), preserve existing entries, only create files for new repos
 9. Script Location: Save generated script to temp-script/ directory with naming pattern: generate_task_checklists.py (or .ps1/.sh)
-10. Environment: Set DEBUG=1 environment variable at the start of the script if debug output is desired
+
