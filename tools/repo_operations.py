@@ -334,14 +334,19 @@ class RepoOperations:
                 if not completed_tasks:
                     continue
                 
-                missing_csv_entries: List[str] = []
+                csv_entry_issues: List[str] = []
                 for task_name in completed_tasks:
+                    # Ensure exactly one CSV entry for each mandatory task
                     pattern = (
                         rf'{re.escape(repo_name)}\s*[|,]\s*'
-                        rf'{re.escape(task_name)}'
+                        rf'{re.escape(task_name)}\s*[|,]'
                     )
-                    if not re.search(pattern, csv_content):
-                        missing_csv_entries.append(task_name)
+                    match_count = len(re.findall(pattern, csv_content))
+
+                    if match_count == 0:
+                        csv_entry_issues.append(
+                            f"CSV entry missing for {task_name}"
+                        )
                         self._debug_print(
                             (
                                 "  ERROR: {repo} completed task '{task}' "
@@ -351,12 +356,28 @@ class RepoOperations:
                                 task=task_name
                             )
                         )
-                
-                if missing_csv_entries:
-                    for task in missing_csv_entries:
-                        summary["incomplete_tasks"].append(
-                            "CSV entry missing for {task}".format(task=task)
+                    elif match_count > 1:
+                        csv_entry_issues.append(
+                            (
+                                "CSV entry duplicated {count}x for {task}"
+                            ).format(
+                                count=match_count,
+                                task=task_name
+                            )
                         )
+                        self._debug_print(
+                            (
+                                "  ERROR: {repo} completed task '{task}' has "
+                                "{count} entries in repo-results.csv"
+                            ).format(
+                                repo=repo_name,
+                                task=task_name,
+                                count=match_count
+                            )
+                        )
+                
+                if csv_entry_issues:
+                    summary["incomplete_tasks"].extend(csv_entry_issues)
         
         incomplete_repos: List[Dict[str, Any]] = []
         complete_repo_names: List[str] = []

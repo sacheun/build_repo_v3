@@ -25,7 +25,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -39,7 +38,6 @@ from solution_operations import SolutionOperations
 
 # Global configuration
 DEBUG = os.environ.get('DEBUG', '0') == '1'
-SKIP_CSV_CHECK = 1 #os.environ.get('SKIP_CSV_CHECK', '0') == '1'
 TASKS_DIR = Path('./tasks')
 OUTPUT_DIR = Path('./output')
 RESULTS_DIR = Path('./results')
@@ -139,6 +137,74 @@ def iter_repo_results_files() -> List[Path]:
         RESULTS_DIR / 'repo_result.csv',
         RESULTS_DIR / 'repo-results.csv'
     ]
+
+
+def purge_repo_results(repo_name: str) -> int:
+    """Remove existing repo_result rows for a repository prior to retry."""
+    total_removed = 0
+
+    for csv_path in iter_repo_results_files():
+        if not csv_path.exists():
+            continue
+
+        try:
+            with open(csv_path, 'r', encoding='utf-8', newline='') as infile:
+                reader = csv.DictReader(infile)
+                rows = list(reader)
+                fieldnames = (
+                    reader.fieldnames
+                    or ['repo', 'task name', 'status']
+                )
+        except Exception as exc:  # noqa: BLE001
+            debug_print(
+                f"WARNING: unable to read {csv_path.name} for purge: {exc}"
+            )
+            continue
+
+        filtered_rows = []
+        removed_here = 0
+        for row in rows:
+            repo_value = (
+                row.get('repo')
+                or row.get('Repository')
+                or ''
+            ).strip()
+
+            if repo_value == repo_name:
+                removed_here += 1
+                continue
+
+            filtered_rows.append(row)
+
+        if removed_here:
+            try:
+                with open(csv_path, 'w', encoding='utf-8', newline='') as outfile:
+                    writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(filtered_rows)
+            except Exception as exc:  # noqa: BLE001
+                debug_print(
+                    f"WARNING: failed to rewrite {csv_path.name}: {exc}"
+                )
+                continue
+
+            total_removed += removed_here
+            debug_print(
+                (
+                    "purged {count} repo_result rows for {repo} from {name}"
+                ).format(
+                    count=removed_here,
+                    repo=repo_name,
+                    name=csv_path.name
+                )
+            )
+
+    if total_removed == 0:
+        debug_print(
+            f"no existing repo_result rows found for {repo_name}"
+        )
+
+    return total_removed
 
 
 def run_copilot_command(command: str) -> Tuple[int, str, str]:
@@ -405,7 +471,7 @@ def process_repositories(append_mode: bool) -> Tuple[List[Dict[str, Any]], int, 
             if result_detail['execution_status'] == 'SUCCESS':
                 successful_repo_names.add(repo_name)
         
-        verification_results = repo_ops.verify_tasks_completed(skip_csv_check=SKIP_CSV_CHECK)
+        verification_results = repo_ops.verify_tasks_completed()
         if isinstance(verification_results, list):
             incomplete_map = {
                 item['repo_name']: item
@@ -420,6 +486,7 @@ def process_repositories(append_mode: bool) -> Tuple[List[Dict[str, Any]], int, 
             if repo_name in incomplete_map:
                 if repo_attempt < MAX_REPO_ATTEMPTS:
                     retry_entry = incomplete_map[repo_name]
+                    purge_repo_results(repo_name)
                     repo_ops.reset_tasks(
                         retry_entry['checklist_path'],
                         retry_entry.get('incomplete_tasks', [])
@@ -906,10 +973,6 @@ if __name__ == '__main__':
     print("\nScript generated: ./tools/orchestrate_repo_workflow.py")
     print(
         'To execute: $env:DEBUG = "1"; '
-        'python ./tools/orchestrate_repo_workflow.py'
-    )
-    print(
-        'To skip CSV check: $env:SKIP_CSV_CHECK = "1"; '
         'python ./tools/orchestrate_repo_workflow.py'
     )
     print(
