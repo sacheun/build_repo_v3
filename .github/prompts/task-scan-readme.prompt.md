@@ -51,6 +51,13 @@ Prerequisites Check:
    - Set status=SKIPPED and proceed to output
    - If README found, proceed with analysis
 
+Pre-flight Checklist Verification:
+    - Open `tasks/{{repo_name}}_repo_checklist.md`
+    - Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
+     * `{{commands_extracted}}`
+    - If any token is missing or altered, restore it prior to continuing
+
+
 ### Step 4 (MANDATORY)
 Structural Reasoning - Section Identification**:
    - ** YOU MUST ACTUALLY READ THE README CONTENT LOADED IN STEP 2 **
@@ -245,9 +252,12 @@ Repo Checklist Update:
 
 ### Step 13 (MANDATORY)
 Repo Variable Refresh:
-   - In the same `tasks/{{repo_name}}_repo_checklist.md` file, update the following variables with the latest values produced by this task:
+   - Open `tasks/{{repo_name}}_repo_checklist.md` file
+   - Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
      * `{{commands_extracted}}`
-   - Ensure each variable reflects the new clone/refresh results before saving the file
+   - Update the following variables with the latest values produced by this task:
+     * `{{commands_extracted}}`
+   - Ensure each variable reflects the refresh results before saving the file
 
 ### Step 14 (MANDATORY)
 DEBUG Exit Trace:

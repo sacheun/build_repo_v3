@@ -48,6 +48,15 @@ Prerequisites Check:
    - If no commands or scan failed, set status=SKIPPED and proceed to output
    - If commands available, proceed with safety classification
 
+Pre-flight Checklist Verification:
+    - Open `tasks/{{repo_name}}_repo_checklist.md`
+    - Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
+     * `{{executed_commands}}`
+     * `{{skipped_commands}}`
+    - If any token is missing or altered, restore it prior to continuing
+
+
+
 ### Step 3 (MANDATORY)
 Structural Reasoning - Safety Classification:
    
@@ -236,10 +245,14 @@ Repo Checklist Update:
 
 ### Step 9 (MANDATORY)
 Repo Variable Refresh:
-   - In the same `tasks/{{repo_name}}_repo_checklist.md` file, update the following variables with the latest values produced by this task:
+   - Open `tasks/{{repo_name}}_repo_checklist.md` file
+   - Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
      * `{{executed_commands}}`
      * `{{skipped_commands}}`
-   - Ensure each variable reflects the new clone/refresh results before saving the file
+   - Update the following variables with the latest values produced by this task:
+     * `{{executed_commands}}`
+     * `{{skipped_commands}}`
+   - Ensure each variable reflects the refresh results before saving the file
 
 ### Step 10 (MANDATORY)
 DEBUG Exit Trace: 

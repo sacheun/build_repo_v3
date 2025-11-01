@@ -26,6 +26,14 @@ Input Validation: Verify that repo_directory exists and is accessible
    - If DEBUG=1 and directory does not exist, print: `[debug][task-find-solutions] directory does not exist: {{repo_directory}}`
    - If DEBUG=1 and directory exists, print: `[debug][task-find-solutions] directory validated: {{repo_directory}}`
 
+Pre-flight Checklist Verification:
+    - Open `tasks/{{repo_name}}_repo_checklist.md`
+    - Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
+     * `{{solutions_json}}`
+     * `{{solutions}}`
+    - If any token is missing or altered, restore it prior to continuing
+
+
 ### Step 3 (MANDATORY)
  Recursive Solution Discovery: Search all subdirectories recursively for files with .sln extension
    - Use recursive glob pattern: **/*.sln (or equivalent for the language)
@@ -91,10 +99,14 @@ Repo Checklist Update:
 
 ### Step 9 (MANDATORY)
 Repo Variable Refresh:
-   - In the same `tasks/{{repo_name}}_repo_checklist.md` file, update the following variables with the latest values produced by this task:
+   - Open `tasks/{{repo_name}}_repo_checklist.md` file
+   - Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
      * `{{solutions_json}}`
      * `{{solutions}}`
-   - Ensure each variable reflects the new clone/refresh results before saving the file
+   - Update the following variables with the latest values produced by this task:
+     * `{{solutions_json}}`
+     * `{{solutions}}`
+   - Ensure each variable reflects the refresh results before saving the file
 
 ### Step 10 (MANDATORY)
    If DEBUG=1, print: `[debug][task-find-solutions] EXIT repo_directory='{{repo_directory}}' status={{status}} solution_count={{solution_count}}`

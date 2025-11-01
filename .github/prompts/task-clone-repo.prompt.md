@@ -27,6 +27,16 @@ Repository Name Extraction: If repo_name not provided, extract from repo_url:
    - For GitHub: Extract last segment before ".git" (e.g., "https://github.com/user/repo.git" → "repo")
    - If DEBUG=1, print: `[debug][task-clone-repo] extracted repo_name: {{repo_name}}`
 
+Pre-flight Checklist Verification:
+    - Open `tasks/{{repo_name}}_repo_checklist.md`
+    - Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
+       * `{{repo_url}}`
+       * `{{clone_path}}`
+       * `{{repo_directory}}`
+       * `{{repo_name}}`
+    - If any token is missing or altered, restore it prior to continuing
+
+
 ### Step 3 (MANDATORY)
 Directory Existence Check: Check if target directory exists: {{clone_path}}/{{repo_name}}
    - If DEBUG=1 and directory exists, print: `[debug][task-clone-repo] repository directory exists, will refresh`
@@ -98,12 +108,18 @@ Repo Checklist Update:
 
 ### Step 9 (MANDATORY)
 Repo Variable Refresh:
-   - In the same `tasks/{{repo_name}}_repo_checklist.md` file, update the following variables with the latest values produced by this task:
+   - Open `tasks/{{repo_name}}_repo_checklist.md` file
+   - Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
+       * `{{repo_url}}`
+       * `{{clone_path}}`
+       * `{{repo_directory}}`
+       * `{{repo_name}}`
+   - Update the following variables with the latest values produced by this task:
      * `{{repo_url}}`
      * `{{clone_path}}`
      * `{{repo_directory}}`
      * `{{repo_name}}`
-   - Ensure each variable reflects the new clone/refresh results before saving the file
+   - Ensure each variable reflects the refresh results before saving the file
 
 ### Step 10 (MANDATORY)
 DEBUG Exit Trace:
