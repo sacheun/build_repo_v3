@@ -283,13 +283,6 @@ class RepoOperations:
                         tasks=incomplete_mandatory
                     )
                 )
-            else:
-                self._debug_print(
-                    "  {repo} all {total} MANDATORY tasks completed".format(
-                        repo=repo_name,
-                        total=summary["total_tasks"]
-                    )
-                )
         
         csv_paths = [
             self.results_dir / 'repo-results.csv',
@@ -359,22 +352,22 @@ class RepoOperations:
                     elif match_count > 1:
                         csv_entry_issues.append(
                             (
-                                "CSV entry duplicated {count}x for {task}"
+                                "CSV entry count {count} (expected 1) for {task}"
                             ).format(
                                 count=match_count,
                                 task=task_name
                             )
                         )
-                        self._debug_print(
-                            (
-                                "  ERROR: {repo} completed task '{task}' has "
-                                "{count} entries in repo-results.csv"
-                            ).format(
-                                repo=repo_name,
-                                task=task_name,
-                                count=match_count
-                            )
+                        message = (
+                            "  ERROR: {repo} completed task '{task}' has "
+                            "{count} entries in repo-results.csv; "
+                            "expected one entry per mandatory task."
+                        ).format(
+                            repo=repo_name,
+                            task=task_name,
+                            count=match_count
                         )
+                        self._debug_print(message)
                 
                 if csv_entry_issues:
                     summary["incomplete_tasks"].extend(csv_entry_issues)

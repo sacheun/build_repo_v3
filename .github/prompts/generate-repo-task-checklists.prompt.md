@@ -108,7 +108,7 @@ Generate Individual Checklist Files:
    For each repository to process:
    - Extract repo_name from URL
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] generating checklist for: {{repo_name}}`
-   - File: ./tasks/{repo_name}_repo_checklist.md
+   **Important** Always name the checklist exactly `./tasks/{repo_name}_repo_checklist.md` (no alternate paths or filenames).
    
    **If append = false:**
    - Create checklist for all repositories from input file

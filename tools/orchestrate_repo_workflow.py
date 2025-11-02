@@ -149,38 +149,41 @@ def purge_repo_results(repo_name: str) -> int:
 
         try:
             with open(csv_path, 'r', encoding='utf-8', newline='') as infile:
-                reader = csv.DictReader(infile)
+                reader = csv.reader(infile)
                 rows = list(reader)
-                fieldnames = (
-                    reader.fieldnames
-                    or ['repo', 'task name', 'status']
-                )
         except Exception as exc:  # noqa: BLE001
             debug_print(
                 f"WARNING: unable to read {csv_path.name} for purge: {exc}"
             )
             continue
 
-        filtered_rows = []
+        if not rows:
+            continue
+
+        header = rows[0]
+        data_rows = rows[1:]
+        filtered_rows = [header]
         removed_here = 0
-        for row in rows:
-            repo_value = (
-                row.get('repo')
-                or row.get('Repository')
-                or ''
-            ).strip()
+        for fields in data_rows:
+            if not fields:
+                filtered_rows.append(fields)
+                continue
+
+            if len(fields) >= 2:
+                repo_value = fields[1].strip()
+            else:
+                repo_value = fields[0].strip()
 
             if repo_value == repo_name:
                 removed_here += 1
                 continue
 
-            filtered_rows.append(row)
+            filtered_rows.append(fields)
 
         if removed_here:
             try:
                 with open(csv_path, 'w', encoding='utf-8', newline='') as outfile:
-                    writer = csv.DictWriter(outfile, fieldnames=fieldnames)
-                    writer.writeheader()
+                    writer = csv.writer(outfile)
                     writer.writerows(filtered_rows)
             except Exception as exc:  # noqa: BLE001
                 debug_print(
@@ -498,6 +501,18 @@ def process_repositories(append_mode: bool) -> Tuple[List[Dict[str, Any]], int, 
             else:
                 successful_repo_names.add(repo_name)
         
+        if next_pending:
+            retry_names = [
+                entry.get('repo_name')
+                for entry in next_pending
+                if entry.get('repo_name')
+            ]
+            debug_print(
+                "will retry repositories: {names}".format(
+                    names=", ".join(sorted(retry_names))
+                )
+            )
+
         # Wait 30 minutes after first attempt before retrying
         if repo_attempt == 1 and next_pending:
             wait_seconds = 30 * 60  # 30 minutes

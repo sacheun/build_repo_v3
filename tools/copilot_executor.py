@@ -82,17 +82,28 @@ class CopilotExecutor:
         
         # Log output to file
         self._log_to_file(f"Exit Code: {result.returncode}\n\n")
-        
+
         if result.stdout:
             self._log_to_file("STDOUT:\n")
             self._log_to_file(result.stdout)
             self._log_to_file("\n\n")
-        
+
         if result.stderr:
             self._log_to_file("STDERR:\n")
             self._log_to_file(result.stderr)
             self._log_to_file("\n\n")
-        
+
+        if result.returncode != 0:
+            print(
+                (
+                    "[error][copilot-executor] command failed with exit code "
+                    f"{result.returncode}"
+                )
+            )
+            if result.stderr:
+                print("[error][copilot-executor] stderr:")
+                print(result.stderr.strip())
+
         return result.returncode, result.stdout, result.stderr
     
     def execute_prompt(
@@ -128,7 +139,11 @@ class CopilotExecutor:
         # Build parameter string
         param_str = ""
         if params:
-            param_parts = [f'{key}=\\"{value}\\"' for key, value in params.items()]
+            sanitized = []
+            for key, value in params.items():
+                safe_value = str(value).replace("'", "\\'")
+                sanitized.append(f"{key}='{safe_value}'")
+            param_parts = sanitized
             param_str = " " + " ".join(param_parts)
         
         # Build prompt with instructions first, then task
