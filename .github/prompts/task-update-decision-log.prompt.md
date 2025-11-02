@@ -11,8 +11,9 @@ This task updates the decision log by appending a new entry. It maintains a CSV 
 
 The decision log file: **results/decision-log.csv**
 
-** THIS TASK IS SCRIPTABLE **
 
+## Execution Policy
+** THIS TASK IS SCRIPTABLE **
 This task can be fully automated as it follows deterministic file operations.
 
 WHY SCRIPTABLE:
@@ -33,14 +34,15 @@ DO NOT:
 
 ** END WARNING **
 
-## Behavior (Follow this Step by Step)
-
-0. **DEBUG Entry Trace:**
+## Instructions (Follow this Step by Step)
+### Step 1 (MANDATORY)
+DEBUG Entry Trace:
    - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
    - `[debug][task-update-decision-log] START task='{{task}}' status='{{status}}' repo='{{repo_name}}'`
    - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
 
-### Step 1: Ensure Log File Exists
+### Step 2 (MANDATORY)
+Ensure Log File Exists
 
 1. **Check if decision-log.csv exists:**
    - Path: `./results/decision-log.csv`
@@ -57,8 +59,8 @@ DO NOT:
 3. **If file exists:**
    - DEBUG: Log "[DECISION-LOG-DEBUG] decision-log.csv already exists"
 
-### Step 2: Prepare Log Entry
-
+### Step 3 (MANDATORY) 
+Prepare Log Entry
 1. **Prepare log entry with provided values:**
    - timestamp: {{timestamp}} (should be in ISO 8601 format, e.g., "2025-10-26T12:00:00Z")
    - repo_name: {{repo_name}} (e.g., "ic3_spool_cosine-dep-spool", or empty string if not applicable)
@@ -79,7 +81,8 @@ DO NOT:
    - If validation fails, return error status
    - DEBUG: Log "[DECISION-LOG-DEBUG] Prepared log entry: {{timestamp}},{{repo_name}},{{solution_name}},{{task}},{{message}},{{status}}"
 
-### Step 3: Append Log Entry
+### Step 4 (MANDATORY)
+Append Log Entry
 
 1. **Append row to decision-log.csv:**
    - Use PowerShell to append:
@@ -92,7 +95,8 @@ DO NOT:
    - If append fails, return error status
    - DEBUG: Log "[DECISION-LOG-DEBUG] Log entry appended successfully"
 
-### Step 4: Output Results
+### Step 6 (MANDATORY)
+Output Results
 
 1. **Return log update status:**
    - log_status: SUCCESS | FAIL
@@ -178,32 +182,5 @@ DO NOT:
   message="Build succeeded - KB search skipped" 
   status="SKIPPED"
 ```
-
-## Example File:
-
-**results/decision-log.csv:**
-```csv
-timestamp,repo_name,solution_name,task,message,status
-2025-10-26T12:00:00Z,ic3_spool_cosine-dep-spool,,@task-clone-repo,Repository cloned successfully,SUCCESS
-2025-10-26T12:05:00Z,ic3_spool_cosine-dep-spool,,@task-search-readme,Found README: README.md,SUCCESS
-2025-10-26T12:10:00Z,ic3_spool_cosine-dep-spool,,@task-find-solutions,Found 8 solution files,SUCCESS
-2025-10-26T12:15:00Z,ic3_spool_cosine-dep-spool,ResourceProvider,@task-restore-solution,Restore completed with 0 errors,SUCCESS
-2025-10-26T12:20:00Z,ic3_spool_cosine-dep-spool,ResourceProvider,@task-build-solution,Build failed with 1 error: NU1008,FAIL
-2025-10-26T12:25:00Z,ic3_spool_cosine-dep-spool,ResourceProvider,@task-search-knowledge-base,Found KB article: nu1008_central_package_management.md,SUCCESS
-2025-10-26T12:30:00Z,ic3_spool_cosine-dep-spool,ResourceProvider,@task-apply-knowledge-base-fix,Applied fix option 1 - removed Version attributes,SUCCESS
-2025-10-26T12:35:00Z,ic3_spool_cosine-dep-spool,ResourceProvider,@task-build-solution,Retry build succeeded,SUCCESS
-```
-
-This provides a complete audit trail of all task executions across repositories and solutions.
-
-## CSV Field Escaping Rules:
-
-When the message field contains special characters:
-- **Comma in message**: Wrap entire message in double quotes
-  - Example: `2025-10-26T12:00:00Z,repo1,,task1,"Found errors: NU1008, MSB3644",FAIL`
-- **Double quote in message**: Escape by doubling the quote and wrap in quotes
-  - Example: `2025-10-26T12:00:00Z,repo1,,task1,"Message with ""quoted"" text",INFO`
-- **Simple message**: No quotes needed
-  - Example: `2025-10-26T12:00:00Z,repo1,,task1,Build succeeded,SUCCESS`
 
 The task should automatically handle CSV escaping when appending to the file.

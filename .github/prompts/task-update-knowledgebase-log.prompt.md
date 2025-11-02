@@ -11,6 +11,7 @@ This task updates the knowledgebase usage log by appending a new entry and then 
 1. **knowledgebase.log** - Detailed log of each knowledgebase application attempt
 2. **knowledgebase-stats.csv** - Aggregated statistics per knowledgebase file and option
 
+## Execution Policy
 ** THIS TASK IS SCRIPTABLE **
 
 This task can be fully automated as it follows deterministic file operations.
@@ -35,14 +36,15 @@ DO NOT:
 
 ** END WARNING **
 
-## Behavior (Follow this Step by Step)
-
-0. **DEBUG Entry Trace:**
+## Instructions (Follow this Step by Step)
+### Step 1 (MANDATORY)
+DEBUG Entry Trace:
    - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
    - `[debug][task-update-knowledgebase-log] START kb_file='{{knowledgebase_file}}' option='{{option}}' status='{{status}}'`
    - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
 
-### Step 1: Ensure Log File Exists
+### Step 2 (MANDATORY)
+Ensure Log File Exists
 
 1. **Check if knowledgebase.log exists:**
    - Path: `./knowledge_base_markdown/knowledgebase.log`
@@ -59,7 +61,8 @@ DO NOT:
 3. **If file exists:**
    - DEBUG: Log "[KB-LOG-DEBUG] knowledgebase.log already exists"
 
-### Step 2: Append New Log Entry
+### Step 3 (MANDATORY)
+Append New Log Entry
 
 1. **Prepare log entry:**
    - timestamp: Current UTC timestamp in ISO 8601 format (e.g., "2025-10-26T12:00:00Z")
@@ -78,7 +81,8 @@ DO NOT:
    - If append fails, return error status
    - DEBUG: Log "[KB-LOG-DEBUG] Log entry appended successfully"
 
-### Step 3: Ensure Stats File Exists
+### Step 4 (MANDATORY)
+Ensure Stats File Exists
 
 1. **Check if knowledgebase-stats.csv exists:**
    - Path: `./knowledge_base_markdown/knowledgebase-stats.csv`
@@ -94,7 +98,8 @@ DO NOT:
 3. **If file exists:**
    - DEBUG: Log "[KB-LOG-DEBUG] knowledgebase-stats.csv already exists"
 
-### Step 4: Aggregate Statistics
+### Step 5 (MANDATORY)
+Aggregate Statistics
 
 1. **Read knowledgebase.log:**
    - Load all entries from log file
@@ -132,7 +137,8 @@ DO NOT:
    - Example row: `nu1008_central_package_management.md,1,3,5`
    - DEBUG: Log "[KB-LOG-DEBUG] Wrote {{row_count}} rows to knowledgebase-stats.csv"
 
-### Step 5: Output Results
+### Step 6 (MANDATORY)
+Output Results
 
 1. **Return log update status:**
    - log_status: SUCCESS | FAIL

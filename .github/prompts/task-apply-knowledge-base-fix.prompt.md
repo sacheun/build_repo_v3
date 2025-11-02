@@ -8,18 +8,21 @@ temperature: 0.1
 ## Description
 Parse the KB article, extract fix instructions, and automatically apply them to the solution files to resolve the build error. Supports multiple fix options with sequential retry logic.
 
-## Prerequisites
-- `solution_path`: Absolute path to the .sln file
-- `kb_file_path`: Absolute path to the KB article markdown file
-- `error_code`: Error code to fix (e.g., NU1008, MSB3644, SF0001)
-- `last_option_applied`: (Optional) The last option number that was applied (e.g., "1", "2", "3"). If not provided, defaults to applying Option 1.
+## Execution Policy
+** CRITICAL ** DO NOT GENERATE OR EXECUTE A SCRIPT FOR THIS TASK.This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
 
-## Behavior (Follow this Step by Step)
+This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
+1. Use read_file tool to load the README content from task-search-readme output JSON
+2. Use structural reasoning to parse and analyze README structure
+3. Use AI reasoning to identify setup sections and extract commands
+4. Use create_file tool to save the parsed command list to JSON output
+5. Use replace_string_in_file tool to update progress/results files
 
-0. **DEBUG Entry Trace:**
-   - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
-   - `[debug][task-apply-knowledge-base-fix] START solution='{{solution_name}}' kb_file='{{kb_file_path}}' error_code='{{error_code}}'`
-   - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
+** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
+
+** NEVER use regex or simple text parsing - use structural reasoning **
+
+The AI agent must analyze the README content intelligently to understand context and extract meaningful setup commands.
 
 ### YOU MUST USE DIRECT TOOL CALLS
 
@@ -33,9 +36,22 @@ Use these tools:
 
 ** NEVER output code blocks expecting the user to manually apply them **
 
----
 
-### Step 1: Parse KB Article
+## Prerequisites
+- `solution_path`: Absolute path to the .sln file
+- `kb_file_path`: Absolute path to the KB article markdown file
+- `error_code`: Error code to fix (e.g., NU1008, MSB3644, SF0001)
+- `last_option_applied`: (Optional) The last option number that was applied (e.g., "1", "2", "3"). If not provided, defaults to applying Option 1.
+
+## Instructions (Follow this Step by Step)
+### Step 1 (MANDATORY)
+DEBUG Entry Trace:
+   - If environment variable DEBUG=1 (string comparison), print
+   `[debug][task-apply-knowledge-base-fix] START solution='{{solution_name}}' kb_file='{{kb_file_path}}' error_code='{{error_code}}'`
+
+
+### Step 2: (MANDATORY)
+Parse KB Article
 
 1. **Read the KB Article:**
    ```
@@ -71,9 +87,8 @@ Use these tools:
      * Individual `.csproj` files
      * Solution `.sln` file (for platform configuration)
 
----
-
-### Step 2: Locate Target Files
+### Step 3: (MANDATORY)
+Locate Target Files
 
 1. **Find Solution Directory:**
    - Extract directory from solution_path: `Path.GetDirectoryName(solution_path)`
@@ -89,9 +104,9 @@ Use these tools:
    - If required file doesn't exist, create it (e.g., Directory.Packages.props)
    - If file exists, read current content before modifying
 
----
 
-### Step 3: Apply Fix Instructions
+### Step 4: (MANDATORY)
+Apply Fix Instructions
 
 ** CRITICAL: Use `replace_string_in_file` or `create_file` - DO NOT output code blocks **
 
@@ -151,9 +166,8 @@ Use these tools:
      * Change description
      * Old value → New value
 
----
-
-### Step 4: Validate Fix Application
+### Step 5 (MANDATORY)
+Validate Fix Application
 
 1. **Check File Modifications:**
    - Re-read modified files to confirm changes applied
@@ -169,16 +183,16 @@ Use these tools:
    - If fix instructions unclear or not applicable: `fix_status = SKIPPED`
    - If no more options available after last_option_applied: `fix_status = NO_MORE_OPTIONS`
 
----
 
-### Step 5: Output Results
-
-1. **DEBUG Exit Trace:**
+### Step 6 (MANDATORY)
+Output Results
+DEBUG Exit Trace:
    - If environment variable DEBUG=1, emit a line to stdout before returning:
    - `[debug][task-apply-knowledge-base-fix] END fix_status='{{fix_status}}' files_modified={{files_modified}}`
    - This helps trace when the task completes and its outcome.
 
-2. **Log to Decision Log:**
+### Step 7 (MANDATORY)
+Log to Decision Log:
    - Call @task-update-decision-log to log task execution:
    ```
    @task-update-decision-log 
@@ -193,7 +207,8 @@ Use these tools:
    - {{kb_file_name}}: Extract filename from kb_file_path (e.g., "nu1008_central_package_management.md")
    - Status: "SUCCESS" if fix_status is SUCCESS, "FAIL" if fix_status is FAIL, "SKIPPED" if fix_status is SKIPPED
 
-3. **Return JSON Output:**
+### Step 8 (MANDATORY)
+Return JSON Output:
 
 Return JSON output with the following structure:
 

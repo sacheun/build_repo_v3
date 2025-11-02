@@ -5,7 +5,10 @@ Task name: task-search-knowledge-base
 ---
 temperature: 0.1
 ---
+## Description:
+This task analyzes build failures, extracts detection tokens from error output, and searches existing knowledge base articles for matches. If a match is found, it returns the path to the existing KB article. If no match is found, it signals that a new KB article should be created.
 
+## Execution Policy
 ** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
 
 This task requires AI STRUCTURAL REASONING and CANNOT be automated in a script.
@@ -31,20 +34,18 @@ DO NOT:
 
 ** END WARNING **
 
-## Description:
-This task analyzes build failures, extracts detection tokens from error output, and searches existing knowledge base articles for matches. If a match is found, it returns the path to the existing KB article. If no match is found, it signals that a new KB article should be created.
-
-## Behavior (Follow this Step by Step)
-0. **DEBUG Entry Trace:**
+## Instructions (Follow this Step by Step)
+### Step 1 (MANDATORY)
    - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
    - `[debug][task-search-knowledge-base] START solution='{{solution_name}}' build_status='{{build_status}}' error_count={{len(errors)}}`
    - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
 
-1. **Success Check**: If build_status == SUCCESS, return kb_search_status=SKIPPED (no action needed).
+### Step 2 (MANDATORY)
+  **Success Check**: If build_status == SUCCESS, return kb_search_status=SKIPPED (no action needed).
    - DEBUG: Log "[KB-SEARCH-DEBUG] Build status: {build_status}, KB search skipped"
    - Return: kb_search_status=SKIPPED, kb_file_path=null, detection_tokens=[]
 
-2. **Failure Analysis**: If build_status == FAIL, proceed with error analysis:
+ **Failure Analysis**: If build_status == FAIL, proceed with error analysis:
    
    ** USE AI STRUCTURAL REASONING - NOT REGEX **:
    - Read and comprehend the build error output (don't just scan for patterns)
@@ -101,7 +102,8 @@ This task analyzes build failures, extracts detection tokens from error output, 
       - DEBUG: Log "[KB-SEARCH-DEBUG] Error signature: {error_signature}"
       - **USE AI**: Choose tokens that uniquely identify this error type
 
-3. **Knowledge Base Search**:
+### Step 3 (MANDATORY)
+**Knowledge Base Search**:
    
    ** USE read_file AND AI REASONING - NOT SIMPLE STRING MATCHING **:
    - Use read_file tool to load each KB article in knowledge_base_markdown/
@@ -142,7 +144,8 @@ This task analyzes build failures, extracts detection tokens from error output, 
       - DEBUG: Log "[KB-SEARCH-DEBUG] No matching KB article found"
       - Return: kb_search_status=NOT_FOUND, kb_file_path=null, detection_tokens={extracted_tokens}
 
-4. **Output**: Return search results.
+### Step 4 (MANDATORY)
+**Output**: Return search results.
    - DEBUG: Log "[KB-SEARCH-DEBUG] Final status: kb_search_status={status}, kb_file_path={path}, tokens={tokens}"
 
 Variables available:
