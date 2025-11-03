@@ -9,7 +9,9 @@ This script orchestrates the complete repository workflow by:
 4. Executing tasks for each repository sequentially
 5. Updating master checklist
 6. Verifying all tasks completed
-7. Processing solution checklists
+7. Processing solution checklists (regardless of repository task completion status)
+
+Note: Solution processing will proceed even when repository tasks are incomplete.
 
 Usage:
     python ./tools/orchestrate_repo_workflow.py [--append]
@@ -590,10 +592,33 @@ def build_repos_with_solutions() -> Set[str]:
         debug_print("WARNING: repo results CSV not found, cannot determine repos with solutions")
     
     if DEBUG:
-        debug_print(f"Repositories with solutions to process: {sorted(repos_with_solutions)}")
+        debug_print(f"Repositories with solutions from CSV: {sorted(repos_with_solutions)}")
+    
+    # Also look for solution checklist files directly to catch repos that may have
+    # incomplete repo tasks but still have solutions to process
+    solution_checklist_files = list(TASKS_DIR.glob('*_solution_checklist.md'))
+    if solution_checklist_files:
+        debug_print(f"Found {len(solution_checklist_files)} solution checklist files")
+        for checklist_file in solution_checklist_files:
+            # Extract repo name from solution checklist filename
+            # Format: {repo_name}_solution_checklist.md or solutions_{repo_name}.md
+            filename = checklist_file.stem
+            if filename.endswith('_solution_checklist'):
+                repo_name = filename.replace('_solution_checklist', '')
+                repos_with_solutions.add(repo_name)
+                if DEBUG:
+                    debug_print(f"Added repository '{repo_name}' from solution checklist file")
+            elif filename.startswith('solutions_'):
+                repo_name = filename.replace('solutions_', '')
+                repos_with_solutions.add(repo_name)
+                if DEBUG:
+                    debug_print(f"Added repository '{repo_name}' from solution checklist file")
+    
+    if DEBUG:
+        debug_print(f"Final repositories with solutions to process: {sorted(repos_with_solutions)}")
     
     if len(repos_with_solutions) == 0:
-        debug_print("WARNING: No repositories with task-find-solutions entries found")
+        debug_print("WARNING: No repositories with solutions found")
         debug_print("Solution processing will be skipped")
     
     return repos_with_solutions
@@ -613,6 +638,8 @@ def process_solutions(
 ]:
     """
     Process all solution tasks with retry logic.
+    
+    This function will process solutions regardless of repository task completion status.
     
     Args:
         repos_with_solutions: Set of repository names with solutions
@@ -639,14 +666,17 @@ def process_solutions(
             for repo in final_incomplete_repos:
                 debug_print(f"  - {repo['repo_name']}: {len(repo['incomplete_tasks'])} incomplete tasks")
         debug_print(
-            f"Will only process solutions for {len(repos_with_solutions)} "
-            "repositories with solutions"
+            f"Will proceed to process solutions for {len(repos_with_solutions)} "
+            "repositories with solutions (ignoring incomplete repo tasks)"
         )
     else:
         debug_print("All repositories completed successfully after retries")
     
-    # Discover incomplete solutions
-    incomplete_solutions = solution_ops.discover_incomplete(repos_with_solutions)
+    # Discover incomplete solutions (proceed regardless of repo task completion status)
+    incomplete_solutions = solution_ops.discover_incomplete(
+        repos_with_solutions, 
+        ignore_repo_completion=True
+    )
     
     # For statistics
     solution_checklist_files = list(TASKS_DIR.glob('*_solution_checklist.md'))

@@ -360,7 +360,8 @@ class SolutionOperations:
     
     def discover_incomplete(
         self,
-        completed_repo_names: Set[str] = None
+        completed_repo_names: Set[str] = None,
+        ignore_repo_completion: bool = False
     ) -> List[Dict[str, str]]:
         """
         Identify solution checklists that require processing.
@@ -371,6 +372,7 @@ class SolutionOperations:
 
         Args:
             completed_repo_names: Optional set of repository names to include.
+            ignore_repo_completion: If True, process solutions regardless of repo completion status.
 
         Returns:
             List of dictionaries with solution_name, checklist_path, and parent_repo.
@@ -379,7 +381,7 @@ class SolutionOperations:
         self._debug_print("discovering solution checklists")
 
         repo_filter = None
-        if completed_repo_names:
+        if completed_repo_names and not ignore_repo_completion:
             repo_filter = {name.strip() for name in completed_repo_names if name}
 
         verification_results = self.verify_tasks_completed(repo_filter=repo_filter)
@@ -408,7 +410,19 @@ class SolutionOperations:
 
             slug_name = checklist_path.stem.replace('_solution_checklist', '')
             repo_name = verification_entry.get('repo_name')
-            if repo_filter:
+            
+            # If ignoring repo completion, derive repo name from slug and include all solutions
+            if ignore_repo_completion:
+                if not repo_name:
+                    # Try to derive repo name from solution name
+                    if completed_repo_names:
+                        repo_name = next(
+                            (candidate for candidate in completed_repo_names if slug_name.startswith(candidate)),
+                            slug_name  # Use slug name as fallback
+                        )
+                    else:
+                        repo_name = slug_name
+            elif repo_filter:
                 if repo_name and repo_name not in repo_filter:
                     derived_repo = next(
                         (candidate for candidate in repo_filter if slug_name.startswith(candidate)),
@@ -424,6 +438,7 @@ class SolutionOperations:
                     )
                     if not repo_name:
                         continue
+                        
             incomplete_solutions.append({
                 'solution_name': slug_name,
                 'checklist_path': str(checklist_path),

@@ -73,6 +73,8 @@ class CopilotExecutor:
                 shell=True,
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
+                errors='ignore',
                 timeout=1800  # 30 minute timeout
             )
         except subprocess.TimeoutExpired:
