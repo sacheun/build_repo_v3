@@ -6,6 +6,7 @@ temperature: 0.1
 ## Description:
 This prompt finds all unmarked tasks from a solution checklist markdown file and executes them sequentially. Each checklist file contains tasks for ONE solution only. It processes all uncompleted tasks in the specified checklist until all are complete or an error occurs.
 
+## Execution Policy
 **CRITICAL REQUIREMENT:** After completing a task, you must update the designated solution markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
 
 **⚠️ CRITICAL: This is an EXECUTOR prompt - it ONLY calls other task prompts. It does NOT execute commands directly.**
@@ -24,9 +25,8 @@ This prompt finds all unmarked tasks from a solution checklist markdown file and
   - If build FAILED → Execute @task-search-knowledge-base
   - If build SUCCEEDED → Mark as [x] SKIPPED
 
-## Behavior (Follow this Step by Step)
-
-**Step 0: Initialize Parameters**
+## Instructions (Follow this Step by Step)
+### Step 0: Initialize Parameters (MANDATORY)
 1. Required parameters:
       solution_checklist = <required> (path to solution checklist markdown file for ONE solution, e.g., "./tasks/ic3_spool_cosine-dep-spool_ResourceProvider_solution_checklist.md")
 2. **[MANDATORY] Initialize solution_result.csv tracking file:**
@@ -36,7 +36,7 @@ This prompt finds all unmarked tasks from a solution checklist markdown file and
      repo,solution,task name,status
      ```
 
-**Step 1: Read Solution Checklist and Find Next Unmarked Task**
+### Step 1: Read Solution Checklist and Find Next Unmarked Task (MANDATORY)
 1. Read the solution checklist file specified by solution_checklist parameter
 2. Parse the solution section (## Solution: {solution_name})
    - Note: Each checklist file contains ONLY ONE solution
@@ -50,7 +50,7 @@ This prompt finds all unmarked tasks from a solution checklist markdown file and
    - Store these values for use in task parameter preparation
 9. **Continue to next step to execute this task**
 
-**Step 2: Prepare Task Parameters**
+### Step 2: Prepare Task Parameters (MANDATORY)
 
 **Task Numbering and Attempt Tracking:**
 Tasks are numbered #1-10 with specific attempt numbers for retry tasks:
@@ -128,7 +128,7 @@ For the FIRST uncompleted [ ] task found:
    - Extract solution_path, solution_name, and task-specific variables
    - For CONDITIONAL tasks, read condition variables to determine if task should execute
 
-**Step 3: Gather Required Input Data**
+### Step 3: Gather Required Input Data (MANDATORY)
 
 Before executing the task, gather all required variables from the "### Solution Variables" section:
 
@@ -178,7 +178,7 @@ Before executing the task, gather all required variables from the "### Solution 
 - Extract solution_path from "Path:" line in solution section
 - Initialize all variables with default values (e.g., NOT_EXECUTED, N/A, SKIPPED)
 
-**Step 4: Execute Corresponding Task Prompt**
+### Step 4: Execute Corresponding Task Prompt (MANDATORY)
 Based on task type identified in Step 3:
 
 **⚠️ CRITICAL: DO NOT execute commands directly! Call the task prompts:**

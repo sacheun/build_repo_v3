@@ -232,6 +232,57 @@ error_type: "NuGet"
 
 ---
 
+## Step 3: Result Tracking (MANDATORY)
+Append to solution-results.csv
+1. **Prepare CSV entry:**
+   - timestamp: Current UTC timestamp in ISO 8601 format (e.g., "2025-10-26T12:00:00Z")
+   - repo_name: {{repo_name}}
+   - solution_name: {{solution_name}}
+   - task_name: "@task-search-knowledge-base"
+   - status: "SUCCESS" if kb_search_status="COMPLETED", "SKIPPED" if kb_search_status="SKIPPED"
+   - symbol: "✓" if status="SUCCESS", "⊘" if status="SKIPPED"
+
+2. **Append to results/solution-results.csv using comma (`,`) as the separator:**
+   - Format: `{{timestamp}},{{repo_name}},{{solution_name}},@task-search-knowledge-base,{{status}},{{symbol}}`
+   - Use PowerShell: `Add-Content -Path ".\results\solution-results.csv" -Value "{{csv_row}}"`
+   - Ensure directory exists: `.\results\`
+   - If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
+
+## Step 4: Repo Checklist Update (MANDATORY)
+Mark current task complete
+1. **Open checklist file:**
+   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
+
+2. **Find and update ONLY the current task entry:**
+   - Search for line: `- [ ] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base`
+   - If task was executed: Replace with `- [x] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base`
+   - If task was skipped: Replace with `- [x] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base - SKIPPED (build succeeded)`
+   - Do NOT modify any other task entries
+   - Do NOT update other solution checklists
+
+3. **Write updated content back to file**
+
+## Step 5: Repo Variable Refresh (MANDATORY)
+Update solution variables
+1. **Open checklist file:**
+   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
+
+2. **Find the Solution Variables section**
+
+3. **Update the following variables based on task execution:**
+   - `kb_search_status` → "COMPLETED" if KB search was executed, "SKIPPED" if task was skipped
+   - `kb_file_path` → path to KB article if found (e.g., "knowledge_base_markdown/sf_baseoutputpath_missing.md"), or "N/A" if not found or skipped
+
+4. **Maintain all other existing variables unchanged:**
+   - solution_path, solution_name, max_build_attempts, restore_status, build_status, kb_article_status
+   - fix_applied_attempt_1, retry_build_status_attempt_1
+   - fix_applied_attempt_2, retry_build_status_attempt_2
+   - fix_applied_attempt_3, retry_build_status_attempt_3
+
+5. **Write updated variables back to checklist file**
+
+---
+
 ## Step 6: Output Results
 
 1. **DEBUG Exit Trace:**

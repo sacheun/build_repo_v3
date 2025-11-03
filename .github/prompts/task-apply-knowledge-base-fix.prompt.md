@@ -184,14 +184,71 @@ Validate Fix Application
    - If no more options available after last_option_applied: `fix_status = NO_MORE_OPTIONS`
 
 
+### Step 4 (MANDATORY)
+Result Tracking: Append to solution-results.csv
+1. **Prepare CSV entry:**
+   - timestamp: Current UTC timestamp in ISO 8601 format (e.g., "2025-10-26T12:00:00Z")
+   - repo_name: {{repo_name}}
+   - solution_name: {{solution_name}}
+   - task_name: "@task-apply-knowledge-base-fix"
+   - status: "SUCCESS" if fix_status=SUCCESS, "FAIL" if fix_status=FAIL, "SKIPPED" if fix_status=SKIPPED or NO_MORE_OPTIONS
+   - symbol: "✓" if status="SUCCESS", "✗" if status="FAIL", "⊘" if status="SKIPPED"
+
+2. **Append to results/solution-results.csv using comma (`,`) as the separator:**
+   - Format: `{{timestamp}},{{repo_name}},{{solution_name}},@task-apply-knowledge-base-fix,{{status}},{{symbol}}`
+   - Use PowerShell: `Add-Content -Path ".\results\solution-results.csv" -Value "{{csv_row}}"`
+   - Ensure directory exists: `.\results\`
+   - If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
+
+### Step 5 (MANDATORY)
+Repo Checklist Update: Mark current task complete
+1. **Open checklist file:**
+   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
+
+2. **Find and update the appropriate conditional task entry based on attempt number:**
+   - For Attempt 1: `- [ ] [CONDITIONAL #5 - Attempt 1] Apply fix from KB @task-apply-knowledge-base-fix`
+   - For Attempt 2: `- [ ] [CONDITIONAL #7 - Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix`
+   - For Attempt 3: `- [ ] [CONDITIONAL #9 - Attempt 3] Apply fix from KB @task-apply-knowledge-base-fix`
+   - If executed: Replace `[ ]` with `[x]`
+   - If skipped: Add ` - SKIPPED (reason)` suffix
+   - Do NOT modify any other task entries
+
+3. **Write updated content back to file**
+
 ### Step 6 (MANDATORY)
+Repo Variable Refresh: Update solution variables
+1. **Open checklist file:**
+   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
+
+2. **Find the Solution Variables section**
+
+3. **Update variables based on which attempt this is:**
+   - **For Attempt 1:**
+     * `fix_applied_attempt_1` → "APPLIED" if fix_status=SUCCESS, "NOT_APPLIED" if fix_status=FAIL, "SKIPPED (reason)" if fix_status=SKIPPED or NO_MORE_OPTIONS
+     * `kb_option_applied_attempt_1` → option number (1, 2, 3) if fix_status=SUCCESS, or "null" if NO_MORE_OPTIONS or not applied
+   
+   - **For Attempt 2:**
+     * `fix_applied_attempt_2` → "APPLIED" if fix_status=SUCCESS, "NOT_APPLIED" if fix_status=FAIL, "SKIPPED (reason)" if fix_status=SKIPPED or NO_MORE_OPTIONS
+     * `kb_option_applied_attempt_2` → option number (1, 2, 3) if fix_status=SUCCESS, or "null" if NO_MORE_OPTIONS or not applied
+   
+   - **For Attempt 3:**
+     * `fix_applied_attempt_3` → "APPLIED" if fix_status=SUCCESS, "NOT_APPLIED" if fix_status=FAIL, "SKIPPED (reason)" if fix_status=SKIPPED or NO_MORE_OPTIONS
+     * `kb_option_applied_attempt_3` → option number (1, 2, 3) if fix_status=SUCCESS, or "null" if NO_MORE_OPTIONS or not applied
+
+4. **Maintain all other existing variables unchanged:**
+   - solution_path, solution_name, max_build_attempts, restore_status, build_status, kb_search_status, kb_file_path, kb_article_status
+   - Other attempt variables (don't update attempt 2 if this is attempt 1, etc.)
+
+5. **Write updated variables back to checklist file**
+
+### Step 7 (MANDATORY)
 Output Results
 DEBUG Exit Trace:
    - If environment variable DEBUG=1, emit a line to stdout before returning:
    - `[debug][task-apply-knowledge-base-fix] END fix_status='{{fix_status}}' files_modified={{files_modified}}`
    - This helps trace when the task completes and its outcome.
 
-### Step 7 (MANDATORY)
+### Step 8 (MANDATORY)
 Log to Decision Log:
    - Call @task-update-decision-log to log task execution:
    ```
@@ -207,7 +264,7 @@ Log to Decision Log:
    - {{kb_file_name}}: Extract filename from kb_file_path (e.g., "nu1008_central_package_management.md")
    - Status: "SUCCESS" if fix_status is SUCCESS, "FAIL" if fix_status is FAIL, "SKIPPED" if fix_status is SKIPPED
 
-### Step 8 (MANDATORY)
+### Step 9 (MANDATORY)
 Return JSON Output:
 
 Return JSON output with the following structure:

@@ -135,7 +135,34 @@ Aggregate Statistics
    - Overwrite the entire file with new statistics
    - Format: `knowledgebase_file,option,success,attempt`
    - Example row: `nu1008_central_package_management.md,1,3,5`
+   - Write to stats file
    - DEBUG: Log "[KB-LOG-DEBUG] Wrote {{row_count}} rows to knowledgebase-stats.csv"
+
+### Step 5 (MANDATORY)
+Result Tracking: Append to solution-results.csv
+**Note:** This task logs KB usage but doesn't execute build/restore/fix tasks directly. Only log to solution-results.csv if repo_name is provided (indicating solution-level workflow context).
+
+1. **If repo_name is provided (non-empty):**
+   - Extract solution_name from context (if available, otherwise use empty string)
+   - Prepare CSV entry:
+     * timestamp: {{timestamp}}
+     * repo_name: {{repo_name}}
+     * solution_name: {{solution_name}} (or empty if not available)
+     * task_name: "@task-update-knowledgebase-log"
+     * status: "SUCCESS" if log_status=SUCCESS, "FAIL" if log_status=FAIL
+     * symbol: "✓" if status="SUCCESS", "✗" if status="FAIL"
+   
+   - Append to results/solution-results.csv using comma (`,`) as the separator:
+     * Format: `{{timestamp}},{{repo_name}},{{solution_name}},@task-update-knowledgebase-log,{{status}},{{symbol}}`
+     * Use PowerShell: `Add-Content -Path ".\results\solution-results.csv" -Value "{{csv_row}}"`
+     * Ensure directory exists: `.\results\`
+     * If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
+
+2. **If repo_name is empty:**
+   - Skip solution-results.csv logging (standalone KB log update)
+
+### Step 6 (MANDATORY)
+Output Results
 
 ### Step 6 (MANDATORY)
 Output Results

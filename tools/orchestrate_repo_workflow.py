@@ -27,9 +27,8 @@ import re
 import shutil
 import sys
 import time
-from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, Iterable, List, Set, Tuple
 
 # Import custom modules
 from copilot_executor import CopilotExecutor
@@ -59,6 +58,7 @@ repo_ops = RepoOperations(
 )
 solution_ops = SolutionOperations(
     tasks_dir=TASKS_DIR,
+    results_dir=RESULTS_DIR,
     copilot_executor=copilot,
     debug=DEBUG
 )
@@ -93,17 +93,32 @@ def clean_directories():
 
 
 def ensure_solution_results_csv():
-    """Create solution_result.csv with expected header when missing."""
-    csv_path = RESULTS_DIR / 'solution_result.csv'
-
-    if csv_path.exists():
-        return
-
+    """Create solution results tracking files with expected headers when missing."""
     RESULTS_DIR.mkdir(exist_ok=True)
-    with open(csv_path, 'w', encoding='utf-8', newline='') as handle:
-        handle.write('repo,solution,task name,status\n')
 
-    debug_print("initialized solution_result.csv in results directory")
+    templates = {
+        'solution-results.csv': 'timestamp,repo_name,solution_name,task_name,status,symbol\n',
+        'solution_result.csv': 'repo,solution,task name,status\n'
+    }
+
+    created_files: List[str] = []
+
+    for filename, header in templates.items():
+        csv_path = RESULTS_DIR / filename
+        if csv_path.exists():
+            continue
+
+        with open(csv_path, 'w', encoding='utf-8', newline='') as handle:
+            handle.write(header)
+
+        created_files.append(filename)
+
+    if created_files:
+        debug_print(
+            (
+                "initialized solution results tracking files: {files}"
+            ).format(files=', '.join(created_files))
+        )
 
 
 def ensure_repo_results_csv():
@@ -136,6 +151,14 @@ def iter_repo_results_files() -> List[Path]:
     return [
         RESULTS_DIR / 'repo_result.csv',
         RESULTS_DIR / 'repo-results.csv'
+    ]
+
+
+def iter_solution_results_files() -> List[Path]:
+    """Return candidate solution results CSV files (supports legacy names)."""
+    return [
+        RESULTS_DIR / 'solution-results.csv',
+        RESULTS_DIR / 'solution_result.csv'
     ]
 
 
@@ -227,143 +250,109 @@ def run_copilot_command(command: str) -> Tuple[int, str, str]:
 # ============================================================================
 
 
-def purge_solution_results(csv_path: Path, repo_name: str, solution_name: str) -> int:
-    """
-    Remove rows for a repo/solution pair from solution_result.csv.
-    
-    Args:
-        csv_path: Path to the solution results CSV file
-        repo_name: Repository name
-        solution_name: Solution name
-        
-    Returns:
-        Number of rows removed
-    """
-    if not csv_path.exists():
-        debug_print("solution_result.csv not found - nothing to purge")
+def purge_solution_results(repo_name: str, solution_names: Iterable[str]) -> int:
+    """Remove rows for a repo/solution pair from solution results CSV files."""
+    normalized_repo = (repo_name or '').strip()
+    if not normalized_repo:
+        debug_print("purge_solution_results skipped - repo name empty")
         return 0
 
-    removed = 0
-    try:
-        with open(csv_path, 'r', encoding='utf-8', newline='') as infile:
-            import csv as csv_module
-            reader = csv_module.DictReader(infile)
-            rows = list(reader)
-            fieldnames = reader.fieldnames or ['repo', 'solution', 'task name', 'status']
+    name_candidates: Set[str] = set()
+    for value in solution_names:
+        if not value:
+            continue
+        trimmed = value.strip()
+        if not trimmed:
+            continue
+        name_candidates.add(trimmed)
+        name_candidates.add(trimmed.replace('_', ' '))
+        name_candidates.add(trimmed.replace('_', '.'))
+        name_candidates.add(trimmed.replace('.', '_'))
+
+    normalized_solutions = {name.lower() for name in name_candidates if name}
+    if not normalized_solutions:
+        debug_print(
+            f"purge_solution_results skipped - no solution identifiers for repo {repo_name}"
+        )
+        return 0
+
+    total_removed = 0
+
+    for csv_path in iter_solution_results_files():
+        if not csv_path.exists():
+            continue
+
+        try:
+            with open(csv_path, 'r', encoding='utf-8', newline='') as infile:
+                reader = csv.DictReader(infile)
+                fieldnames = reader.fieldnames
+                rows = list(reader)
+        except Exception as exc:  # noqa: BLE001
+            debug_print(
+                f"WARNING: unable to read {csv_path.name} for purge: {exc}"
+            )
+            continue
+
+        if not fieldnames:
+            continue
 
         filtered_rows = []
-        for row in rows:
-            repo_value = (row.get('repo') or row.get('Repository') or '').strip()
-            solution_value = (row.get('solution') or row.get('Solution') or '').strip()
+        removed_here = 0
 
-            if repo_value == repo_name and solution_value == solution_name:
-                removed += 1
+        for row in rows:
+            repo_value = (
+                row.get('repo')
+                or row.get('repo_name')
+                or row.get('Repository')
+                or ''
+            ).strip()
+            solution_value = (
+                row.get('solution')
+                or row.get('solution_name')
+                or row.get('Solution')
+                or ''
+            ).strip()
+
+            if (
+                repo_value.lower() == normalized_repo.lower()
+                and solution_value.lower() in normalized_solutions
+            ):
+                removed_here += 1
                 continue
 
             filtered_rows.append(row)
 
-        if removed:
-            with open(csv_path, 'w', encoding='utf-8', newline='') as outfile:
-                writer = csv_module.DictWriter(outfile, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(filtered_rows)
+        if removed_here:
+            try:
+                with open(csv_path, 'w', encoding='utf-8', newline='') as outfile:
+                    writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(filtered_rows)
+            except Exception as exc:  # noqa: BLE001
+                debug_print(
+                    f"WARNING: failed to rewrite {csv_path.name}: {exc}"
+                )
+                continue
 
+            total_removed += removed_here
+            debug_print(
+                (
+                    "purged {count} solution_result rows for {repo}/{solution} "
+                    "from {name}"
+                ).format(
+                    count=removed_here,
+                    repo=repo_name,
+                    solution='|'.join(sorted(normalized_solutions)),
+                    name=csv_path.name
+                )
+            )
+
+    if total_removed == 0:
         debug_print(
-            f"purged {removed} rows for repo '{repo_name}' solution '{solution_name}' "
-            "from solution_result.csv"
+            f"no existing solution_result rows found for {repo_name}"
         )
 
-    except Exception as exc:
-        debug_print(
-            f"ERROR: failed to purge solution_result.csv for repo '{repo_name}' "
-            f"solution '{solution_name}': {exc}"
-        )
-        return 0
-
-    return removed
-
-
-def validate_solution_results(solutions: List[Dict[str, Any]], csv_path: Path) -> List[Dict[str, str]]:
-    """
-    Ensure each processed solution has at least one entry in CSV.
-    
-    Args:
-        solutions: List of solution dictionaries
-        csv_path: Path to the solution results CSV file
-        
-    Returns:
-        List of solutions that failed validation
-    """
-    if not solutions:
-        return []
-
-    if not csv_path.exists():
-        debug_print(
-            "solution_result.csv missing - all processed solutions will "
-            "be treated as failures"
-        )
-        failures = []
-        for solution in solutions:
-            failures.append({
-                'solution_name': solution.get('solution_name'),
-                'solution_display_name': solution.get('solution_display_name'),
-                'parent_repo': solution.get('parent_repo'),
-                'checklist_path': solution.get('checklist_path'),
-                'reason': 'solution_result.csv missing'
-            })
-        return failures
-
-    entry_counts = defaultdict(int)
-
-    try:
-        import csv as csv_module
-        with open(csv_path, 'r', encoding='utf-8', newline='') as handle:
-            reader = csv_module.DictReader(handle)
-            for row in reader:
-                repo_value = (row.get('repo') or row.get('Repository') or '').strip()
-                solution_value = (row.get('solution') or row.get('Solution') or '').strip()
-
-                if repo_value and solution_value:
-                    entry_counts[(repo_value, solution_value)] += 1
-
-    except Exception as exc:
-        debug_print(f"ERROR: unable to read solution_result.csv: {exc}")
-        return [{
-            'solution_name': item.get('solution_name'),
-            'solution_display_name': item.get('solution_display_name'),
-            'parent_repo': item.get('parent_repo'),
-            'checklist_path': item.get('checklist_path'),
-            'reason': 'solution_result.csv unreadable'
-        } for item in solutions]
-
-    failures = []
-    for solution in solutions:
-        repo_name = solution.get('parent_repo')
-        display_name = solution.get('solution_display_name')
-        slug_name = solution.get('solution_name')
-
-        effective_name = display_name or slug_name
-
-        if not repo_name or not effective_name:
-            failures.append({
-                'solution_name': slug_name,
-                'solution_display_name': display_name,
-                'parent_repo': repo_name,
-                'checklist_path': solution.get('checklist_path'),
-                'reason': 'missing repo or solution name for validation'
-            })
-            continue
-
-        if entry_counts[(repo_name, effective_name)] == 0:
-            failures.append({
-                'solution_name': slug_name,
-                'solution_display_name': display_name,
-                'parent_repo': repo_name,
-                'checklist_path': solution.get('checklist_path'),
-                'reason': 'solution_result.csv missing entry'
-            })
-
-    return failures
+    return total_removed
 
 
 def initialize_workflow(append_mode: bool, solutions_only: bool, repo_only: bool) -> datetime.datetime:
@@ -543,8 +532,6 @@ def process_repositories(append_mode: bool) -> Tuple[List[Dict[str, Any]], int, 
         successful_count = 0
         failed_count = 0
     
-    processed_repo_count = len(processed_repo_names)
-    
     return repository_details, successful_count, failed_count, total_repositories, final_incomplete_repos
 
 
@@ -612,7 +599,18 @@ def build_repos_with_solutions() -> Set[str]:
     return repos_with_solutions
 
 
-def process_solutions(repos_with_solutions: Set[str], final_incomplete_repos: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int, int, List[Any], List[Any], List[Any]]:
+def process_solutions(
+    repos_with_solutions: Set[str],
+    final_incomplete_repos: List[Dict[str, Any]]
+) -> Tuple[
+    List[Dict[str, Any]],
+    int,
+    int,
+    List[Any],
+    List[Any],
+    List[Any],
+    List[Dict[str, Any]]
+]:
     """
     Process all solution tasks with retry logic.
     
@@ -621,7 +619,15 @@ def process_solutions(repos_with_solutions: Set[str], final_incomplete_repos: Li
         final_incomplete_repos: List of repositories that still have incomplete tasks
         
     Returns:
-        Tuple of (solution_details, successful_count, failed_count, incomplete_solutions, solution_checklist_files, skipped_solutions)
+        Tuple of (
+            solution_details,
+            successful_count,
+            failed_count,
+            incomplete_solutions,
+            solution_checklist_files,
+            skipped_solutions,
+            final_failed_solutions
+        )
     """
     if len(final_incomplete_repos) > 0:
         debug_print(
@@ -661,7 +667,6 @@ def process_solutions(repos_with_solutions: Set[str], final_incomplete_repos: Li
         
         next_pending: List[Dict[str, Any]] = []
         attempt_results: List[Dict[str, Any]] = []
-        csv_path = RESULTS_DIR / 'solution_result.csv'
         
         for solution in pending_solutions:
             solution_copy = dict(solution)
@@ -675,8 +680,38 @@ def process_solutions(repos_with_solutions: Set[str], final_incomplete_repos: Li
             solution_key = (parent_repo, solution_name)
             processed_solution_keys.add(solution_key)
             
-            solution_ops.reset_tasks(Path(checklist_path))
-            purge_solution_results(csv_path, parent_repo or '', display_name)
+            reset_required = bool(solution_copy.pop('needs_reset', False))
+            extra_purge = {
+                value for value in solution_copy.pop('purge_candidates', [])
+                if isinstance(value, str) and value.strip()
+            }
+
+            identifier_values: Set[str] = {
+                value.strip()
+                for value in {
+                    display_name,
+                    solution_name
+                }
+                if isinstance(value, str) and value.strip()
+            }
+            if '_' in solution_name:
+                suffix = solution_name.split('_', 1)[1]
+                identifier_values.update({
+                    suffix,
+                    suffix.replace('_', ' '),
+                    suffix.replace('_', '.')
+                })
+            if display_name:
+                identifier_values.update({
+                    display_name.replace('_', ' '),
+                    display_name.replace('_', '.'),
+                })
+            identifier_values.update(extra_purge)
+            solution_copy['identifier_values'] = list(identifier_values)
+
+            if reset_required:
+                solution_ops.reset_tasks(Path(checklist_path))
+                purge_solution_results(parent_repo or '', identifier_values)
             
             result_detail = solution_ops.execute_task(
                 solution_name,
@@ -692,19 +727,15 @@ def process_solutions(repos_with_solutions: Set[str], final_incomplete_repos: Li
             solution_copy['execution_status'] = result_detail['execution_status']
             attempt_results.append(solution_copy)
         
-        successful_this_attempt = [
-            item for item in attempt_results
-            if item.get('execution_status') == 'SUCCESS'
-        ]
-        
-        validation_failures = validate_solution_results(
-            successful_this_attempt,
-            csv_path
+        verification_results = solution_ops.verify_tasks_completed(
+            repo_filter=repos_with_solutions
         )
-        failure_map = {
-            (item.get('parent_repo'), item.get('solution_name')): item
-            for item in validation_failures
-        }
+        verification_map: Dict[Path, Dict[str, Any]] = {}
+        for entry in verification_results:
+            checklist = entry.get('checklist_path')
+            if not checklist:
+                continue
+            verification_map[Path(checklist).resolve()] = entry
         
         for result in attempt_results:
             solution_name = result.get('solution_name')
@@ -713,34 +744,84 @@ def process_solutions(repos_with_solutions: Set[str], final_incomplete_repos: Li
             
             if result.get('execution_status') != 'SUCCESS':
                 if solution_attempt < MAX_SOLUTION_ATTEMPTS:
-                    next_pending.append({
+                    retry_entry = {
                         key: value
                         for key, value in result.items()
-                        if key != 'execution_status'
-                    })
+                        if key not in {'execution_status', 'attempt'}
+                    }
+                    retry_entry['needs_reset'] = True
+                    candidate_values = set(result.get('identifier_values', []))
+                    if candidate_values:
+                        retry_entry['purge_candidates'] = list(candidate_values)
+                    next_pending.append(retry_entry)
                 else:
-                    final_failed_solutions.append({
-                        **result,
+                    failure_record = {
+                        'parent_repo': parent_repo,
+                        'solution_name': solution_name,
+                        'solution_display_name': result.get('solution_display_name'),
+                        'checklist_path': result.get('checklist_path'),
                         'reason': 'execution failure'
-                    })
+                    }
+                    final_failed_solutions.append(failure_record)
+                result.pop('identifier_values', None)
                 continue
             
-            if solution_key in failure_map:
+            checklist_value = result.get('checklist_path')
+            checklist_real = Path(checklist_value).resolve() if checklist_value else None
+            verification_issue = (
+                verification_map.get(checklist_real)
+                if checklist_real is not None
+                else None
+            )
+            if verification_issue:
+                reason_text = '; '.join(
+                    verification_issue.get('incomplete_tasks', [])
+                ) or 'solution checklist verification failed'
+                debug_print(
+                    (
+                        "solution {repo}/{solution} failed verification: {reason}"
+                    ).format(
+                        repo=parent_repo,
+                        solution=solution_name,
+                        reason=reason_text
+                    )
+                )
+                purge_identifiers: Set[str] = {
+                    value
+                    for value in {
+                        solution_name,
+                        result.get('solution_display_name'),
+                        verification_issue.get('solution_display_name'),
+                        verification_issue.get('solution_slug')
+                    }
+                    if isinstance(value, str) and value.strip()
+                }
                 if solution_attempt < MAX_SOLUTION_ATTEMPTS:
-                    next_pending.append({
+                    retry_entry = {
                         key: value
                         for key, value in result.items()
-                        if key != 'execution_status'
-                    })
+                        if key not in {'execution_status', 'attempt'}
+                    }
+                    retry_entry['needs_reset'] = True
+                    candidate_values = set(result.get('identifier_values', []))
+                    candidate_values.update(purge_identifiers)
+                    if candidate_values:
+                        retry_entry['purge_candidates'] = list(candidate_values)
+                    next_pending.append(retry_entry)
                 else:
-                    failure_info = failure_map[solution_key]
-                    final_failed_solutions.append({
-                        **result,
-                        'reason': failure_info.get('reason')
-                    })
+                    failure_record = {
+                        'parent_repo': parent_repo,
+                        'solution_name': solution_name,
+                        'solution_display_name': result.get('solution_display_name'),
+                        'checklist_path': result.get('checklist_path'),
+                        'reason': reason_text
+                    }
+                    final_failed_solutions.append(failure_record)
+                result.pop('identifier_values', None)
                 continue
             
             successful_solution_keys.add(solution_key)
+            result.pop('identifier_values', None)
         
         pending_solutions = next_pending
         solution_attempt += 1
@@ -768,7 +849,8 @@ def process_solutions(repos_with_solutions: Set[str], final_incomplete_repos: Li
         solution_failed_count,
         incomplete_solutions,
         solution_checklist_files,
-        skipped_solutions
+        skipped_solutions,
+        final_failed_solutions
     )
 
 
@@ -926,13 +1008,14 @@ def main():
         incomplete_solutions = []
         solution_checklist_files = []
         skipped_solutions = []
-        final_failed_solutions = []
+        final_failed_solutions: List[Dict[str, Any]] = []
         
         if not repo_only:
             repos_with_solutions = build_repos_with_solutions()
             
             solution_details, solution_successful_count, solution_failed_count, \
-                incomplete_solutions, solution_checklist_files, skipped_solutions = \
+                incomplete_solutions, solution_checklist_files, skipped_solutions, \
+                final_failed_solutions = \
                 process_solutions(repos_with_solutions, final_incomplete_repos)
         else:
             debug_print("repo_only mode: skipping solution processing")

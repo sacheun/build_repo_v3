@@ -95,6 +95,28 @@ Append Log Entry
    - If append fails, return error status
    - DEBUG: Log "[DECISION-LOG-DEBUG] Log entry appended successfully"
 
+### Step 5 (MANDATORY)
+Result Tracking: Append to solution-results.csv
+**Note:** This task logs decision-log entries but doesn't execute build/restore/fix tasks directly. Only log to solution-results.csv if this is being called as part of a solution-level workflow.
+
+1. **If repo_name AND solution_name are provided (non-empty):**
+   - Prepare CSV entry:
+     * timestamp: {{timestamp}}
+     * repo_name: {{repo_name}}
+     * solution_name: {{solution_name}}
+     * task_name: "@task-update-decision-log"
+     * status: "SUCCESS" if log_status=SUCCESS, "FAIL" if log_status=FAIL
+     * symbol: "✓" if status="SUCCESS", "✗" if status="FAIL"
+   
+   - Append to results/solution-results.csv using comma (`,`) as the separator:
+     * Format: `{{timestamp}},{{repo_name}},{{solution_name}},@task-update-decision-log,{{status}},{{symbol}}`
+     * Use PowerShell: `Add-Content -Path ".\results\solution-results.csv" -Value "{{csv_row}}"`
+     * Ensure directory exists: `.\results\`
+     * If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
+
+2. **If repo_name is empty OR solution_name is empty:**
+   - Skip solution-results.csv logging (this is a repository-level task)
+
 ### Step 6 (MANDATORY)
 Output Results
 
