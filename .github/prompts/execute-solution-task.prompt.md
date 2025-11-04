@@ -579,3 +579,31 @@ Path: `C:\Users\sacheu\speckit_repos\ic3_spool_cosine-dep-spool\samples\External
 - Does not require manual input for each task
 - Does not skip tasks or execute out of order
 - Does not modify task definitions (only executes what's in checklist)
+## Error Handling
+- Missing required parameter solution_checklist: Abort with execution_status="FAIL".
+- Solution checklist file not found: execution_status="FAIL"; do not attempt task discovery.
+- Parse failure for solution section or Solution Variables: Initialize defaults; if critical (cannot locate tasks) → execution_status="FAIL".
+- Conditional evaluation variable missing: Treat as NOT meeting condition; mark task SKIPPED (not FAIL) unless mandatory variable absent for mandatory tasks (tasks 1 or 2); then FAIL.
+- Task prompt invocation returns error: Mark that task FAIL; stop further processing; execution_status="FAIL".
+- Infinite loop guard: If more than 50 iterations without progress (no new task marked) → FAIL with error_message.
+- Unexpected exception: Catch, populate failed_task and error_message; execution_status="FAIL".
+
+## Consistency Checks
+- Task numbering (tasks 1 through 10) must appear exactly once each in checklist lines.
+- Retry attempt variables (_attempt_1/_attempt_2/_attempt_3) must only be set after corresponding apply/ retry tasks execute.
+- When a conditional task is SKIPPED, its line updated to include "SKIPPED" and task_status recorded as SKIPPED.
+- If any retry build succeeds earlier, later fix/retry tasks must be SKIPPED (not executed).
+- ALL_TASKS_COMPLETE implies no remaining "- [ ]" lines in solution section.
+
+## Cross-References
+- {{solution_checklist}} → Path to the solution checklist being processed.
+- {{solution_name}} / {{repo_name}} → Identifiers derived from filename and section heading.
+- {{restore_status}} / {{build_status}} → Core build lifecycle states.
+- {{kb_search_status}} / {{kb_file_path}} → Knowledge base discovery outputs.
+- {{fix_applied_attempt_n}} / {{retry_build_status_attempt_n}} → Per-attempt fix/build outcome tracking (n=1..3).
+- {{execution_status}} → Overall result classification.
+- {{failed_task}} → Task that failed (if any).
+- {{error_message}} → Failure detail (if any).
+- {{tasks_executed}} → Array recording each executed or skipped task.
+- {{status}} → SUCCESS or FAIL aligned with execution_status (ALL_TASKS_COMPLETE -> SUCCESS).
+

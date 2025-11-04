@@ -16,7 +16,7 @@ Tasks should report success/fail, which will be appended to results files (Markd
 6. @generate-solution-task-checklists
 
 
-### Variables available:
+### Repo Variables Available:
 - {{repo_url}} → Original repository URL provided to the workflow.
 - {{clone_path}} → Root folder where repositories are cloned.
 - {{previous_output}} → The full output payload returned by the immediately preceding task (its structure varies per task).

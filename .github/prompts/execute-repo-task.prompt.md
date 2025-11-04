@@ -220,3 +220,31 @@ If the executor is interrupted (Ctrl+C, crash, etc.):
 4. No work is lost - resumes exactly where it stopped
 
 This prompt enables fully autonomous, resumable task execution with complete traceability and checkpoint recovery.
+## Error Handling
+- Missing required parameter repo_checklist or clone: Immediately return execution_status="FAIL" with error_message.
+- Checklist file not found: execution_status="FAIL"; do not create or modify files.
+- Unable to parse "## Repo Tasks" section: execution_status="FAIL" with parsing error details.
+- Dependency variable missing (e.g., repo_directory for @task-search-readme): Mark task BLOCKED; execution_status="BLOCKED"; blocking_reason explains prerequisite.
+- JSON output referenced but unreadable: Treat variable as missing and apply BLOCKED logic.
+- Decision log write failure: Retry once; if still failing continue but include warning in error_message field for that task.
+- Unexpected exception: Catch, log failed_task and error_message; execution_status="FAIL".
+
+## Consistency Checks
+- tasks_executed length MUST equal total_tasks_executed.
+- Each tasks_executed entry must have task_status in {SUCCESS, FAIL, BLOCKED, SKIPPED}.
+- If execution_status == ALL_TASKS_COMPLETE then no entry task_status == FAIL or BLOCKED.
+- If execution_status == BLOCKED then blocking_reason is non-empty and exactly one task_status == BLOCKED.
+- If execution_status == FAIL then failed_task is non-empty and at least one task_status == FAIL.
+- When a CONDITIONAL task is skipped, checklist line updated to "[x] SKIPPED".
+
+## Cross-References
+- {{repo_checklist}} → Path to the repository checklist being processed.
+- {{clone_path}} → Root directory for cloned repositories.
+- {{tasks_dir}} / {{output_dir}} / {{results_dir}} → Standard workspace directories for state and artifacts.
+- {{execution_status}} → Final status summarizing run outcome.
+- {{tasks_executed}} → Detailed per-task execution records.
+- {{total_tasks_executed}} → Count of tasks processed in this invocation.
+- {{failed_task}} → Name of the task that failed (if any).
+- {{blocking_reason}} → Dependency or condition that prevented a task from executing.
+- {{error_message}} → Error detail for FAIL scenarios.
+

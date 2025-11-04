@@ -4,377 +4,303 @@ temperature: 0.1
 
 @task-scan-readme repo_directory={{repo_directory}} repo_name={{repo_name}} readme_content_path={{readme_content_path}}
 
-Task name: task-scan-readme
+# Task name: task-scan-readme
 
-## Description:
-This task analyzes the README content (from task-search-readme output) using structural reasoning to identify and extract setup/build environment commands. This task requires AI structural reasoning and CANNOT be scripted.
+## Description
+This task analyzes the README content (from task-search-readme output) using structural reasoning to identify and extract setup/build environment commands. This task requires AI structural reasoning and **cannot** be scripted.
 
 ## Execution Policy
-** CRITICAL ** DO NOT GENERATE OR EXECUTE A SCRIPT FOR THIS TASK.This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
+**CRITICAL**: DO NOT GENERATE OR EXECUTE A SCRIPT FOR THIS TASK.  
+This task MUST be performed using **direct tool calls** and **structural reasoning**:
 
-This task MUST be performed using DIRECT TOOL CALLS and STRUCTURAL REASONING:
-1. Use read_file tool to load the README content from task-search-readme output JSON
-2. Use structural reasoning to parse and analyze README structure
-3. Use AI reasoning to identify setup sections and extract commands
-4. Use create_file tool to save the parsed command list to JSON output
-5. Use replace_string_in_file tool to update progress/results files
+1. Use `read_file` tool to load the README content from task-search-readme output JSON.
+2. Use structural reasoning to parse and analyze README structure.
+3. Use AI reasoning to identify setup sections and extract commands.
+4. Use `create_file` tool to save the parsed command list to JSON output.
+5. Use `replace_string_in_file` tool to update progress/results files.
 
-** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
-
-** NEVER use regex or simple text parsing - use structural reasoning **
-
+**⚠️ CRITICAL – THIS TASK IS NON-SCRIPTABLE ⚠️**  
+**NEVER use regex or simple text parsing – use structural reasoning.**  
 The AI agent must analyze the README content intelligently to understand context and extract meaningful setup commands.
 
 ## Instructions (Follow this Step by Step)
+
 ### Step 1 (MANDATORY)
-DEBUG Entry Trace: If DEBUG=1, print:
-   `[debug][task-scan-readme] START repo_directory='{{repo_directory}}' readme_content_path='{{readme_content_path}}'`
+**DEBUG Entry Trace:**  
+If DEBUG=1, print:  
+`[debug][task-scan-readme] START repo_directory='{{repo_directory}}' readme_content_path='{{readme_content_path}}'`
 
 ### Step 2 (MANDATORY)
-Input Parameters: 
-   - repo_directory: absolute path to repository root
-   - repo_name: repository name
-   - readme_content_path: path to the JSON file containing README content (from task-search-readme output)
-     Example: "output/{repo_name}_task2_search-readme.json"
+**Input Parameters:**  
+- repo_directory: absolute path to repository root  
+- repo_name: repository name  
+- readme_content_path: path to the JSON file containing README content (from task-search-readme output)  
+  Example: `output/{{repo_name}}_task2_search-readme.json`
 
-Load and Read README Content:
-   - MUST use read_file tool to load the file specified in readme_content_path parameter
-   - MUST extract the "readme_content" field from the JSON
-   - If DEBUG=1, print: `[debug][task-scan-readme] loaded README from {{readme_content_path}}: {{char_count}} characters`
-   - This is MANDATORY - you cannot analyze what you haven't read
-   - The README content is the INPUT to your structural reasoning analysis
+**Load and Read README Content:**  
+- MUST use `read_file` tool to load the file specified in readme_content_path parameter.
+- MUST extract the `readme_content` field from the JSON.
+- If DEBUG=1, print: `[debug][task-scan-readme] loaded README from {{readme_content_path}}: {{char_count}} characters`
+- This is MANDATORY – you cannot analyze what you haven't read.
+- The README content is the INPUT to your structural reasoning analysis.
 
 ### Step 3 (MANDATORY)
-Prerequisites Check:
-   - If README was not found in task-search-readme (readme_content is null or empty), skip analysis
-   - If DEBUG=1, print: `[debug][task-scan-readme] no README content available, skipping scan`
-   - Set status=SKIPPED and proceed to output
-   - If README found, proceed with analysis
+**Prerequisites Check:**  
+- If README was not found in task-search-readme (`readme_content` is null or empty), skip analysis.
+- If DEBUG=1, print: `[debug][task-scan-readme] no README content available, skipping scan`
+- Set status=SKIPPED and proceed to output.
+- If README found, proceed with analysis.
 
-Pre-flight Checklist Verification:
-    - Open `tasks/{{repo_name}}_repo_checklist.md`
-    - Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
-     * `{{commands_extracted}}`
-    - If any token is missing or altered, restore it prior to continuing
-
+**Pre-flight Checklist Verification:**  
+- Open `tasks/{{repo_name}}_repo_checklist.md`
+- Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
+  - `{{commands_extracted}}`
+- If any token is missing or altered, restore it prior to continuing.
 
 ### Step 4 (MANDATORY)
-Structural Reasoning - Section Identification**:
-   - ** YOU MUST ACTUALLY READ THE README CONTENT LOADED IN STEP 2 **
-   - Analyze the actual text of the README using AI reasoning capabilities
-   - Use AI structural reasoning to identify sections in the README that contain setup/build instructions
-   - Look for section headings (Markdown headers, bold text, all-caps lines) containing keywords:
-     - "Prerequisites"
-     - "Before you build"
-     - "Setup"
-     - "Local dev" / "Local development"
-     - "Getting Started"
-     - "Installation"
-     - "Requirements"
-     - "Environment setup"
-     - "Dependencies"
-     - "Building" / "How to build"
-   - If DEBUG=1, print for each identified section: `[debug][task-scan-readme] found setup section: {{section_heading}}`
-   - Consider context: sections near the beginning of README are more likely to be setup instructions
-   - Ignore sections like "Contributing", "License", "FAQ", "Troubleshooting" unless they explicitly mention setup
+**Structural Reasoning – Section Identification:**  
+- **YOU MUST ACTUALLY READ THE README CONTENT LOADED IN STEP 2**
+- Analyze the actual text of the README using AI reasoning capabilities.
+- Use AI structural reasoning to identify sections in the README that contain setup/build instructions.
+- Look for section headings (Markdown headers, bold text, all-caps lines) containing keywords:
+  - "Prerequisites"
+  - "Before you build"
+  - "Setup"
+  - "Local dev" / "Local development"
+  - "Getting Started"
+  - "Installation"
+  - "Requirements"
+  - "Environment setup"
+  - "Dependencies"
+  - "Building" / "How to build"
+- If DEBUG=1, print for each identified section: `[debug][task-scan-readme] found setup section: {{section_heading}}`
+- Consider context: sections near the beginning of README are more likely to be setup instructions.
+- Ignore sections like "Contributing", "License", "FAQ", "Troubleshooting" unless they explicitly mention setup.
 
 ### Step 5 (MANDATORY)
-Follow Referenced Markdown Files **:
-   - ** CRITICAL REQUIREMENT: If README references other .md files, you MUST ALWAYS follow them **
-   - ** THIS IS NOT OPTIONAL - This step is MANDATORY for all README files **
-   - Use AI reasoning to identify ALL references to other markdown files:
-     - Markdown links: `[Getting Started](getting_started.md)`, `[Setup Guide](docs/setup.md)`
-     - Plain text references: "See setup.md for instructions", "Refer to INSTALL.md", "check getting_started.md"
-     - Wiki links: `[[Installation]]`, `[check wiki](link-to-wiki)` (note: external wiki links may not be locally accessible)
-     - Bare filenames: "getting_started.md guide", "See BUILDING.md"
-   - ** MANDATORY ** Patterns indicating setup-related markdown files to ALWAYS follow:
-     - Filenames: setup.md, install.md, getting_started.md, getting_started_*.md, prerequisites.md, building.md, development.md, running_*.md, BUILDING.md, INSTALL.md, SETUP.md
-     - Link text containing: "setup", "installation", "getting started", "prerequisites", "building", "development", "local dev", "running", "how to"
-   - If DEBUG=1, print: `[debug][task-scan-readme] found reference to file: {{filename}}`
-   
-   For each referenced markdown file (THIS IS MANDATORY - NOT OPTIONAL):
-   
-   a. **Determine File Path** (MANDATORY):
-      - If relative path (e.g., `setup.md`, `docs/setup.md`, `getting_started.md`): construct absolute path using repo_directory
-      - If URL to external wiki (e.g., `https://...`): log as external reference, cannot read locally
-      - Normalize path: handle `./`, `../`, and path separators correctly
-      - If DEBUG=1, print: `[debug][task-scan-readme] resolving path: {{relative_path}} -> {{absolute_path}}`
-   
-   b. **Check File Existence** (MANDATORY):
-      - Use list_dir or read_file to verify the markdown file exists in the repository
-      - Common locations to check: repo root, docs/, documentation/, .github/, wiki/
-      - ** MANDATORY: Try common variations ** if exact path not found:
-        - Uppercase: SETUP.MD, README.MD
-        - Common directories: ./docs/{{filename}}, ./documentation/{{filename}}, ./{{filename}}
-      - If file not found after all attempts, print: `[debug][task-scan-readme] referenced file not found: {{filename}} (tried: {{paths_attempted}})`
-      - If file found, MUST proceed to read it (this is MANDATORY)
-   
-   c. **Read Referenced File** (MANDATORY):
-      - ** MANDATORY ** Use read_file tool to load the content of the referenced markdown file
-      - If DEBUG=1, print: `[debug][task-scan-readme] reading referenced file: {{filename}}, {{char_count}} characters`
-      - Treat this as additional README content for analysis (REQUIRED, not optional)
-   
-   d. **Analyze Referenced Content** (MANDATORY):
-      - ** MANDATORY ** Apply the same structural reasoning from steps 4-7 to this markdown file
-      - Look for setup sections, extract commands, categorize them
-      - Include file source in command metadata: `source_file: "getting_started.md"`
-      - If DEBUG=1, print: `[debug][task-scan-readme] analyzing referenced file: {{filename}}`
-   
-   e. **Merge Results** (MANDATORY):
-      - ** MANDATORY ** Add identified sections from referenced file to sections_identified array
-      - ** MANDATORY ** Add extracted commands to commands_extracted array
-      - Preserve source file information for traceability
-      - If DEBUG=1, print: `[debug][task-scan-readme] merged {{section_count}} sections, {{command_count}} commands from {{filename}}`
-   
-   f. **Prevent Infinite Loops**:
-      - Track which markdown files have been processed (max depth: 3 levels for following references within references)
-      - Do not follow references from already-processed files beyond max depth
-      - Limit total referenced files to 10 to avoid excessive processing
-      - If DEBUG=1, print: `[debug][task-scan-readme] processed {{file_count}} referenced files, depth={{current_depth}}`
-   
-   g. **Prioritization** (Process in this order):
-      - PRIORITY 1: Files with "setup", "install", "getting_started", "getting-started" in name (ALWAYS process these)
-      - PRIORITY 2: Files linked from "Prerequisites", "Getting Started", "Installation", "Setup", "Building" sections
-      - PRIORITY 3: Files in docs/ or documentation/ directories
-      - PRIORITY 4: Other referenced .md files
-      - Files with "running_", "testing_" in names are also PRIORITY 1 as they often contain build/setup commands
-   
-   ** IMPORTANT **: The analysis MUST NOT stop when it finds external links. When README only contains links to external documentation (wiki, .md files), this step becomes the PRIMARY way to extract commands. An analysis that reports "found only links to external files" but doesn't follow local .md files is INCOMPLETE.
-   
-   Example behavior for README with only external references:
-   - README contains: "See [getting_started.md](getting_started.md) for setup"
-   - CORRECT: Read getting_started.md, extract commands from it, report commands in output
-   - INCORRECT: Report "README contains only links" and stop without reading getting_started.md
+**Follow Referenced Markdown Files:**  
+- **CRITICAL REQUIREMENT:** If README references other .md files, you MUST ALWAYS follow them.
+- **THIS IS NOT OPTIONAL – This step is MANDATORY for all README files.**
+- Use AI reasoning to identify ALL references to other markdown files:
+  - Markdown links: `[Getting Started](getting_started.md)`, `[Setup Guide](docs/setup.md)`
+  - Plain text references: "See setup.md for instructions", "Refer to INSTALL.md", "check getting_started.md"
+  - Wiki links: `[[Installation]]`, `[check wiki](link-to-wiki)` (note: external wiki links may not be locally accessible)
+  - Bare filenames: "getting_started.md guide", "See BUILDING.md"
+- **MANDATORY** patterns indicating setup-related markdown files to ALWAYS follow:
+  - Filenames: setup.md, install.md, getting_started.md, getting_started_*.md, prerequisites.md, building.md, development.md, running_*.md, BUILDING.md, INSTALL.md, SETUP.md
+  - Link text containing: "setup", "installation", "getting started", "prerequisites", "building", "development", "local dev", "running", "how to"
+- If DEBUG=1, print: `[debug][task-scan-readme] found reference to file: {{filename}}`
+
+**For each referenced markdown file (MANDATORY – NOT OPTIONAL):**
+a. **Determine File Path (MANDATORY):**
+   - If relative path (e.g., `setup.md`, `docs/setup.md`, `getting_started.md`): construct absolute path using repo_directory.
+   - If URL to external wiki (e.g., `https://...`): log as external reference, cannot read locally.
+   - Normalize path: handle `./`, `../`, and path separators correctly.
+   - If DEBUG=1, print: `[debug][task-scan-readme] resolving path: {{relative_path}} -> {{absolute_path}}`
+b. **Check File Existence (MANDATORY):**
+   - Use list_dir or read_file to verify the markdown file exists in the repository.
+   - Common locations to check: repo root, docs/, documentation/, .github/, wiki/
+   - **MANDATORY: Try common variations** if exact path not found:
+     - Uppercase: SETUP.MD, README.MD
+     - Common directories: ./docs/{{filename}}, ./documentation/{{filename}}, ./{{filename}}
+   - If file not found after all attempts, print: `[debug][task-scan-readme] referenced file not found: {{filename}} (tried: {{paths_attempted}})`
+   - If file found, MUST proceed to read it (this is MANDATORY).
+c. **Read Referenced File (MANDATORY):**
+   - **MANDATORY**: Use read_file tool to load the content of the referenced markdown file.
+   - If DEBUG=1, print: `[debug][task-scan-readme] reading referenced file: {{filename}}, {{char_count}} characters`
+   - Treat this as additional README content for analysis (REQUIRED, not optional).
+d. **Analyze Referenced Content (MANDATORY):**
+   - **MANDATORY**: Apply the same structural reasoning from steps 4–7 to this markdown file.
+   - Look for setup sections, extract commands, categorize them.
+   - Include file source in command metadata: `source_file: "getting_started.md"`
+   - If DEBUG=1, print: `[debug][task-scan-readme] analyzing referenced file: {{filename}}`
+e. **Merge Results (MANDATORY):**
+   - **MANDATORY**: Add identified sections from referenced file to sections_identified array.
+   - **MANDATORY**: Add extracted commands to commands_extracted array.
+   - Preserve source file information for traceability.
+   - If DEBUG=1, print: `[debug][task-scan-readme] merged {{section_count}} sections, {{command_count}} commands from {{filename}}`
+f. **Prevent Infinite Loops:**
+   - Track which markdown files have been processed (max depth: 3 levels for following references within references).
+   - Do not follow references from already-processed files beyond max depth.
+   - Limit total referenced files to 10 to avoid excessive processing.
+   - If DEBUG=1, print: `[debug][task-scan-readme] processed {{file_count}} referenced files, depth={{current_depth}}`
+g. **Prioritization (Process in this order):**
+   - PRIORITY 1: Files with "setup", "install", "getting_started", "getting-started" in name (ALWAYS process these).
+   - PRIORITY 2: Files linked from "Prerequisites", "Getting Started", "Installation", "Setup", "Building" sections.
+   - PRIORITY 3: Files in docs/ or documentation/ directories.
+   - PRIORITY 4: Other referenced .md files.
+   - Files with "running_", "testing_" in names are also PRIORITY 1 as they often contain build/setup commands.
+
+**IMPORTANT:**  
+The analysis MUST NOT stop when it finds external links. When README only contains links to external documentation (wiki, .md files), this step becomes the PRIMARY way to extract commands. An analysis that reports "found only links to external files" but doesn't follow local .md files is INCOMPLETE.
+
+Example behavior for README with only external references:
+- README contains: "See [getting_started.md](getting_started.md) for setup"
+- CORRECT: Read getting_started.md, extract commands from it, report commands in output
+- INCORRECT: Report "README contains only links" and stop without reading getting_started.md
 
 ### Step 6 (MANDATORY)
-Structural Reasoning - Command Extraction:
-   - ** YOU MUST ANALYZE THE ACTUAL README CONTENT, NOT JUST CREATE EMPTY OUTPUT **
-   - Within identified setup sections, use structural reasoning to extract commands:
-   
-   a. **Code Blocks**: 
-      - Fenced code blocks with ``` or ~~~
-      - Indented code blocks (4 spaces or 1 tab)
-      - Consider language hints: ```bash, ```sh, ```powershell, ```cmd, ```shell
-      - If DEBUG=1, print: `[debug][task-scan-readme] found code block in section {{section_name}}, {{line_count}} lines`
-   
-   b. **Inline Code**:
-      - Text wrapped in single backticks: `command here`
-      - Only extract if it looks like a shell command (starts with shell prompt, contains executable name)
-      - If DEBUG=1, print: `[debug][task-scan-readme] found inline command: {{command}}`
-   
-   c. **Ordered/Unordered Lists**:
-      - List items that start with shell prompts: `$ command`, `> command`, `C:\> command`
-      - List items containing inline code that are commands
-      - If DEBUG=1, print: `[debug][task-scan-readme] found command in list item`
-   
-   d. **Command Characteristics** (use reasoning to identify):
-      - Starts with executable name (npm, pip, dotnet, git, node, python, etc.)
-      - Contains shell operators: &&, ||, |, >, <
-      - Environment variable syntax: $VAR, %VAR%, ${VAR}
-      - Common patterns: `cd`, `mkdir`, `install`, `restore`, `init`, `config`
-   
-   e. **Context Understanding**:
-      - Commands preceded by "Run:", "Execute:", "Type:", "Install:" are likely setup commands
-      - Commands in numbered steps are likely sequential setup instructions
-      - Commands with explanatory text like "First, install..." are setup commands
-      - Distinguish between example code (showing API usage) vs. setup commands (preparing environment)
+**Structural Reasoning – Command Extraction:**  
+- **YOU MUST ANALYZE THE ACTUAL README CONTENT, NOT JUST CREATE EMPTY OUTPUT**
+- Within identified setup sections, use structural reasoning to extract commands:
+  a. **Code Blocks:**
+     - Fenced code blocks with ``` or ~~~
+     - Indented code blocks (4 spaces or 1 tab)
+     - Consider language hints: ```bash, ```sh, ```powershell, ```cmd, ```shell
+     - If DEBUG=1, print: `[debug][task-scan-readme] found code block in section {{section_name}}, {{line_count}} lines`
+  b. **Inline Code:**
+     - Text wrapped in single backticks: `command here`
+     - Only extract if it looks like a shell command (starts with shell prompt, contains executable name)
+     - If DEBUG=1, print: `[debug][task-scan-readme] found inline command: {{command}}`
+  c. **Ordered/Unordered Lists:**
+     - List items that start with shell prompts: `$ command`, `> command`, `C:\> command`
+     - List items containing inline code that are commands
+     - If DEBUG=1, print: `[debug][task-scan-readme] found command in list item`
+  d. **Command Characteristics (use reasoning to identify):**
+     - Starts with executable name (npm, pip, dotnet, git, node, python, etc.)
+     - Contains shell operators: &&, \\, >, <
+     - Environment variable syntax: $VAR, %VAR%, ${VAR}
+     - Common patterns: `cd`, `mkdir`, `install`, `restore`, `init`, `config`
+  e. **Context Understanding:**
+     - Commands preceded by "Run:", "Execute:", "Type:", "Install:" are likely setup commands
+     - Commands in numbered steps are likely sequential setup instructions
+     - Commands with explanatory text like "First, install..." are setup commands
+     - Distinguish between example code (showing API usage) vs. setup commands (preparing environment)
 
 ### Step 7 (MANDATORY)
-Command Categorization:
-   For each extracted command, use structural reasoning to categorize by purpose:
-   - **package_install**: npm install, pip install, dotnet restore, nuget restore, yarn install
-   - **version_check**: node --version, python --version, git --version, dotnet --version
-   - **config**: git config, npm config, environment variable settings
-   - **directory**: cd, mkdir, directory navigation
-   - **environment_setup**: source, export, setx, setting up paths
-   - **build_tool**: msbuild, dotnet build, npm run (note: may be marked unsafe later)
-   - **other**: anything else that looks like a setup command
-   
-   If DEBUG=1, print for each command: `[debug][task-scan-readme] extracted command [{{category}}]: {{command}}`
+**Command Categorization:**  
+For each extracted command, use structural reasoning to categorize by purpose:
+- **package_install**: npm install, pip install, dotnet restore, nuget restore, yarn install
+- **version_check**: node --version, python --version, git --version, dotnet --version
+- **config**: git config, npm config, environment variable settings
+- **directory**: cd, mkdir, directory navigation
+- **environment_setup**: source, export, setx, setting up paths
+- **build_tool**: msbuild, dotnet build, npm run (note: may be marked unsafe later)
+- **other**: anything else that looks like a setup command
+
+If DEBUG=1, print for each command: `[debug][task-scan-readme] extracted command [{{category}}]: {{command}}`
 
 ### Step 8 (MANDATORY)
-Command Cleaning:
-   - Remove shell prompts: `$`, `>`, `C:\>`, `PS>`, `#`
-   - Remove line continuations: `\`, `^`
-   - Remove comments: everything after `#` or `//` or `REM`
-   - Trim whitespace
-   - Handle multi-line commands (join with proper syntax)
-   - If DEBUG=1, print: `[debug][task-scan-readme] cleaned {{original_count}} commands to {{cleaned_count}} valid commands`
+**Command Cleaning:**  
+- Remove shell prompts: `$`, `>`, `C:\>`, `PS>`, `#`
+- Remove line continuations: `\`, `^`
+- Remove comments: everything after `#`, `//`, `REM`
+- Trim whitespace
+- Handle multi-line commands (join with proper syntax)
+- If DEBUG=1, print: `[debug][task-scan-readme] cleaned {{original_count}} commands to {{cleaned_count}} valid commands`
 
 ### Step 9 (MANDATORY)
- Structured Output: Save JSON object to output/{repo_name}_task3_scan-readme.json with:
-   - repo_directory: echoed from input
-   - repo_name: echoed from input
-   - readme_filename: from task-search-readme output
-   - sections_identified: array of {section_heading, line_number, keywords_matched}
-   - commands_extracted: array of objects with:
-     - command: cleaned command string
-     - category: categorization (package_install, version_check, etc.)
-     - source_section: which section it came from
-     - source_type: code_block, inline_code, list_item
-     - line_number: approximate line in README
-     - context: surrounding text that helps understand the command
-   - total_commands: count of extracted commands
-   - status: SUCCESS if commands extracted, NONE if no commands found, SKIPPED if no README, FAIL if error
-   - timestamp: ISO 8601 format datetime
+**Structured Output:**  
+Save JSON object to `output/{{repo_name}}_task3_scan-readme.json` with:
+- repo_directory: echoed from input
+- repo_name: echoed from input
+- readme_filename: from task-search-readme output
+- sections_identified: array of {section_heading, line_number, keywords_matched}
+- commands_extracted: array of objects with:
+  - command: cleaned command string
+  - category: categorization (package_install, version_check, etc.)
+  - source_section: which section it came from
+  - source_type: code_block, inline_code, list_item
+  - line_number: approximate line in README
+  - context: surrounding text that helps understand the command
+  - total_commands: count of extracted commands
+  - status: SUCCESS if commands extracted, NONE if no commands found, SKIPPED if no README, FAIL if error
+  - timestamp: ISO 8601 format datetime
 
 ### Step 10 (MANDATORY)
- Log to Decision Log:
-   - Call @task-update-decision-log to log task execution:
-   ```
-   @task-update-decision-log 
-     timestamp="{{timestamp}}" 
-     repo_name="{{repo_name}}" 
-     solution_name="" 
-     task="task-scan-readme" 
-     message="{{message}}" 
-     status="{{status}}"
-   ```
-   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-   - The solution_name is blank since this is a repository-level task
-   - Message format:
-     * If sections found: "Found {{section_count}} setup sections across {{file_count}} files"
-     * If no sections found but README exists: "No setup sections found in README"
-     * If README not found (status=SKIPPED): "README not found - scan skipped"
-     * If scan failed (status=FAIL): "Scan failed: {{error_reason}}"
+**Log to Decision Log:**  
+Call @task-update-decision-log to log task execution:
+```
+@task-update-decision-log
+timestamp="{{timestamp}}"
+repo_name="{{repo_name}}"
+solution_name=""
+task="task-scan-readme"
+message="{{message}}"
+status="{{status}}"
+```
+- Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
+- The solution_name is blank since this is a repository-level task
+- Message format:
+  - If sections found: "Found {{section_count}} setup sections across {{file_count}} files"
+  - If no sections found but README exists: "No setup sections found in README"
+  - If README not found (status=SKIPPED): "README not found – scan skipped"
+  - If scan failed (status=FAIL): "Scan failed: {{error_reason}}"
 
 ### Step 11 (MANDATORY)
-Result Tracking:
-   - Append the result to:
-     - results/repo-results.csv (CSV row)
-   - Row format: timestamp | repo_name | task-scan-readme | status | symbol (✓ or ✗)
+**Result Tracking:**  
+Append the result to:
+- results/repo-results.csv (CSV row)
+- Row format: timestamp, repo_name, task-scan-readme, status, symbol (✓ or ✗)
 
 ### Step 12 (MANDATORY)
-Repo Checklist Update:
-   - Open `tasks/{{repo_name}}_repo_checklist.md`
-   - Set `[x]` only on the `@task-scan-readme` entry for the current repository
-   - Do not modify other checklist items or other repositories' files
+**Repo Checklist Update:**  
+- Open `tasks/{{repo_name}}_repo_checklist.md`
+- Set `[x]` only on the `@task-scan-readme` entry for the current repository
+- Do not modify other checklist items or other repositories' files
 
 ### Step 13 (MANDATORY)
-Repo Variable Refresh:
-   - Open `tasks/{{repo_name}}_repo_checklist.md` file
-   - Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
-     * `{{commands_extracted}}`
-   - Update the following variables with the latest values produced by this task:
-     * `{{commands_extracted}}`
-   - Ensure each variable reflects the refresh results before saving the file
+**Repo Variable Refresh:**  
+- Open `tasks/{{repo_name}}_repo_checklist.md` file
+- Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
+  - `{{commands_extracted}}`
+- Update the following variables with the latest values produced by this task:
+  - `{{commands_extracted}}`
+- Ensure each variable reflects the refresh results before saving the file
 
 ### Step 14 (MANDATORY)
-DEBUG Exit Trace:
-If DEBUG=1, print:
-   `[debug][task-scan-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} commands_extracted={{total_commands}}]`
+**DEBUG Exit Trace:**  
+If DEBUG=1, print:  
+`[debug][task-scan-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} commands_extracted={{total_commands}}]`
 
-Output Contract:
+## Output Contract
 - repo_directory: string (absolute path)
 - repo_name: string
-- readme_filename: string | null (from task-readme)
+- readme_filename: string, null (from task-readme)
 - sections_identified: array of objects (section_heading, line_number, keywords_matched, source_file)
 - commands_extracted: array of objects (command, category, source_section, source_type, source_file, line_number, context)
 - referenced_files_processed: array of strings (paths to markdown files that were read and analyzed)
 - total_commands: number (count of commands_extracted)
-- status: SUCCESS | NONE | SKIPPED | FAIL
+- status: SUCCESS, NONE, SKIPPED, FAIL
 - timestamp: string (ISO 8601)
 
-Implementation Notes (conceptual):
-1. **THIS IS NOT A SCRIPT**: Use direct tool calls - read_file, run_in_terminal, create_file, replace_string_in_file, list_dir
+## Implementation Notes (conceptual)
+1. **THIS IS NOT A SCRIPT**: Use direct tool calls – read_file, run_in_terminal, create_file, replace_string_in_file, list_dir
 2. **Structural Reasoning Required**: AI must understand README structure, not just pattern matching
 3. **Follow Documentation References**: When README references other .md files for setup (e.g., "see setup.md"), read and analyze those files too
 4. **Context Matters**: Use surrounding text to determine if something is a setup command vs example code
 5. **Language Awareness**: Understand different markdown dialects, code fence syntax, list formats
-6. **False Positive Prevention**: Don't extract every code snippet - use reasoning to identify actual setup commands
+6. **False Positive Prevention**: Don't extract every code snippet – use reasoning to identify actual setup commands
 7. **Multi-line Handling**: Commands split across lines (with \ or ^) should be joined properly
 8. **Empty Results**: If no setup commands found after analyzing README AND all referenced local .md files, return empty arrays and status=NONE (scan completed, but no commands found)
 9. **Error Handling**: If README content is malformed or cannot be parsed, set status=FAIL and log reason
 10. **Next Task Dependency**: The output of this task (commands_extracted array) is input to task-execute-readme
-11. **Parameter Usage**: The readme_content_path parameter specifies where to load README content - do not hardcode paths
-12. **Referenced Files Tracking**: Store list of processed markdown files in referenced_files_processed array to show which files contributed to command extraction
+11. **Parameter Usage**: The readme_content_path parameter specifies where to load README content – do not hardcode paths
+12. **Referenced Files Tracking**: Store list of processed referenced markdown files (avoid duplicates, depth <= 3).
 
-Examples of Structural Reasoning:
+## Error Handling
+- For any step that fails:
+   - Log the error with details (exception type, message, partial context)
+   - If a critical step fails (cannot read primary README, cannot parse commands), set status=FAIL and abort remaining steps
+   - Do not update checklist or results CSV on critical failure
+   - Non-critical failures (one referenced file missing) should be logged; continue processing others
 
-**Example 1: Code Block with Language Hint**
-```markdown
-## Setup
+## Consistency Checks
+- After creating output file `output/{{repo_name}}_task3_scan-readme.json`, verify it exists and contains keys: `repo_name`, `sections_identified`, `commands_extracted`, `status`.
+- After updating `tasks/{{repo_name}}_repo_checklist.md`, verify the checkbox for `@task-scan-readme` is set only if status is SUCCESS/NONE/SKIPPED (not FAIL) and variable `{{commands_extracted}}` token remains present.
+- If any verification fails, log an error and abort subsequent updates.
 
-Install dependencies:
-
-```bash
-npm install
-npm run build
-```
-```
-→ Identifies "Setup" as setup section
-→ Extracts 2 commands from bash code block
-→ Categories: package_install, build_tool
-
-**Example 2: Inline Commands in List**
-```markdown
-### Prerequisites
-
-1. Install Node.js: `node --version` should show v14+
-2. Run `npm install` to get dependencies
-```
-→ Identifies "Prerequisites" as setup section
-→ Extracts `node --version` (inline, version_check)
-→ Extracts `npm install` (inline, package_install)
-
-**Example 3: Multi-line Command**
-```markdown
-Restore packages:
-```
-msbuild MySolution.sln \
-  --restore \
-  --property:Configuration=Release
-```
-```
-→ Joins lines: `msbuild MySolution.sln --restore --property:Configuration=Release`
-→ Category: build_tool
-
-**Example 4: Context-Based Filtering**
-```markdown
-## API Usage
-
-Call the API:
-```javascript
-const result = api.doSomething();
-```
-```
-→ Section "API Usage" - NOT a setup section
-→ Language "javascript" + no shell commands → SKIP extraction
-→ This is example code, not setup
-
-**Example 5: Following Referenced Markdown Files**
-```markdown
-# MyProject
-
-## Getting Started
-
-For setup instructions, see [docs/setup.md](docs/setup.md).
-
-For build instructions, check [BUILDING.md](BUILDING.md).
-```
-
-→ Identifies links to setup.md and BUILDING.md
-→ Constructs paths: `{repo_directory}/docs/setup.md`, `{repo_directory}/BUILDING.md`
-→ Uses read_file to load docs/setup.md content:
-```markdown
-# Setup Guide
-
-1. Install dependencies: `npm install`
-2. Configure environment: `cp .env.example .env`
-3. Run setup script: `./scripts/setup.sh`
-```
-→ Extracts 3 commands from setup.md with source_file="docs/setup.md"
-→ Uses read_file to load BUILDING.md content:
-```markdown
-# Building
-
-Build the project:
-```bash
-npm run build
-```
-```
-→ Extracts 1 command from BUILDING.md with source_file="BUILDING.md"
-→ Final output:
-  - commands_extracted: 4 commands total
-  - referenced_files_processed: ["docs/setup.md", "BUILDING.md"]
-  - sections_identified includes sections from all 3 files (README.md, docs/setup.md, BUILDING.md)
+## Cross-References
+- Always reference and use the freshest values collected earlier in this task (never reuse stale interim data).
+- Variables for this task workflows:
+   - repo_directory (absolute path)
+   - repo_name (repository identifier)
+   - readme_content_path (path to search-readme JSON)
+   - readme_filename (extracted from search-readme output)
+   - sections_identified (array of detected setup sections)
+   - commands_extracted (array of command metadata objects)
+   - referenced_files_processed (list of additional markdown files analyzed)
+   - total_commands (count of commands_extracted)
+   - status (SUCCESS | NONE | SKIPPED | FAIL)
+   - timestamp (ISO 8601)
+- Ensure any checklist variable updates mirror the final JSON output exactly.

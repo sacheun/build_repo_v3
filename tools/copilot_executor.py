@@ -21,6 +21,9 @@ import subprocess
 from pathlib import Path
 from typing import Tuple, Dict, Optional
 
+# Default model constant injected per user request
+MODEL = "gpt-5"
+
 
 class CopilotExecutor:
     """Executor for GitHub Copilot commands with logging support."""
@@ -163,8 +166,10 @@ class CopilotExecutor:
 
         full_prompt = "\n".join(prompt_parts)
         
-        # Build full command
+        # Build full command (ensure model flag)
         command = f'copilot --prompt "{full_prompt}"'
+        if f"--model" not in command:
+            command += f' --model {MODEL}'
         if allow_all_tools:
             command += ' --allow-all-tools'
         command += ' --allow-all-paths'
@@ -214,6 +219,9 @@ if __name__ == '__main__':
         sys.exit(1)
     
     command = sys.argv[1]
+    # Auto-inject model flag for raw command usage if invoking copilot
+    if command.startswith("copilot ") and "--model" not in command:
+        command += f" --model {MODEL}"
     executor = CopilotExecutor(debug=True)
     exit_code, stdout, stderr = executor.execute_command(command)
     

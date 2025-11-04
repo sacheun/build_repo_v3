@@ -15,10 +15,10 @@ This task generates task checklists for all repositories in the input file. The 
 **THIS TASK IS SCRIPTABLE**
 
 ## Instructions (Follow this Step by Step)
-### Step 1 (MANDATORY)
+### Step 1: (MANDATORY)
 DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-repo-task-checklists] START input='{{input}}' append={{append}}`
 
-### Step 2 (MANDATORY)
+### Step 2: (MANDATORY)
 Input Parameters: You are given input (file path) and append (boolean) from the calling context.
    Defaults:
       input = "repositories.txt"
@@ -41,13 +41,13 @@ Directory Preparation:
    - Create ./tasks, ./output, and ./temp-script directories if they don't exist
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] preserving existing tasks, output, and temp-script (append=true)`
 
-### Step 3 (MANDATORY)
+### Step 3: (MANDATORY)
 Read Input File: Read the input file to get all repository URLs
    - Parse line by line, skip empty lines and comments (lines starting with #)
    - Extract repository URLs
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] found {{count}} repositories in input file`
 
-### Step 4 (MANDATORY)
+### Step 4: (MANDATORY)
 Determine Repositories to Process:
    
    **If append = false:**
@@ -62,14 +62,14 @@ Determine Repositories to Process:
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] found {{existing_count}} existing repos, {{new_count}} new repos`
    - Only process these new repositories
 
-### Step 5 (MANDATORY)
+### Step 5: (MANDATORY)
 Parse Task Definitions: Read .github\prompts\repo_tasks_list.prompt.md to extract:
    - All task directives (e.g., @task-clone-repo, @task-search-readme, etc.)
    - Short descriptions for each task
    - The complete "Variables available:" section content
    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] extracted {{task_count}} tasks from .github\prompts\repo_tasks_list.prompt.md`
 
-### Step 6 (MANDATORY)
+### Step 6: (MANDATORY)
 Generate or Update Master Checklist:
    - File: ./tasks/all_repository_checklist.md
    
@@ -102,7 +102,7 @@ Generate or Update Master Checklist:
      - Create new file with new repositories only
      - If DEBUG=1, print: `[debug][generate-repo-task-checklists] creating master checklist (no existing file)`
 
-### Step 8 (MANDATORY)
+### Step 7: (MANDATORY)
 Generate Individual Checklist Files:
    
    For each repository to process:
@@ -154,8 +154,6 @@ Generate Individual Checklist Files:
      - Mark completed tasks with [x]
      
      ## Repo Variables Available
-     
-     ### Variables available:
      [Content dynamically extracted from .github\prompts\repo_tasks_list.prompt.md "Variables available:" section]
      
      ```
@@ -164,9 +162,9 @@ Generate Individual Checklist Files:
      - CONDITIONAL: @task-scan-readme, @task-execute-readme
      - SCRIPTABLE: @task-clone-repo, @task-search-readme, @task-find-solutions, @generate-solution-task-checklists
      - NON-SCRIPTABLE: @task-scan-readme, @task-execute-readme
-   - **Dynamic Variables Section:** Extract the entire "### Variables available:" section from .github\prompts\repo_tasks_list.prompt.md and include it verbatim in each generated checklist under "## Repo Variables Available" heading
+   - **Dynamic Variables Section:** Extract the entire "## Repo Variables Available" section from .github\prompts\repo_tasks_list.prompt.md and include it verbatim in each generated checklist under "## Repo Variables Available" heading
 
-### Step 8 (MANDATORY)
+### Step 8: (MANDATORY)
 Structured Output: Save JSON object to output/generate-repo-task-checklists.json with:
    - input_file: path to input file used
    - append_mode: boolean (true/false)
@@ -179,7 +177,7 @@ Structured Output: Save JSON object to output/generate-repo-task-checklists.json
    - status: SUCCESS if all files generated, FAIL if error occurred
    - timestamp: ISO 8601 format datetime when task completed
 
-### Step 9 (MANDATORY)
+### Step 9: (MANDATORY)
 DEBUG Exit Trace: If DEBUG=1, print:
    "[debug][generate-repo-task-checklists] EXIT status={{status}} processed={{repositories_processed}} generated={{checklists_generated}}"
 
@@ -193,4 +191,30 @@ DEBUG Exit Trace: If DEBUG=1, print:
 7. Error Handling: If input file not found, set status=FAIL and return with empty results
 8. Append Mode Logic: Compare normalized URLs (trim trailing slashes, case-insensitive), preserve existing entries, only create files for new repos
 9. Script Location: Save generated script to temp-script/ directory with naming pattern: generate_task_checklists.py (or .ps1/.sh)
+
+## Error Handling
+- Missing input file: Set status=FAIL, repositories_total=0, repositories_processed=0, repositories_skipped=0. Do not attempt further steps.
+- IOError while reading repo_tasks_list.prompt.md: Set status=FAIL and include error_message in structured output (add field if needed). Skip checklist generation.
+- JSON write failure: Retry once; if still failing, set status=FAIL but keep any generated markdown files.
+- Directory removal failure (append=false): Log warning and continue; do NOT abort unless tasks directory cannot be recreated.
+- Empty repository list after parsing input: status=SUCCESS with repositories_total=0; generate master checklist with header only.
+
+## Consistency Checks
+- Step numbering must be strictly sequential (1..9). Validate after generation; if mismatch, set status=FAIL.
+- Master checklist must contain every processed repository exactly once. Compare count of lines starting with "- [ ]" or "- [x]" under ## Repositories with repositories_processed.
+- Each individual checklist must include headings: "# Task Checklist:", "## Repo Tasks", and "## Repo Variables Available".
+- Dynamic variables section must not be empty (at least one bullet or line of content extracted).
+- If append=true, repositories_skipped + repositories_processed MUST equal repositories_total from input file.
+
+## Cross-References
+- {{input}} → Input file path used to derive repositories.
+- {{append}} → Append mode controlling cleanup logic.
+- {{repositories_total}} → Total repositories parsed from input.
+- {{repositories_processed}} → Number of repos for which checklist files were created.
+- {{repositories_skipped}} → Repositories not processed due to append mode.
+- {{checklists_generated}} → Count of checklist files physically written.
+- {{master_checklist_path}} → Path to master checklist markdown file.
+- {{individual_checklists_path}} → Directory path containing per-repo checklists.
+- {{status}} → Overall task status (SUCCESS/FAIL).
+- {{timestamp}} → ISO 8601 completion time.
 

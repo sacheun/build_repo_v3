@@ -534,4 +534,32 @@ Workflow Sequence:
 ```
 
 This orchestrator enables fully autonomous, sequential repository and solution processing with complete traceability and error handling.
+## Error Handling
+- generate-repo-task-checklists copilot command fails (exit_code != 0): Abort workflow; set workflow_status="FAIL" and status="FAIL".
+- verify-repo-checklist-format overall_status != PASS: Abort before processing repositories; workflow_status="FAIL".
+- execute-repo-task failure for a repository: Continue; mark that repository execution_status="FAIL".
+- verify-repo-tasks-completed overall_status != PASS: Continue to solution phase but set workflow_status to "PARTIAL_SUCCESS" unless earlier FAIL.
+- execute-solution-task failure: Continue; mark solution execution_status="FAIL".
+- JSON output write failure: Retry once; if still failing, print debug warning and fallback to printing JSON to stdout.
+- Unexpected exception: Catch, log error_message, set workflow_status="FAIL"; include partial data collected so far.
+
+## Consistency Checks
+- repository_details length == total_repositories.
+- Count of entries with any - [ ] in checklist after processing should be 0 when workflow_status="SUCCESS".
+- solution_details length == total_solutions.
+- If any repository FAIL but at least one SUCCESS, workflow_status must be "PARTIAL_SUCCESS" unless generation failed.
+- duration_seconds == (end_time - start_time) in seconds; recompute to verify.
+- start_time and end_time must be valid ISO 8601 strings; validate parse.
+
+## Cross-References
+- {{append}} → Append mode flag supplied to initial checklist generation.
+- {{total_repositories}} / {{incomplete_repositories}} / {{processed_repositories}} → Repository counts tracked through workflow.
+- {{successful_repositories}} / {{failed_repositories}} → Final repository status aggregates.
+- {{repository_details}} → Per-repository execution records.
+- {{total_solutions}} / {{incomplete_solutions}} / {{processed_solutions}} → Solution checklist counts.
+- {{solution_details}} → Per-solution execution records.
+- {{workflow_status}} → Overall workflow outcome classification.
+- {{start_time}} / {{end_time}} / {{duration_seconds}} → Timing metadata.
+- {{status}} → Legacy top-level success/fail indicator (mirrors workflow_status except PARTIAL_SUCCESS -> SUCCESS).
+
 ````

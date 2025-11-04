@@ -2,166 +2,417 @@
 temperature: 0.0
 ---
 
-@generate-solution-task-checklists
+@generate-solution-task-checklists repo_name={{repo_name}} solutions_json_path={{solutions_json_path}} append={{append}}
+
+# Task name: generate-solution-task-checklists
+
+## Purpose
+Generate (or append) per-solution task checklist markdown files for every Visual Studio solution discovered for a repository. These checklists enable agents to execute and track solution-level tasks (restore, build, knowledge base enrichment, fix application, logging) independently from repository pipeline tasks.
+
+## When This Runs
+Executed AFTER repository task `@task-find-solutions` has produced a JSON file containing discovered `.sln` paths. Can be safely re-run (idempotent). In append mode it only creates missing solution checklist files; in reset/non-append mode it can regenerate all.
+
+## Execution Policy
+**ALL STEPS BELOW ARE MANDATORY.**  
+**DO NOT SKIP OR SUMMARIZE.**  
+**THIS TASK IS SCRIPTABLE**
+
+## Input Parameters
+- repo_name (required): Friendly repository name (matches `{repo_name}_repo_checklist.md`).
+- solutions_json_path (required): Path to JSON produced by `@task-find-solutions` (e.g. `output/{repo_name}_task5_find-solutions.json`).
+- append (optional, default = false): If true, do not overwrite existing solution checklist files—only add new ones for newly detected solutions.
+
+If DEBUG=1 print:  
+`[debug][generate-solution-task-checklists] START repo_name='{{repo_name}}' solutions_json_path='{{solutions_json_path}}' append={{append}}`
+
+## Output Artifacts
+1. Per-solution checklist files: `tasks/{solution_slug}_solution_checklist.md`  
+2. (Optional aggregate) Solution index file: `tasks/{{repo_name}}_solutions_checklist.md` containing a list of all solutions.  
+3. JSON summary: `output/{{repo_name}}_generate-solution-task-checklists.json` with generation statistics.  
+
+## Solution Checklist Structure (Target)
+```
+# Solution Task Checklist: {solution_name}
+Repository: {repo_name}
+Solution Path: {solution_path}
+Generated: {timestamp}
+
+## Solution Tasks (Sequential Pipeline)
+- [ ] [MANDATORY #1] [SCRIPTABLE] Restore NuGet packages @task-restore-solution
+- [ ] [MANDATORY #2] [SCRIPTABLE] Build solution (Clean + Build) @task-build-solution
+- [ ] [CONDITIONAL] [NON-SCRIPTABLE] Search knowledge base for matching error @task-search-knowledge-base
+- [ ] [CONDITIONAL] [NON-SCRIPTABLE] Create new knowledge base article @task-create-knowledge-base
+- [ ] [CONDITIONAL] [NON-SCRIPTABLE] Apply knowledge base fix @task-apply-knowledge-base-fix
+- [ ] [MANDATORY #3] [SCRIPTABLE] Update knowledge base usage log @task-update-knowledgebase-log
+
+## For Agents Resuming Work
+1. Start with restore then build.
+2. If build fails with identifiable error codes, invoke KB search / create / apply tasks.
+3. Always log KB usage updates last.
+
+## Solution Variables Available
+### Variables available:
+[Content dynamically extracted from `.github/prompts/solution_tasks_list.prompt.md` "Variables available:" section]
+```
+
+## Step-by-Step Instructions
+
+### Step 1 (MANDATORY) – Parameter & Environment Validation
+1. Validate `repo_name` is non-empty.
+2. Validate `solutions_json_path` exists and is readable.
+3. Load JSON; must contain keys: `solutions` (array), `solution_count` (integer) or derive count from array.
+4. If DEBUG=1 print: `[debug][generate-solution-task-checklists] loaded solutions: {{solution_count}}`.
+5. If file missing or malformed → status=FAIL (abort remaining steps).
+
+### Step 2 (MANDATORY) – Parse Solution Tasks Definition
+1. Read `.github/prompts/solution_tasks_list.prompt.md`.
+2. Extract:
+   - Task directives (lines beginning with `@task-...` except aggregate markers)
+   - "Variables available:" block lines (preserve formatting)
+3. If DEBUG=1 print: `[debug][generate-solution-task-checklists] extracted {{task_count}} tasks`.
+
+### Step 3 (MANDATORY) – Prepare Workspace
+1. Ensure `./tasks` and `./output` directories exist.
+2. If `append=false`:
+   - Remove existing `tasks/*_solution_checklist.md` files for this repo (safe cleanup only for this repo’s solutions; do NOT delete repo checklists).
+   - If DEBUG=1 print: `[debug][generate-solution-task-checklists] cleared existing solution checklists (append=false)`.
+3. If `append=true` leave existing solution checklists untouched.
+
+### Step 4 (MANDATORY) – Derive Solution Metadata
+For each solution path in `solutions` array:
+1. Normalize path (absolute path, resolve `..`, symlinks if feasible).
+2. Derive `solution_name` = filename without extension.
+3. Derive `solution_slug` = lowercase `solution_name` with non-alphanumeric replaced by `_`.
+4. Track mapping in memory: `{solution_slug: {solution_name, solution_path}}`.
+5. If DEBUG=1 print each: `[debug][generate-solution-task-checklists] mapping slug='{{solution_slug}}' -> '{{solution_path}}'`.
+
+### Step 5 (MANDATORY) – Generate / Update Solution Index (Optional but Recommended)
+File: `tasks/{{repo_name}}_solutions_checklist.md`
+Format:
+```
+# Solutions Checklist: {{repo_name}}
+Generated: {{timestamp}}
+## Solutions
+{one line per solution: - [ ] {solution_name} [{relative_or_basename}]}
+```
+If append=true and file exists, preserve existing checkbox states; add new solutions only.
+
+### Step 6 (MANDATORY) – Generate Individual Solution Checklists
+For each solution:
+1. Target file path: `tasks/{solution_slug}_solution_checklist.md`.
+2. If append=true and file exists → skip generation (record as skipped).  
+3. Insert template (see earlier “Solution Checklist Structure”) substituting variables.
+4. Inject extracted variables section content where placeholder line appears.
+5. If DEBUG=1 print: `[debug][generate-solution-task-checklists] wrote checklist: {{file_path}}`.
+
+### Step 7 (MANDATORY) – Structured Output JSON
+Write `output/{{repo_name}}_generate-solution-task-checklists.json` with:
+```
+{
+  "repo_name": "...",
+  "solutions_total": <int>,
+  "solutions_processed": <int>,
+  "solutions_skipped": <int>,
+  "solution_checklists_created": <int>,
+  "solution_index_path": "tasks/{{repo_name}}_solutions_checklist.md", (omit if not created)
+  "append_mode": <true|false>,
+  "status": "SUCCESS" | "FAIL",
+  "timestamp": "ISO 8601"
+}
+```
+
+### Step 8 (MANDATORY) – Debug Exit Trace
+If DEBUG=1 print:  
+`[debug][generate-solution-task-checklists] EXIT status={{status}} created={{solution_checklists_created}} skipped={{solutions_skipped}}`.
+
+## Output Contract
+- repo_name: string
+- solutions_total: integer (length of input solutions array)
+- solutions_processed: integer (solutions attempted for checklist generation)
+- solutions_skipped: integer (already had checklist when append=true)
+- solution_checklists_created: integer (newly created checklist files)
+- solution_index_path: string | null
+- append_mode: boolean
+- status: SUCCESS | FAIL
+- timestamp: ISO 8601
+
+## Implementation Notes
+1. **THIS IS SCRIPTABLE**: Implement in Python (preferred) or PowerShell.
+2. Idempotent in append=true mode—no overwrites of existing files.
+3. All writes UTF-8 with newline termination.
+4. Ensure atomic writes (write temp then replace) if partial write risk considered (optional).
+5. Sorting: You MAY sort solutions by solution_name for deterministic output (recommended).
+6. Slug collisions: If two solution names produce same slug, append numeric suffix `_2`, `_3`, etc.
+7. Variable Section: Preserve exact formatting lines from source prompt to keep downstream parsing stable.
+8. Do NOT modify unrelated repository checklist files.
+9. Logging: Keep debug logs concise—avoid dumping full file contents.
+10. Script naming: `temp-script/generate_solution_task_checklists.py` (or similar).
+
+## Error Handling
+- Critical failure conditions (abort and status=FAIL):
+  - Missing / unreadable `solutions_json_path`.
+  - JSON malformed or missing `solutions` array.
+  - Inability to write output directories/files.
+- Non-critical (log and continue):
+  - One solution path missing (skip that solution only).
+  - Duplicate solution names (resolve via suffix strategy).
+- On critical failure: do NOT write partial output JSON unless capturing failure status.
+- Always include meaningful stderr-like diagnostic text inside debug log lines.
+
+## Consistency Checks
+After generation:
+1. Verify count alignment: `solutions_total == len(solutions array parsed)`.
+2. Verify each created checklist contains required task directives (at least the 6 base tasks).
+3. If index file created, verify every processed solution appears exactly once.
+4. Confirm JSON output file exists and includes mandatory keys: `repo_name`, `status`, `timestamp`.
+5. If any consistency check fails → set status=FAIL (unless already FAIL) and log reason.
+
+## Cross-References
+Use freshest in-memory values; never reuse stale prior-run values. Variables:
+- repo_name – repository identifier passed in
+- solutions_json_path – path to discovery JSON
+- solutions – array of absolute solution paths
+- solution_name / solution_slug – derived per solution
+- solution_checklists_created – count of newly written files
+- solutions_skipped – count of skipped existing files
+- append_mode – boolean input
+- status – final task status
+- timestamp – ISO 8601 completion time
+Ensure per-solution checklist metadata (solution_path, solution_name) matches discovery JSON EXACTLY (case preserved).
+
+## Example Minimal Output JSON
+```json
+{
+  "repo_name": "sample-repo",
+  "solutions_total": 2,
+  "solutions_processed": 2,
+  "solutions_skipped": 0,
+  "solution_checklists_created": 2,
+  "solution_index_path": "tasks/sample-repo_solutions_checklist.md",
+  "append_mode": false,
+  "status": "SUCCESS",
+  "timestamp": "2025-11-03T08:12:45Z"
+}
+```
+
+## DEBUG Examples
+```
+[debug][generate-solution-task-checklists] START repo_name='media_stack_all' solutions_json_path='output/media_stack_all_task5_find-solutions.json' append=false
+[debug][generate-solution-task-checklists] loaded solutions: 3
+[debug][generate-solution-task-checklists] mapping slug='core_services' -> 'D:/repos/media_stack_all/src/Core.Services/Core.Services.sln'
+[debug][generate-solution-task-checklists] wrote checklist: tasks/core_services_solution_checklist.md
+[debug][generate-solution-task-checklists] EXIT status=SUCCESS created=3 skipped=0
+```
+
+## Final Notes
+The correctness of downstream solution task execution (restore/build/KB lifecycle) depends on accurate variable section replication and stable checklist filenames. Preserve formatting strictly.
+---
+temperature: 0.0
+---
+
+@generate-repo-task-checklists input=<optional> append=<optional>
 
 Task name: generate-repo-task-checklists
 
-## Description:
-Generate individual solution-level checklist files for a repository.  
-This creates ONE checklist file per solution (.sln) discovered in the repo.
+## Description
+This task generates task checklists for all repositories in the input file. The checklists allow agents to pick up work or resume when a previous run stops. This is a file generation task that **must** be implemented as a script.
 
 ## Execution Policy
 **ALL STEPS BELOW ARE MANDATORY.**
 **DO NOT SKIP OR SUMMARIZE.**
 **THIS TASK IS SCRIPTABLE**
 
-## Instructions (Follow this Step by Step)
+## Instructions (Follow Step by Step)
+
 ### Step 1 (MANDATORY)
-Read Solutions Data
-   • Load JSON from `solutions_json` variable in the ./tasks/{repo_name}_checklist.md context
-   • Extract `solutions` array variable in the ./tasks/{repo_name}_checklist.md context
-   • Convert each into object `{name, path}`  
-   • Log solution count if DEBUG=1
+DEBUG Entry Trace: If DEBUG=1, print: `[debug][generate-repo-task-checklists] START input='{{input}}' append={{append}}`
 
 ### Step 2 (MANDATORY)
-Parse Task Definitions
-   • Read `.github/prompts/execute-solution-task.prompt.md` to extract:
-     - All task directives (e.g., @task-restore-solution, @task-build-solution, etc.)
-     - Short descriptions for each task
-     - The complete "### Solution Variables" section content
-   • If DEBUG=1, print: `[debug][generate-solution-task-checklists] extracted {{task_count}} tasks from execute-solution-task.prompt.md`
-   • Store the variables section for inclusion in each solution section
+Input Parameters:
+- You are given `input` (file path) and `append` (boolean) from the calling context.
+
+Defaults:
+- input = "repositories.txt"
+- append = false
+
+If DEBUG=1, print: `[debug][generate-repo-task-checklists] using input_file: {{input}}, append_mode: {{append}}`
+
+Directory Preparation:
+- **If append = false (default):**
+  - **Remove the entire ./tasks directory if it exists** (including all files and subdirectories)
+  - **Remove the entire ./output directory if it exists** (including all output JSON files)
+  - **Remove the entire ./temp-script directory if it exists** (including all generated scripts)
+  - Create fresh ./tasks, ./output, and ./temp-script directories
+  - If DEBUG=1, print: `[debug][generate-repo-task-checklists] removed and recreated tasks, output, and temp-script directories (append=false)`
+  - **WARNING**: This will delete all existing checklists, solution checklists, output files, and generated scripts
+
+- **If append = true:**
+  - Keep existing ./tasks directory and all its contents
+  - Keep existing ./output directory and all its contents
+  - Keep existing ./temp-script directory and all its contents
+  - Create ./tasks, ./output, and ./temp-script directories if they don't exist
+  - If DEBUG=1, print: `[debug][generate-repo-task-checklists] preserving existing tasks, output, and temp-script (append=true)`
 
 ### Step 3 (MANDATORY)
-Create One Checklist File Per Solution
-   For each solution in the solutions array:
-   • Create new file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`  
-   • Sanitize solution_name for filename (replace spaces/special chars with underscores)
-   • Overwrite if it already exists  
-   • Each solution gets its own dedicated checklist file
-   • Log creation if DEBUG=1
+Read Input File:
+- Read the input file to get all repository URLs
+- Parse line by line, skip empty lines and comments (lines starting with #)
+- Extract repository URLs
+- If DEBUG=1, print: `[debug][generate-repo-task-checklists] found {{count}} repositories in input file`
 
 ### Step 4 (MANDATORY)
-Write File Header (for each solution file)
-   ```
-   # Solution Checklist: {solution_name}
-   Repository: {repo_name}
-   Solution Path: `{solution_path}`
-   Generated: {timestamp}
-   ```
-   
+Determine Repositories to Process:
+- **If append = false:**
+  - Process all repositories from input file
+  - If DEBUG=1, print: `[debug][generate-repo-task-checklists] processing all {{count}} repositories`
+- **If append = true:**
+  - Read existing ./tasks/all_repository_checklist.md (if it exists)
+  - Extract list of repositories already tracked in master checklist
+  - Compare with repositories from input file
+  - Identify new repositories = repositories in input file but NOT in master checklist
+  - If DEBUG=1, print: `[debug][generate-repo-task-checklists] found {{existing_count}} existing repos, {{new_count}} new repos`
+  - Only process these new repositories
+
 ### Step 5 (MANDATORY)
-Generate Checklist Content (for each solution file)
-   ```
-   ## Solution: {solution_name}
-   Path: `{solution_path}`
-
-   ### Tasks
-   - [ ] [MANDATORY #1] [SCRIPTABLE] Restore NuGet packages @task-restore-solution
-   - [ ] [MANDATORY #2] [SCRIPTABLE] Build solution (Clean + Build) @task-build-solution
-   - [ ] [CONDITIONAL #3] [NON-SCRIPTABLE] Search knowledge base for error fix @task-search-knowledge-base
-   - [ ] [CONDITIONAL #4] [NON-SCRIPTABLE] Create knowledge base article @task-create-knowledge-base
-   - [ ] [CONDITIONAL #5 - Attempt 1] [NON-SCRIPTABLE] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL #6 - Attempt 1] [SCRIPTABLE] Retry build after fix @task-build-solution-retry
-   - [ ] [CONDITIONAL #7 - Attempt 2] [NON-SCRIPTABLE] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL #8 - Attempt 2] [SCRIPTABLE] Retry build after fix @task-build-solution-retry
-   - [ ] [CONDITIONAL #9 - Attempt 3] [NON-SCRIPTABLE] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL #10 - Attempt 3] [SCRIPTABLE] Retry build after fix @task-build-solution-retry
-
-   ## For Agents Resuming Work
-
-   **Next Action:** 
-   1. Check if all [MANDATORY] tasks (#1-#2) are completed
-   2. If restore/build failed, execute conditional tasks (#3-#4) for knowledge base search/creation
-   3. If knowledge base articles exist, execute retry attempts (#5-#10) as needed
-   4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
-
-   **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-restore-solution`) as defined in `.github\prompts\execute-solution-task.prompt.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
-
-   **Quick Reference:**
-   - [MANDATORY] tasks must be completed in numbered order (#1 → #2)
-   - [CONDITIONAL] tasks (#3-#10) execute based on success/failure of mandatory tasks and retry logic
-   - [SCRIPTABLE] tasks can be automated with scripts
-   - [NON-SCRIPTABLE] tasks require AI reasoning and direct tool calls
-   - Mark completed tasks with [x]
-   - Check Solution Variables section below for current task status and retry attempt tracking
-
-   ### Solution Variables
-   (Variables set by tasks for this specific solution)
-   - solution_path → `{solution_path}`
-   - solution_name → `{solution_name}`
-   - max_build_attempts → 3
-   - restore_status → NOT_EXECUTED
-   - build_status → NOT_EXECUTED
-   - kb_search_status → NOT_EXECUTED
-   - kb_file_path → N/A
-   - kb_article_status → NOT_EXECUTED
-   
-   **Retry Attempt 1:**
-   - fix_applied_attempt_1 → NOT_EXECUTED
-   - kb_option_applied_attempt_1 → null
-   - retry_build_status_attempt_1 → NOT_EXECUTED
-   
-   **Retry Attempt 2:**
-   - fix_applied_attempt_2 → NOT_EXECUTED
-   - kb_option_applied_attempt_2 → null
-   - retry_build_status_attempt_2 → NOT_EXECUTED
-   
-   **Retry Attempt 3:**
-   - fix_applied_attempt_3 → NOT_EXECUTED
-   - kb_option_applied_attempt_3 → null
-   - retry_build_status_attempt_3 → NOT_EXECUTED
-
-   [Content dynamically extracted from .github/prompts/execute-solution-task.prompt.md "### Solution Variables" section]
-   ```
-   • Each solution file is self-contained with all its tasks and variables
-   • No separator needed (each solution is in its own file)
-   • Log generated file path if DEBUG=1
-   • **Variables Section**: Include the explicit retry attempt variables above PLUS dynamically extract any additional variables from execute-solution-task.prompt.md to ensure complete compatibility
+Parse Task Definitions:
+- Read .github/prompts/repo_tasks_list.prompt.md to extract:
+  - All task directives (e.g., @task-clone-repo, @task-search-readme, etc.)
+  - Short descriptions for each task
+  - The complete "Variables available:" section content
+- If DEBUG=1, print: `[debug][generate-repo-task-checklists] extracted {{task_count}} tasks from .github/prompts/repo_tasks_list.prompt.md`
 
 ### Step 6 (MANDATORY)
-Write and Close Each File
-   • Confirm each file written successfully  
-   • Log total solution files created if DEBUG=1
+Generate or Update Master Checklist:
+- File: ./tasks/all_repository_checklist.md
 
+- **If append = false:**
+  - Create new file with all repositories from input file
+  - If DEBUG=1, print: `[debug][generate-repo-task-checklists] creating new master checklist`
+  - Format:
+    ```
+    # All Repositories Checklist
+    Generated: [timestamp]
+    Source: [input file path]
+    ## Repositories
+    - [ ] repo_name_1 [repo_url_1]
+    - [ ] repo_name_2 [repo_url_2]
+    - [ ] repo_name_3 [repo_url_3]
+    ...
+    ```
+
+- **If append = true:**
+  - If file exists:
+    - Read existing content
+    - Preserve existing repository entries (keep their checkbox status)
+    - Append new repositories to the "## Repositories" section
+    - Update "Generated" timestamp
+    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] appending {{new_count}} repos to master checklist`
+  - If file does not exist:
+    - Create new file with new repositories only
+    - If DEBUG=1, print: `[debug][generate-repo-task-checklists] creating master checklist (no existing file)`
 
 ### Step 7 (MANDATORY)
-Result Tracking:
-   - Append the result to:
-     - results/repo-results.csv (CSV row)
-   - Row format: timestamp | repo_name | generate-repo-task-checklists | status | symbol (✓ or ✗)
+Generate Individual Checklist Files:
+For each repository to process:
+- Extract repo_name from URL
+- If DEBUG=1, print: `[debug][generate-repo-task-checklists] generating checklist for: {{repo_name}}`
+- **Important:** Always name the checklist exactly `./tasks/{repo_name}_repo_checklist.md` (no alternate paths or filenames).
+
+- **If append = false:**
+  - Create checklist for all repositories from input file
+
+- **If append = true:**
+  - Only create checklists for new repositories (not already in master checklist)
+  - Skip creating files for repositories that already have checklist files
+  - If DEBUG=1 and skipping, print: `[debug][generate-repo-task-checklists] skipping existing: {{repo_name}}`
+  - If a repository is in input file but doesn't have a checklist file, create it
+
+- Format:
+    ```
+    # Task Checklist: {repo_name}
+    Repository: {repo_url}
+    Generated: [timestamp]
+    ## Repo Tasks (Sequential Pipeline - Complete in Order)
+    - [ ] [MANDATORY #1] [SCRIPTABLE] Clone repository to local directory @task-clone-repo
+    - [ ] [MANDATORY #2] [SCRIPTABLE] Search for README file in repository @task-search-readme
+    - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
+    - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
+    - [ ] [MANDATORY #3] [SCRIPTABLE] Find all solution files in repository @task-find-solutions
+    - [ ] [MANDATORY #4] [SCRIPTABLE] Generate solution-specific task sections in checklist @generate-solution-task-checklists
+
+    ## For Agents Resuming Work
+    **Next Action:**
+    1. Check if all [MANDATORY] tasks are completed
+    2. If YES and {{readme_content}} is not blank and not "NONE", execute @task-scan-readme
+    3. If {{commands_extracted}} is not blank and not "NONE", execute @task-execute-readme
+    4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
+
+    **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-clone-repo`) as defined in `.github/prompts/repo_tasks_list.prompt.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
+
+    **Quick Reference:**
+    - [MANDATORY] tasks must be completed in numbered order (#1 → #2 → #3 → #4)
+    - [CONDITIONAL] [NON-SCRIPTABLE] @task-scan-readme executes when {{readme_content}} is not blank and not "NONE"
+    - [CONDITIONAL] [NON-SCRIPTABLE] @task-execute-readme executes when {{commands_extracted}} is not blank and not "NONE"
+    - [SCRIPTABLE] tasks can be automated with scripts
+    - [NON-SCRIPTABLE] tasks require AI reasoning and direct tool calls
+    - Mark completed tasks with [x]
+
+    ## Repo Variables Available
+    ### Variables available:
+    [Content dynamically extracted from .github/prompts/repo_tasks_list.prompt.md "Variables available:" section]
+    ```
 
 ### Step 8 (MANDATORY)
-Repo Checklist Update:
-   - Open `tasks/{{repo_name}}_repo_checklist.md`
-   - Set `[x]` only on the `@generate-repo-task-checklists` entry for the current repository markdown `tasks/{{repo_name}}_repo_checklist.md`
-  - Do not modify other checklist items or other repositories' files
+Structured Output:
+- Save JSON object to `output/generate-repo-task-checklists.json` with:
+  - input_file: path to input file used
+  - append_mode: boolean (true/false)
+  - repositories_total: integer (total in input file)
+  - repositories_processed: integer (new repos if append=true, all if append=false)
+  - repositories_skipped: integer (existing repos if append=true, 0 if append=false)
+  - checklists_generated: integer (number of individual checklist files created)
+  - master_checklist_path: string (`./tasks/all_repository_checklist.md`)
+  - individual_checklists_path: string (`./tasks/`)
+  - status: SUCCESS if all files generated, FAIL if error occurred
+  - timestamp: ISO 8601 format datetime when task completed
 
-## Output Contract
-JSON saved to:  
-`output/{repo_name}_task6_generate-solution-checklists.json`
-
-| Field | Type | Description |
-|-------|------|-------------|
-| repo_name | string | Echo of input |
-| solutions_json_path | string | Echo of input |
-| solutions_total | integer | Count of solutions processed |
-| checklists_created | integer | Number of individual checklist files created successfully |
-| checklist_paths | array of strings | List of all created checklist file paths (e.g., `./tasks/{repo_name}_{solution_name}_solution_checklist.md`) |
-| status | SUCCESS or FAIL |
-| timestamp | ISO8601 timestamp |
-
----
-
+### Step 9 (MANDATORY)
+DEBUG Exit Trace: If DEBUG=1, print:
+`[debug][generate-repo-task-checklists] EXIT status={{status}} processed={{repositories_processed}} generated={{checklists_generated}}`
 
 ## Implementation Notes
-1. **THIS IS SCRIPTABLE**: Generate a Python script to execute this task
-2. **Mixed Variables Approach**: Include the explicit retry attempt variables template above AND dynamically extract additional content from .github/prompts/execute-solution-task.prompt.md "### Solution Variables" section
-3. **Variables Section Format**: Combine the static template with any additional variables found in execute-solution-task.prompt.md to ensure complete compatibility
-4. **Contract Compliance**: Always save JSON output file with all fields regardless of success/failure
-5. **Timestamp Format**: Use ISO 8601 format (e.g., "2025-10-27T14:30:00")
-6. **Error Handling**: If solutions_json_path not found, set status=FAIL and return with empty results
-7. **Script Location**: Save generated script to temp-script/ directory with naming pattern: generate_solution_checklists.py (or .ps1/.sh)
-8. **Environment**: Set DEBUG=1 environment variable at the start of the script if debug output is desired
-9. **One File Per Solution**: Each solution gets its own dedicated checklist file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`
-10. **Filename Sanitization**: Replace spaces and special characters in solution_name with underscores for valid filenames
+1. **THIS IS SCRIPTABLE**: Generate a Python script to execute this task.
+2. URL Parsing: Extract friendly repo names from URLs (e.g., last segment after final /).
+3. Dynamic Task Extraction: Parse .github/prompts/repo_tasks_list.prompt.md to get task list and variables section.
+4. Contract Compliance: Always save JSON output file with all fields regardless of success/failure.
+5. Markdown Format: Use `- [ ]` for unchecked, `- [x]` for checked checkboxes.
+6. Timestamp Format: Use ISO 8601 format (e.g., "2025-10-24T14:30:00").
+7. Error Handling: If input file not found, set status=FAIL and return with empty results.
+8. Append Mode Logic: Compare normalized URLs (trim trailing slashes, case-insensitive), preserve existing entries, only create files for new repos.
+9. Script Location: Save generated script to temp-script/ directory with naming pattern: generate_task_checklists.py (or .ps1/.sh)
+\n+## Error Handling
+- For any step that fails:
+  - Log error details (exception type, message, failing path or operation)
+  - If reading the input file or removing/creating required directories fails, set status=FAIL and abort subsequent steps
+  - Do not partially update master or individual checklists on failure (avoid inconsistent state)
+  - If one repository fails to process, log it and continue with others (unless failure mode is global/critical)
+\n+## Consistency Checks
+- After writing each individual checklist, verify required task lines and the `## Repo Variables Available` section are present.
+- After generating master checklist, verify all repository names from processed set appear exactly once.
+- After writing `output/generate-repo-task-checklists.json`, verify keys: `repositories_total`, `repositories_processed`, `status` exist.
+- If append=true, confirm no duplicate repository entries were added to master checklist.
+- If any verification fails, log an error and set status=FAIL.
+\n+## Cross-References
+- Always reference the most recent derived values before writing files.
+- Variables involved in this task:
+  - input / input_file (source repository list)
+  - append / append_mode (controls preservation of existing artifacts)
+  - repositories_total
+  - repositories_processed
+  - repositories_skipped
+  - checklists_generated
+  - master_checklist_path
+  - individual_checklists_path
+  - status
+  - timestamp
+- Ensure JSON output mirrors in-memory counts; do not rely on stale counters.
