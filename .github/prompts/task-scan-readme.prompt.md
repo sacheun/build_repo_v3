@@ -6,6 +6,28 @@ temperature: 0.1
 
 # Task name: task-scan-readme
 
+## Process Overview
+1. Debug Entry Trace
+2. Input & README Load
+3. Prerequisites & Checklist Verification
+4. Structural Section Identification
+5. Follow Referenced Markdown Files
+6. Command Extraction
+7. Command Categorization
+8. Command Cleaning
+9. Structured Output Assembly
+10. Log to Decision Log
+11. Result Tracking
+12. Repo Checklist Update
+13. Repo Variable Refresh
+14. Debug Exit Trace
+
+## Prerequisites
+- README content JSON produced by `@task-search-readme`
+- Repository directory accessible
+- tokens `{{commands_extracted}}` present in `## Repo Variables Available` section of repo checklist
+- DEBUG environment variable optional for verbose tracing
+
 ## Description
 This task analyzes the README content (from task-search-readme output) using structural reasoning to identify and extract setup/build environment commands. This task requires AI structural reasoning and **cannot** be scripted.
 
@@ -82,9 +104,9 @@ If DEBUG=1, print:
 - **CRITICAL REQUIREMENT:** If README references other .md files, you MUST ALWAYS follow them.
 - **THIS IS NOT OPTIONAL – This step is MANDATORY for all README files.**
 - Use AI reasoning to identify ALL references to other markdown files:
-  - Markdown links: `[Getting Started](getting_started.md)`, `[Setup Guide](docs/setup.md)`
+   - Markdown link examples: Getting Started (getting_started.md), Setup Guide (docs/setup.md)
   - Plain text references: "See setup.md for instructions", "Refer to INSTALL.md", "check getting_started.md"
-  - Wiki links: `[[Installation]]`, `[check wiki](link-to-wiki)` (note: external wiki links may not be locally accessible)
+   - Wiki/style link examples: [[Installation]] or external wiki reference (link-to-wiki) (external links may not be locally accessible)
   - Bare filenames: "getting_started.md guide", "See BUILDING.md"
 - **MANDATORY** patterns indicating setup-related markdown files to ALWAYS follow:
   - Filenames: setup.md, install.md, getting_started.md, getting_started_*.md, prerequisites.md, building.md, development.md, running_*.md, BUILDING.md, INSTALL.md, SETUP.md
@@ -135,7 +157,7 @@ g. **Prioritization (Process in this order):**
 The analysis MUST NOT stop when it finds external links. When README only contains links to external documentation (wiki, .md files), this step becomes the PRIMARY way to extract commands. An analysis that reports "found only links to external files" but doesn't follow local .md files is INCOMPLETE.
 
 Example behavior for README with only external references:
-- README contains: "See [getting_started.md](getting_started.md) for setup"
+- README contains: "See getting_started.md for setup"
 - CORRECT: Read getting_started.md, extract commands from it, report commands in output
 - INCORRECT: Report "README contains only links" and stop without reading getting_started.md
 
@@ -182,12 +204,12 @@ If DEBUG=1, print for each command: `[debug][task-scan-readme] extracted command
 
 ### Step 8 (MANDATORY)
 **Command Cleaning:**  
-- Remove shell prompts: `$`, `>`, `C:\>`, `PS>`, `#`
-- Remove line continuations: `\`, `^`
-- Remove comments: everything after `#`, `//`, `REM`
-- Trim whitespace
-- Handle multi-line commands (join with proper syntax)
-- If DEBUG=1, print: `[debug][task-scan-readme] cleaned {{original_count}} commands to {{cleaned_count}} valid commands`
+Remove shell prompts: $, >, C:\>, PS>, #
+Remove line continuations: backslash (\) or caret (^)
+Remove comments: truncate at first occurrence of one of: # // REM
+Trim whitespace
+Handle multi-line commands (join with proper syntax)
+If DEBUG=1, print: `[debug][task-scan-readme] cleaned {{original_count}} commands to {{cleaned_count}} valid commands`
 
 ### Step 9 (MANDATORY)
 **Structured Output:**  
@@ -240,13 +262,17 @@ Append the result to:
 - Do not modify other checklist items or other repositories' files
 
 ### Step 13 (MANDATORY)
-**Repo Variable Refresh:**  
-- Open `tasks/{{repo_name}}_repo_checklist.md` file
-- Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
-  - `{{commands_extracted}}`
-- Update the following variables with the latest values produced by this task:
-  - `{{commands_extracted}}`
-- Ensure each variable reflects the refresh results before saving the file
+**Repo Variable Refresh (INLINE ONLY):**
+- Open `tasks/{{repo_name}}_repo_checklist.md`.
+- Locate the line beginning with `- {{commands_extracted}}`.
+- Replace ONLY the text after `→` with:
+   * If commands extracted: comma-separated list of the first up to 10 command names (truncate with `...` if more).
+   * If no commands and README existed: NONE
+   * If README missing and status=SKIPPED: SKIPPED
+   * If failure: FAIL
+- If the line lacks an arrow, append one then the value: `- {{commands_extracted}} → <value>`.
+- Preserve `- {{commands_extracted}}` prefix verbatim.
+**Inline Variable Policy:** Never create a new section; update in place only.
 
 ### Step 14 (MANDATORY)
 **DEBUG Exit Trace:**  

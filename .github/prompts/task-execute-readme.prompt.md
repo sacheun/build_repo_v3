@@ -6,6 +6,27 @@ temperature: 0.1
 
 # Task name: task-execute-readme
 
+## Process Overview
+1. Debug Entry Trace
+2. Load Commands JSON
+3. Prerequisites & Checklist Verification
+4. Safety Classification
+5. SAFE Command Execution
+6. Decision Log per Command
+7. Skipped Command Recording
+8. Execution Summary
+9. Structured Output Assembly
+10. Result Tracking
+11. Repo Checklist Update
+12. Repo Variable Refresh
+13. Debug Exit Trace
+
+## Prerequisites
+- Output JSON from `@task-scan-readme` containing `commands_extracted`
+- Writable `output/` and `results/` directories
+- Repo checklist contains `{{executed_commands}}`, `{{skipped_commands}}` tokens
+- DEBUG environment variable optional
+
 ## Description
 This task takes the commands extracted by task-scan-readme, determines which commands are safe to execute, and executes them in the repository directory. This task requires AI structural reasoning for safety classification and **cannot** be scripted.
 
@@ -221,15 +242,20 @@ Save JSON object to `output/{{repo_name}}_task4_execute-readme.json` with:
 - Do not modify other checklist items or other repositories' files
 
 ### Step 9 (MANDATORY)
-**Repo Variable Refresh:**  
-- Open `tasks/{{repo_name}}_repo_checklist.md` file
-- Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
-  - `{{executed_commands}}`
-  - `{{skipped_commands}}`
-- Update the following variables with the latest values produced by this task:
-  - `{{executed_commands}}`
-  - `{{skipped_commands}}`
-- Ensure each variable reflects the refresh results before saving the file
+**Repo Variable Refresh (INLINE ONLY):**
+- Open `tasks/{{repo_name}}_repo_checklist.md`.
+- Locate lines beginning with:
+  * `- {{executed_commands}}`
+  * `- {{skipped_commands}}`
+- Replace ONLY the text after `→` with summary values:
+  * `{{executed_commands}}` → `<count> executed: cmd1; cmd2; cmd3 ...` (list up to 5 commands, then `...` if more)
+  * `{{skipped_commands}}` → `<count> skipped: cmdA; cmdB ...` (same truncation rule)
+- If no executed commands: `0 executed` (no trailing colon list).
+- If no skipped commands: `0 skipped`.
+- On SKIPPED status (no execution attempted): set both to SKIPPED.
+- On FAIL: retain existing values but append ` (FAIL)` unless already marked.
+- If a line lacks an arrow, append one then the value: `- {{token}} → <value>`.
+**Inline Variable Policy:** Never create separate refreshed blocks; modify original lines only.
 
 ### Step 10 (MANDATORY)
 **DEBUG Exit Trace:**  

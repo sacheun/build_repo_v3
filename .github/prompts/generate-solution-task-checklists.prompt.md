@@ -6,6 +6,19 @@ temperature: 0.0
 
 # Task name: generate-solution-task-checklists
 
+## Process Overview
+1. Debug Entry Trace
+2. Parameter & JSON Validation
+3. Parse Solution Task Definitions
+4. Workspace Preparation
+5. Derive Solution Metadata
+6. Generate / Update Solution Index
+7. Generate Individual Solution Checklists
+8. Structured Output JSON
+9. Consistency Checks
+10. Debug Exit Trace
+ 11. Repo Variable Refresh (Inline Only)
+
 ## Purpose
 Generate (or append) per-solution task checklist markdown files for every Visual Studio solution discovered for a repository. These checklists enable agents to execute and track solution-level tasks (restore, build, knowledge base enrichment, fix application, logging) independently from repository pipeline tasks.
 
@@ -38,12 +51,12 @@ Solution Path: {solution_path}
 Generated: {timestamp}
 
 ## Solution Tasks (Sequential Pipeline)
-- [ ] [MANDATORY #1] [SCRIPTABLE] Restore NuGet packages @task-restore-solution
-- [ ] [MANDATORY #2] [SCRIPTABLE] Build solution (Clean + Build) @task-build-solution
+- [ ] [MANDATORY 1] [SCRIPTABLE] Restore NuGet packages @task-restore-solution
+- [ ] [MANDATORY 2] [SCRIPTABLE] Build solution (Clean + Build) @task-build-solution
 - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Search knowledge base for matching error @task-search-knowledge-base
 - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Create new knowledge base article @task-create-knowledge-base
 - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Apply knowledge base fix @task-apply-knowledge-base-fix
-- [ ] [MANDATORY #3] [SCRIPTABLE] Update knowledge base usage log @task-update-knowledgebase-log
+- [ ] [MANDATORY 3] [SCRIPTABLE] Update knowledge base usage log @task-update-knowledgebase-log
 
 ## For Agents Resuming Work
 1. Start with restore then build.
@@ -55,7 +68,7 @@ Generated: {timestamp}
 [Content dynamically extracted from `.github/prompts/solution_tasks_list.prompt.md` "Variables available:" section]
 ```
 
-## Step-by-Step Instructions
+## Instructions (Follow this Step by Step)
 
 ### Step 1 (MANDATORY) – Parameter & Environment Validation
 1. Validate `repo_name` is non-empty.
@@ -95,7 +108,24 @@ Generated: {{timestamp}}
 ## Solutions
 {one line per solution: - [ ] {solution_name} [{relative_or_basename}]}
 ```
-If append=true and file exists, preserve existing checkbox states; add new solutions only.
+Deterministic Rules (ENFORCED):
+1. Build a list of all solutions from Step 4 and SORT them lexicographically by `solution_name` (case-insensitive compare, original case preserved in output). This sort is MANDATORY (previously recommended) to guarantee identical ordering on repeated runs.
+2. Timestamp MUST be UTC ISO 8601 truncated to seconds (e.g. `2025-11-03T00:00:00Z`).
+3. Line format is EXACTLY: `- [ ] {solution_name} [{basename}]` using unchecked box by default. No trailing spaces. LF line endings. Single final newline at end of file.
+4. When `append=true` and the index file exists:
+  - Parse existing solution lines under `## Solutions`.
+  - Preserve existing lines EXACTLY (including `[x]` checked states and ordering).
+  - Determine the set of NEW solutions (case-insensitive comparison on `solution_name`).
+  - Sort NEW solutions (same rule as item 1 above) and APPEND them after the existing block without reordering or modifying prior lines.
+  - Do NOT remove solutions that disappeared (historical retention).
+5. When `append=false` always regenerate the entire file from scratch with sorted solutions.
+6. If a solution name appears more than once (after normalization) only the first is included; subsequent duplicates are ignored and logged (DEBUG) but do not cause FAIL.
+7. If DEBUG=1:
+  - On creation: `[debug][generate-solution-task-checklists] writing solution index (solutions_total={{solutions_total}})`
+  - On append mode update: `[debug][generate-solution-task-checklists] updating solution index existing={{existing_count}} new={{new_count}}`.
+Validation:
+- After writing, ensure each listed solution has a corresponding checklist file (unless append=true and file pre-existed but checklist generation skipped). If mismatch detected → status may be set to FAIL after consistency checks.
+If append=true and file exists, preserve existing checkbox states; add only new, sorted solutions at the end.
 
 ### Step 6 (MANDATORY) – Generate Individual Solution Checklists
 For each solution:
@@ -124,6 +154,17 @@ Write `output/{{repo_name}}_generate-solution-task-checklists.json` with:
 ### Step 8 (MANDATORY) – Debug Exit Trace
 If DEBUG=1 print:  
 `[debug][generate-solution-task-checklists] EXIT status={{status}} created={{solution_checklists_created}} skipped={{solutions_skipped}}`.
+
+### Step 9 (MANDATORY) – Repo Variable Refresh (INLINE ONLY)
+After successful generation (status=SUCCESS):
+1. Open `tasks/{{repo_name}}_repo_checklist.md`.
+2. Locate line beginning with `- {{solutions_json}}` and replace text after `→` with the absolute path to `output/{{repo_name}}_generate-solution-task-checklists.json`.
+3. Locate line beginning with `- {{solutions}}` and replace text after `→` with `<solutions_total> solutions: name1; name2; name3 ...` truncating after 5 names with `...` if more.
+4. If append=true and only new solutions were added, reflect new total count (not just added count).
+5. If status=FAIL set both variable values to FAIL (do NOT modify other tokens).
+6. If a variable line lacks an arrow append one before inserting value (`- {{token}} → <value>`).
+7. Preserve the leading token EXACTLY.
+**Inline Variable Policy:** Never create a secondary block; modify original lines only.
 
 ## Output Contract
 - repo_name: string
@@ -206,6 +247,31 @@ Ensure per-solution checklist metadata (solution_path, solution_name) matches di
 
 ## Final Notes
 The correctness of downstream solution task execution (restore/build/KB lifecycle) depends on accurate variable section replication and stable checklist filenames. Preserve formatting strictly.
+## Deterministic Summary (Concise)
+The following guarantees ensure reproducible outputs for identical inputs:
+- Solution ordering: Stable lexicographic (case-insensitive) sort by `solution_name` on every non-append run; append mode inserts only new solutions in sorted order after existing lines.
+- Slug derivation: `solution_slug = lowercase(solution_name)` with non-alphanumeric replaced by `_`; collisions resolved by suffix `_2`, `_3`, etc. (first occurrence keeps base slug).
+- Path normalization: Use absolute path; preserve original case; resolve `..` segments; never modify filename casing.
+- Timestamp: UTC ISO 8601 truncated to whole seconds (e.g. `2025-11-03T00:00:00Z`).
+- Line endings: All generated markdown and JSON files use LF; no trailing spaces; single final newline.
+- Variable section: Inserted verbatim from `solution_tasks_list.prompt.md` (no reflow, no trimming).
+- JSON field values: Derived solely from deterministic counts (ordering doesn’t affect semantics). Given same inputs, JSON content identical except timestamp.
+- Append mode stability: Existing index and checklist files retained; only new solutions added—no reordering of historical entries.
+- Debug log format: Consistent key=value pairs enabling diff-friendly tracing; absence of DEBUG leaves no extraneous variability.
+
+## Manual Usage (Source of Truth)
+This markdown is the authoritative specification. You may execute it manually without any helper script:
+1. Collect `repo_name`, set `solutions_json_path` to discovery output, choose `append=true|false`.
+2. Load JSON, extract array `solutions` (absolute paths). If `solution_count` missing, compute as `len(solutions)`.
+3. Derive `solution_name`, `solution_slug` (collision handling) for each path; discard duplicates beyond the first.
+4. Sort solutions by `solution_name` (case-insensitive) unless in append mode where only new solutions are sorted and appended.
+5. Create/Update index file per deterministic rules above.
+6. For each solution (skipping existing when append=true) write checklist file using the template plus injected Variables section.
+7. Produce structured JSON summary with timestamp truncated to seconds (UTC) and save to `output/{{repo_name}}_generate-solution-task-checklists.json`.
+8. Run consistency checks: counts, presence of required directives, index coverage.
+9. Record FAIL only on critical validation or I/O issues; otherwise SUCCESS.
+
+If automation is desired, a script may implement these steps; however the script must conform exactly to this specification and never introduce non-deterministic ordering, formatting drift, or extraneous data.
 ---
 temperature: 0.0
 ---
@@ -256,7 +322,7 @@ Directory Preparation:
 ### Step 3 (MANDATORY)
 Read Input File:
 - Read the input file to get all repository URLs
-- Parse line by line, skip empty lines and comments (lines starting with #)
+- Parse line by line; skip empty lines and lines beginning with hash symbol #
 - Extract repository URLs
 - If DEBUG=1, print: `[debug][generate-repo-task-checklists] found {{count}} repositories in input file`
 
@@ -333,12 +399,12 @@ For each repository to process:
     Repository: {repo_url}
     Generated: [timestamp]
     ## Repo Tasks (Sequential Pipeline - Complete in Order)
-    - [ ] [MANDATORY #1] [SCRIPTABLE] Clone repository to local directory @task-clone-repo
-    - [ ] [MANDATORY #2] [SCRIPTABLE] Search for README file in repository @task-search-readme
+  - [ ] [MANDATORY 1] [SCRIPTABLE] Clone repository to local directory @task-clone-repo
+  - [ ] [MANDATORY 2] [SCRIPTABLE] Search for README file in repository @task-search-readme
     - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
     - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
-    - [ ] [MANDATORY #3] [SCRIPTABLE] Find all solution files in repository @task-find-solutions
-    - [ ] [MANDATORY #4] [SCRIPTABLE] Generate solution-specific task sections in checklist @generate-solution-task-checklists
+  - [ ] [MANDATORY 3] [SCRIPTABLE] Find all solution files in repository @task-find-solutions
+  - [ ] [MANDATORY 4] [SCRIPTABLE] Generate solution-specific task sections in checklist @generate-solution-task-checklists
 
     ## For Agents Resuming Work
     **Next Action:**
@@ -350,7 +416,7 @@ For each repository to process:
     **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-clone-repo`) as defined in `.github/prompts/repo_tasks_list.prompt.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
 
     **Quick Reference:**
-    - [MANDATORY] tasks must be completed in numbered order (#1 → #2 → #3 → #4)
+  - [MANDATORY] tasks must be completed in numbered order (1 → 2 → 3 → 4)
     - [CONDITIONAL] [NON-SCRIPTABLE] @task-scan-readme executes when {{readme_content}} is not blank and not "NONE"
     - [CONDITIONAL] [NON-SCRIPTABLE] @task-execute-readme executes when {{commands_extracted}} is not blank and not "NONE"
     - [SCRIPTABLE] tasks can be automated with scripts

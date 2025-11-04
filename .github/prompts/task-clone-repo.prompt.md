@@ -51,12 +51,13 @@ If repo_name not provided, extract from repo_url:
 
 Pre-flight Checklist Verification:
 - Open `tasks/{{repo_name}}_repo_checklist.md`
-- Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
-  * `{{repo_url}}`
-  * `{{clone_path}}`
-  * `{{repo_directory}}`
-  * `{{repo_name}}`
-- If any token is missing or altered, restore it prior to continuing
+- Confirm the `## Repo Variables Available` section has one line starting with each of:
+  * `- {{repo_url}}`  
+  * `- {{clone_path}}`  
+  * `- {{repo_directory}}`  
+  * `- {{repo_name}}`
+- The portion after `→` may already contain a previous concrete value; that's acceptable. Do NOT recreate placeholder descriptive text.
+- If any required line is missing entirely, insert a new line using the pattern `- {{token}} →` (leave value blank before Step 9 updates).
 
 ### Step 3 (MANDATORY)
 Directory Existence Check:  
@@ -150,19 +151,18 @@ Repo Checklist Update:
 - Do not modify other checklist items or other repositories' files
 
 ### Step 9 (MANDATORY)
-Repo Variable Refresh:
-- Open `tasks/{{repo_name}}_repo_checklist.md` file
-- Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
-  * `{{repo_url}}`
-  * `{{clone_path}}`
-  * `{{repo_directory}}`
-  * `{{repo_name}}`
-- Update the following variables with the latest values produced by this task:
-  * `{{repo_url}}`
-  * `{{clone_path}}`
-  * `{{repo_directory}}`
-  * `{{repo_name}}`
-- Ensure each variable reflects the refresh results before saving the file
+Repo Variable Refresh (INLINE ONLY):
+- Open `tasks/{{repo_name}}_repo_checklist.md` file.
+- For each of the lines under `## Repo Variables Available` beginning with:
+  * `- {{repo_url}}`
+  * `- {{clone_path}}`
+  * `- {{repo_directory}}`
+  * `- {{repo_name}}`
+  replace the text AFTER the arrow (`→`) with the concrete current value from this task.
+- Example transformation: `- {{repo_url}} → Original repository URL provided to the workflow.` becomes `- {{repo_url}} → https://example.com/_git/repo-name`.
+- Do NOT add a separate section (e.g., "### Current Variable Values (Refreshed)"). All values must live inline on the original lines.
+- Preserve the leading token portion exactly (`- {{repo_url}}` etc.) so future tasks can locate and update these lines.
+- If a line lacks an arrow, append ` → <value>`.
 
 ### Step 10 (MANDATORY)
 DEBUG Exit Trace:  
@@ -189,6 +189,7 @@ If DEBUG=1, print:
 6. Security: Avoid embedding credentials in the URL; rely on pre-configured git auth (credential manager, SSH keys).
 7. Directory Creation: Ensure clone_path directory exists before attempting clone; create if necessary.
 8. Script Location: Save generated script to temp-script/ directory with naming pattern: step{N}_repo{M}_task1_clone-repo.py
+9. Inline Variable Policy: Step 9 must update values directly on existing `- {{token}} → value` lines; never create a secondary "refreshed" block. Failure to inline is considered NON-COMPLIANT.
 
 ## Error Handling
 - For any step that fails:

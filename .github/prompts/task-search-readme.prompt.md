@@ -131,15 +131,22 @@ Repo Checklist Update:
 - Do not modify other checklist items or other repositories' files
 
 ### Step 10 (MANDATORY)
-Repo Variable Refresh:
-- Open `tasks/{{repo_name}}_repo_checklist.md` file
-- Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
-  * `{{readme_content}}`
-  * `{{readme_filename}}`
-- Update the following variables with the latest values produced by this task:
-  * `{{readme_content}}`
-  * `{{readme_filename}}`
-- Ensure each variable reflects the refresh results before saving the file
+Repo Variable Refresh (INLINE ONLY):
+- Open `tasks/{{repo_name}}_repo_checklist.md`.
+- Locate lines under `## Repo Variables Available` beginning with:
+  * `- {{readme_content}}`
+  * `- {{readme_filename}}`
+- Do NOT create a new section or duplicate these tokens; you must update inline only.
+- Replace ONLY the text after the arrow `→` on each line with the concrete value from this task's output JSON. If the line has no arrow, append one: `- {{token}} → <value>`.
+- Large README content: store either the first 200 characters + `...` suffix or the literal string `EMPTY` if no README found (never null). This prevents checklist bloat.
+- If README was not found (status=FAIL), set:
+  * `{{readme_content}}` → NONE
+  * `{{readme_filename}}` → NONE
+- Example transformation:
+  * `- {{readme_filename}} → README.md` (previous placeholder replaced)
+  * `- {{readme_content}} → # Project Title...` (truncated preview)
+- Preserve the leading `- {{token}}` portion exactly for future tasks.
+**Inline Variable Policy:** Never add a secondary "refreshed" block; all updates must occur on the original lines.
 
 ### Step 11 (MANDATORY)
 DEBUG Exit Trace:  

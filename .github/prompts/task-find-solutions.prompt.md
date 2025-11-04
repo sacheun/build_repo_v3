@@ -4,7 +4,25 @@ temperature: 0.0
 
 @task-find-solutions repo_directory={{repo_directory}} repo_name={{repo_name}}
 
-Task name: task-find-solutions
+# Task name: task-find-solutions
+
+## Process Overview
+1. Debug Entry Trace
+2. Input Validation & Checklist Verification
+3. Recursive `.sln` Search
+4. Path Collection & Counting
+5. Structured Output JSON
+6. Decision Log Entries (per solution or none found)
+7. Result Tracking CSV Append
+8. Repo Checklist Update
+9. Repo Variable Refresh
+10. Debug Exit Trace
+
+## Prerequisites
+- Valid repository directory path
+- Accessible filesystem permissions for recursive search
+- Repo checklist contains `{{solutions_json}}` and `{{solutions}}` tokens
+- git not required; Python or PowerShell available for scripting
 
 ## Description
 This task discovers all Visual Studio solution files (`.sln`) within a repository directory tree. This is a straightforward file search operation that **must** be implemented as a script.
@@ -14,7 +32,7 @@ This task discovers all Visual Studio solution files (`.sln`) within a repositor
 **DO NOT SKIP OR SUMMARIZE.**
 **THIS TASK IS SCRIPTABLE**
 
-## Instructions (Follow Step by Step)
+## Instructions (Follow this Step by Step)
 
 ### Step 1 (MANDATORY)
 DEBUG Entry Trace: If DEBUG=1, print: `[debug][task-find-solutions] START repo_directory='{{repo_directory}}'`
@@ -103,15 +121,17 @@ Repo Checklist Update:
 - Do not modify other checklist items or other repositories' files
 
 ### Step 9 (MANDATORY)
-Repo Variable Refresh:
-- Open `tasks/{{repo_name}}_repo_checklist.md` file
-- Confirm the `## Repo Variables Available` section still contains the expected templated tokens exactly as shown below:
-  - `{{solutions_json}}`
-  - `{{solutions}}`
-- Update the following variables with the latest values produced by this task:
-  - `{{solutions_json}}`
-  - `{{solutions}}`
-- Ensure each variable reflects the refresh results before saving the file
+Repo Variable Refresh (INLINE ONLY):
+- Open `tasks/{{repo_name}}_repo_checklist.md`.
+- Locate lines beginning with:
+  * `- {{solutions_json}}`
+  * `- {{solutions}}`
+- Replace ONLY text after `→` as follows:
+  * `{{solutions_json}}` → path to JSON output file `output/{{repo_name}}_task5_find-solutions.json`.
+  * `{{solutions}}` → `<count> solutions: Name1; Name2; Name3 ...` (list up to 5 names, then `...` if more). If zero: `0 solutions`.
+- If FAIL status: set both to FAIL.
+- If a line lacks an arrow, append one then the value.
+**Inline Variable Policy:** Do not add new sections; update existing lines only.
 
 ### Step 10 (MANDATORY)
 If DEBUG=1, print: `[debug][task-find-solutions] EXIT repo_directory='{{repo_directory}}' status={{status}} solution_count={{solution_count}}`
