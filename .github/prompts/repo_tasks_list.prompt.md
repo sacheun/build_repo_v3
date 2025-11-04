@@ -18,10 +18,9 @@ Tasks should report success/fail, which will be appended to results files (Markd
 
 ### Repo Variables Available:
 - {{repo_url}} → Original repository URL provided to the workflow.
-- {{clone_path}} → Root folder where repositories are cloned.
-- {{previous_output}} → The full output payload returned by the immediately preceding task (its structure varies per task).
-- {{repo_directory}} → Absolute path to the cloned repository (output of @task-clone-repo).
 - {{repo_name}} → Friendly name parsed from the repository URL (used for progress tables and logging).
+- {{clone_path}} → Root folder where repositories are cloned.
+- {{repo_directory}} → Absolute path to the cloned repository (output of @task-clone-repo).
 - {{readme_content}} → README file content (output of @task-search-readme).
 - {{readme_filename}} → README filename (output of @task-search-readme).
 - {{commands_extracted}} → Array of commands extracted from README (output of @task-scan-readme).

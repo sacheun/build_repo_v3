@@ -131,7 +131,7 @@ Generate Individual Checklist Files (Single Canonical Template):
        - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
        - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
        - [ ] [MANDATORY] [SCRIPTABLE] Find all solution files in repository @task-find-solutions (3)
-       - [ ] [MANDATORY] [SCRIPTABLE] Generate solution-specific task sections in checklist @generate-solution-task-checklists (4)
+   - [ ] [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files (no inline sections) @generate-solution-task-checklists (4)
 
        ## For Agents Resuming Work
        **Next Action:**
@@ -150,8 +150,20 @@ Generate Individual Checklist Files (Single Canonical Template):
        - [NON-SCRIPTABLE] tasks: scan-readme, execute-readme
        - Mark completed tasks with [x]
 
-       ## Repo Variables Available
-       [Variables section verbatim]
+   ## Repo Variables Available
+   - {{repo_url}}
+   - {{repo_name}}
+   - {{clone_path}}
+   - {{repo_directory}}
+   - {{readme_content}}
+   - {{readme_filename}}
+   - {{commands_extracted}}
+   - {{executed_commands}}
+   - {{skipped_commands}}
+   - {{solutions_json}}
+   - {{solutions}}
+   [Variables section verbatim]
+   (All variable lines MUST appear ONLY in this section. DO NOT emit any `{{token}}=value` assignments in the Repo Tasks section or elsewhere.)
 
        ## Parsed Task Directives
        - One bullet per unique directive in first-appearance order
@@ -168,21 +180,76 @@ Generate Individual Checklist Files (Single Canonical Template):
           * SCRIPTABLE: @task-clone-repo, @task-search-readme, @task-find-solutions, @generate-solution-task-checklists
           * NON-SCRIPTABLE: @task-scan-readme, @task-execute-readme
     - Dynamic Variables Section: Extract the entire "## Repo Variables Available" section from `.github\prompts\repo_tasks_list.prompt.md` verbatim.
+    - Prohibited: Adding any solution-specific task subsections or variable lines outside `## Repo Variables Available`.
 
 ### Step 8: (MANDATORY)
-Structured Output: Save JSON object to output/generate-repo-task-checklists.json with:
-   - input_file: path to input file used
-   - append_mode: boolean (true/false)
-   - repositories_total: integer (total in input file)
-   - repositories_processed: integer (new repos if append=true, all if append=false)
-   - repositories_skipped: integer (existing repos if append=true, 0 if append=false)
-   - checklists_generated: integer (number of individual checklist files created)
-   - master_checklist_path: string (./tasks/all_repository_checklist.md)
-   - individual_checklists_path: string (./tasks/)
-   - status: SUCCESS if all files generated, FAIL if error occurred
-   - timestamp: ISO 8601 format datetime when task completed
+Populate Base Repo Variables (repo_url & repo_name):
+   - After inserting the dynamic variables section for each individual checklist (from Step 7), ensure the following two lines exist under `## Repo Variables Available` (inline ONLY, update-in-place — NO duplicate block creation):
+      * `- {{repo_url}} → <exact repository URL from input file>`
+      * `- {{repo_name}} → <extracted repository name>`
+   - Extraction logic for repo_name (deterministic):
+         * Azure DevOps (URL contains `/_git/`): take the final segment after the last `/` (e.g., `https://skype.visualstudio.com/SCC/_git/repo-name` → `repo-name`).
+         * GitHub: take last path segment and strip optional `.git` suffix (e.g., `https://github.com/user/repo.git` → `repo`).
+         * Fallback: last non-empty URL path segment with trailing `.git` removed.
+   - Pre-normalize URL for storage: trim whitespace, strip trailing slashes, retain original case.
+   - Inline update rules:
+         * If line exists without an arrow, append ` → value`.
+         * If line exists with an arrow, replace ONLY the value to the right (preserve `- {{token}}`).
+   - Do NOT create secondary refreshed sections; never duplicate the variable heading.
+   - Validation (per checklist): both lines MUST appear exactly once post-generation; if either missing, mark run status=FAIL before JSON output.
+   - DEBUG (per repo if DEBUG=1): `[debug][generate-repo-task-checklists] repo_name extracted: {repo_name} from url: {repo_url}`.
 
 ### Step 9: (MANDATORY)
+Verification & Structured Output:
+   BEFORE writing JSON output you MUST run a full verification pass for Steps 6–8.
+   Any violation MUST set status=FAIL. Collect all violations in an in-memory list.
+   If DEBUG=1, emit a debug line for each failure discovered in the form:
+   `[debug][generate-repo-task-checklists][verification] FAIL code=<code> detail="<human readable detail>"`
+   Verification checklist (run in order):
+   1. Master checklist file exists at `./tasks/all_repository_checklist.md`.
+   2. Master checklist contains headings `# All Repositories Checklist` and `## Repositories` exactly once.
+   3. Count of repo lines (`- [ ] name [url]` or `- [x] name [url]`) equals:
+      * append=false → repositories_total
+      * append=true  → existing + new (i.e., repositories_total after append logic)
+   4. No duplicate repo names (case-insensitive) in master checklist.
+   5. Each processed repository (append=false: all, append=true: new subset) has a checklist file.
+   6. Each processed checklist contains REQUIRED headings exactly once:
+      * `# Task Checklist:`
+      * `## Repo Tasks (Sequential Pipeline - Complete in Order)`
+      * `## Repo Variables Available`
+      * `## Parsed Task Directives`
+   7. In each processed checklist, validate canonical template anchors:
+      * First line starts with `# Task Checklist:` and includes repo_name
+      * Second line `Repository:` includes the exact repo_url
+      * `Generated:` line present (ISO 8601 seconds precision)
+   8. Variables section validation (per processed repo checklist):
+      * Line with `- {{repo_url}}` appears exactly once and contains arrow with exact URL value
+      * Line with `- {{repo_name}}` appears exactly once and contains arrow with exact repo name value
+      * No second duplicate lines for these tokens
+      * No stray `{{token}}=value` lines present outside the variables section (violation code: `extraneous_variable_line`).
+   9. Task directive uniqueness: No duplicate lines referencing the same `@task-` directive.
+   10. Placeholder existence: Lines for `- {{solutions_json}}` and `- {{solutions}}` exist (value may be absent or arrow not yet applied—allowed).
+   11. File hygiene: No extra copies of the canonical template block; specifically count of `# Task Checklist:` MUST equal 1.
+   12. If any check fails for a file:
+      * Mark status=FAIL
+      * Add structured violation object: `{ "type": "<code>", "target": "<file or repo>", "detail": "<description>" }`
+   13. If status=FAIL you MAY still write JSON output (for diagnostics) including all violations.
+
+   Structured JSON Output (file: output/generate-repo-task-checklists.json) MUST include keys:
+   - input_file: path to input file used
+   - append_mode: boolean (true/false)
+   - repositories_total: integer (total in input file after normalization)
+   - repositories_processed: integer (new repos if append=true, all if append=false)
+   - repositories_skipped: integer (existing repos if append=true, 0 if append=false)
+   - checklists_generated: integer (number of individual checklist files created this run)
+   - master_checklist_path: string (./tasks/all_repository_checklist.md)
+   - individual_checklists_path: string (./tasks/)
+   - status: SUCCESS if all verifications pass, FAIL otherwise
+   - timestamp: ISO 8601 format datetime when task completed
+   - verification_errors: array (empty if none) of objects `{type, target, detail}` documenting each failure condition
+   - debug: optional array of debug trace lines (include only if DEBUG=1)
+
+### Step 10: (MANDATORY)
 DEBUG Exit Trace: If DEBUG=1, print:
    "[debug][generate-repo-task-checklists] EXIT status={{status}} processed={{repositories_processed}} generated={{checklists_generated}}"
 
@@ -191,19 +258,20 @@ DEBUG Exit Trace: If DEBUG=1, print:
 2. URL Parsing: Extract friendly repo names from URLs (e.g., last segment after final /)
 3. Dynamic Task Extraction: Parse .github\prompts\repo_tasks_list.prompt.md to get task list and variables section
 4. Contract Compliance: Always save JSON output file with all fields regardless of success/failure
-   Core reproducibility requirements have been embedded inline in Steps 3–7. Consolidated summary:
+   Core reproducibility requirements have been embedded inline in Steps 3–8. Consolidated summary:
    - Normalization & sorting (Step 3) produce stable repo ordering.
    - Append mode preserves existing order; only sorted new entries appended (Step 4 & 6).
    - Master checklist formatting rules prevent whitespace drift (Step 6).
    - Individual checklist deterministic content + directive uniqueness enforced (Step 7).
-   - Consistency checks & key ordering already defined in Consistency Checks and Step 8.
+   - Base repo variable population deterministic (Step 8).
+   - Consistency checks & key ordering already defined in Consistency Checks and Step 9.
    - No randomness, locale neutrality, placeholder fidelity guaranteed through explicit rules.
    Following these embedded rules ensures repeat runs with identical inputs produce identical artifacts except for timestamp.
 5. Markdown Format: Use `- [ ]` for unchecked, `- [x]` for checked checkboxes
 6. Timestamp Format: Use ISO 8601 format (e.g., "2025-10-24T14:30:00")
 7. Error Handling: If input file not found, set status=FAIL and return with empty results
 8. Append Mode Logic: Compare normalized URLs (trim trailing slashes, case-insensitive), preserve existing entries, only create files for new repos
-9. (Deprecated) Script Generation: Previously a helper script (generate_task_checklists.py) could automate Steps 3–8. This repository now treats THIS MARKDOWN as the single source of truth. Do NOT regenerate or rely on any local script; perform tasks manually or via an agent following Steps 1–9 exactly. If automation is desired in the future, re-implement using these steps verbatim.
+9. (Deprecated) Script Generation: Previously a helper script (generate_task_checklists.py) could automate Steps 3–9. This repository now treats THIS MARKDOWN as the single source of truth. Do NOT regenerate or rely on any local script; perform tasks manually or via an agent following Steps 1–10 exactly. If automation is desired in the future, re-implement using these steps verbatim.
 
 ## Error Handling
 - Missing input file: Set status=FAIL, repositories_total=0, repositories_processed=0, repositories_skipped=0. Do not attempt further steps.
@@ -213,10 +281,11 @@ DEBUG Exit Trace: If DEBUG=1, print:
 - Empty repository list after parsing input: status=SUCCESS with repositories_total=0; generate master checklist with header only.
 
 ## Consistency Checks
-- Step numbering must be strictly sequential (1..9). Validate after generation; if mismatch, set status=FAIL.
+- Step numbering must be strictly sequential (1..10). Validate after generation; if mismatch, set status=FAIL.
 - Master checklist must contain every processed repository exactly once. Compare count of lines starting with "- [ ]" or "- [x]" under ## Repositories with repositories_processed.
 - Each individual checklist must include headings: "# Task Checklist:", "## Repo Tasks", and "## Repo Variables Available".
 - Dynamic variables section must not be empty (at least one bullet or line of content extracted).
+- Base repo variable lines for repo_url and repo_name must be present exactly once.
 - If append=true, repositories_skipped + repositories_processed MUST equal repositories_total from input file.
 
 ## Cross-References
@@ -232,7 +301,7 @@ DEBUG Exit Trace: If DEBUG=1, print:
 - {{timestamp}} → ISO 8601 completion time.
 
 ## Deterministic Summary (Concise)
-All determinism rules are already embedded inline in Steps 3–7 and Manual Usage. This summary is retained only for quick reference:
+All determinism rules are already embedded inline in Steps 3–8 and Manual Usage. This summary is retained only for quick reference:
 - Normalize & de-duplicate URLs (trim, strip trailing '/', case-insensitive); derive friendly name (`/_git/` segment else last path; strip `.git`).
 - Sort repositories lexicographically by friendly name (append mode: keep existing order, sort only new subset).
 - Timestamps: UTC ISO8601 truncated to whole seconds.
@@ -240,6 +309,7 @@ All determinism rules are already embedded inline in Steps 3–7 and Manual Usag
 - Placeholders: keep `{{variable}}` literal; do not expand.
 - Directives: unique first appearance order; skip duplicates inside variables block.
    - Present them under a single heading `## Parsed Task Directives` with one bullet per directive.
+ - Base repo variables (repo_url, repo_name) populated deterministically once (Step 8) with inline arrow update semantics.
 
 8. Idempotency (append=false):
    - A run with append=false MUST fully remove then recreate `./tasks`, `./output`, `./temp-script` before generation.
@@ -260,7 +330,7 @@ All determinism rules are already embedded inline in Steps 3–7 and Manual Usag
    - Confirm ordering of repo entries matches sorted repo names.
 
 12. JSON Stability:
-   - Key order stable as specified in Step 8; do not include extraneous, transient fields.
+   - Key order stable as specified in Step 9; do not include extraneous, transient fields.
    - If an error occurs, include `error_message` as the last key.
 
 13. Line Prefix Integrity:

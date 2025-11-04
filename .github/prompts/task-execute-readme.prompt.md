@@ -2,13 +2,13 @@
 temperature: 0.1
 ---
 
-@task-execute-readme repo_directory={{repo_directory}} repo_name={{repo_name}} commands_json_path={{commands_json_path}}
+@task-execute-readme checklist_path={{checklist_path}}
 
 # Task name: task-execute-readme
 
 ## Process Overview
 1. Debug Entry Trace
-2. Load Commands JSON
+2. Checklist Load & Variable Extraction
 3. Prerequisites & Checklist Verification
 4. Safety Classification
 5. SAFE Command Execution
@@ -22,9 +22,9 @@ temperature: 0.1
 13. Debug Exit Trace
 
 ## Prerequisites
-- Output JSON from `@task-scan-readme` containing `commands_extracted`
+- Repo checklist (at checklist_path) contains variable lines for `{{repo_name}}`, `{{repo_directory}}`, `{{commands_extracted}}`, `{{executed_commands}}`, `{{skipped_commands}}`
+- `{{commands_extracted}}` value produced previously by `@task-scan-readme` (may be NONE / SKIPPED / FAIL)
 - Writable `output/` and `results/` directories
-- Repo checklist contains `{{executed_commands}}`, `{{skipped_commands}}` tokens
 - DEBUG environment variable optional
 
 ## Description
@@ -34,9 +34,9 @@ This task takes the commands extracted by task-scan-readme, determines which com
 **⚠️ CRITICAL – THIS TASK IS NON-SCRIPTABLE ⚠️**
 This task MUST be performed using **direct tool calls** and **structural reasoning**:
 
-1. Use `read_file` tool to load commands from the file specified in commands_json_path parameter.
-2. Use structural reasoning to classify each command as SAFE or UNSAFE.
-3. Use `run_in_terminal` tool to execute SAFE commands individually.
+1. Use `read_file` to load the repo checklist (checklist_path) and extract variable values.
+2. Use structural reasoning to classify each command listed in `{{commands_extracted}}` as SAFE or UNSAFE.
+3. Use `run_in_terminal` tool to execute SAFE commands individually in repo_directory.
 4. Use `create_file` tool to save execution results to JSON output.
 5. Use `replace_string_in_file` tool to update progress/results files.
 
@@ -50,31 +50,30 @@ The AI agent must use reasoning to determine command safety and execute safe com
 ### Step 1 (MANDATORY)
 **DEBUG Entry Trace:**  
 If DEBUG=1, print:  
-`[debug][task-execute-readme] START repo_directory='{{repo_directory}}' commands_json_path='{{commands_json_path}}'`
+`[debug][task-execute-readme] START checklist_path='{{checklist_path}}'`
 
 ### Step 2 (MANDATORY)
-**Input Parameters:**  
-- repo_directory: absolute path to repository root  
-- repo_name: repository name  
-- commands_json_path: path to the JSON file containing extracted commands (from task-scan-readme output)  
-  Example: `output/{{repo_name}}_task3_scan-readme.json`
-
-**Prerequisites Check:**  
-- Use `read_file` to load the file specified in commands_json_path parameter.
-- Extract the commands_extracted array from the JSON.
-- If @task-scan-readme was SKIPPED (no README) or FAIL, skip execution.
-- If DEBUG=1, print: `[debug][task-execute-readme] loaded {{command_count}} commands from {{commands_json_path}}`
-- If no commands or scan failed, set status=SKIPPED and proceed to output.
-- If commands available, proceed with safety classification.
-
-**Pre-flight Checklist Verification:**  
-- Open `tasks/{{repo_name}}_repo_checklist.md`
-- Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
-  - `{{executed_commands}}`
-  - `{{skipped_commands}}`
-- If any token is missing or altered, restore it prior to continuing.
+**Checklist Load & Variable Extraction:**
+- Open the file at `{{checklist_path}}`.
+- Extract values (after `→`) for:
+  - `- {{repo_name}}`
+  - `- {{repo_directory}}`
+  - `- {{commands_extracted}}` (comma-separated commands or status token)
+  - Confirm presence of `- {{executed_commands}}` and `- {{skipped_commands}}` lines (values may be placeholders).
+- If any required line missing or value empty where required, set `status=FAIL` and proceed to structured output.
+- Interpret `{{commands_extracted}}` value:
+  - If value in {NONE, SKIPPED, FAIL, ""}: set `status=SKIPPED` and no execution will occur.
+  - Else split by comma into raw_commands list; trim whitespace per item.
+- If DEBUG=1, print: `[debug][task-execute-readme] extracted repo_name='{{repo_name}}' repo_directory='{{repo_directory}}' commands_extracted_count={{raw_count}} status={{status}}`
+- Base variables (`repo_name`, `repo_directory`) are immutable in this task.
 
 ### Step 3 (MANDATORY)
+**Prerequisites & Checklist Verification:**
+- If status already SKIPPED or FAIL from Step 2, bypass classification and execution.
+- Validate repo_directory exists (optional list_dir). If missing, set status=FAIL.
+- If DEBUG=1, print: `[debug][task-execute-readme] prerequisites ok, proceeding to safety classification` (only if continuing).
+
+### Step 4 (MANDATORY)
 **Structural Reasoning – Safety Classification:**  
 For EACH command in commands_extracted array, use AI reasoning to determine if it is SAFE or UNSAFE.
 
@@ -156,7 +155,7 @@ For EACH command in commands_extracted array, use AI reasoning to determine if i
 - Check for command flags that change behavior (e.g., `rm -rf` vs `ls -l`).
 - If command does multiple things (chained with && or ;), evaluate each part.
 
-### Step 4 (MANDATORY)
+### Step 5 (MANDATORY)
 **Command Execution (SAFE commands only):**  
 For each SAFE command:
 a. Pre-execution:
@@ -200,48 +199,64 @@ For each UNSAFE command:
   - category: safety category (destructive, system_mod, network, build, database, ambiguous)
   - source_section: from task-scan-readme output
 
-### Step 5 (MANDATORY)
+### Step 6 (MANDATORY)
 - If DEBUG=1, print: `[debug][task-execute-readme] execution summary: {{safe_count}} safe commands executed, {{unsafe_count}} unsafe commands skipped`
 - If DEBUG=1 and any failures, print: `[debug][task-execute-readme] {{failed_count}} commands failed during execution`
 
-### Step 6 (MANDATORY)
-**Structured Output:**  
-Save JSON object to `output/{{repo_name}}_task4_execute-readme.json` with:
-- repo_directory: echoed from input
-- repo_name: echoed from input
-- total_commands_scanned: from task-scan-readme
-- safe_commands_count: number of SAFE commands
-- unsafe_commands_count: number of UNSAFE commands
-- executed_commands: array of objects:
-  - command: the command executed
-  - safety_category: SAFE classification reason
-  - exit_code: exit code from execution
-  - stdout: captured stdout (truncate to 1000 chars if longer)
-  - stderr: captured stderr (truncate to 1000 chars if longer)
-  - status: SUCCESS / FAIL / TIMEOUT / ERROR
-  - execution_time_seconds: how long it took
-- skipped_commands: array of objects:
-  - command: the command that was skipped
-  - safety_category: UNSAFE classification reason
-  - reason: detailed reason for skipping
-  - source_section: which README section it came from
-- status: SUCCESS / SKIPPED / FAIL
-- timestamp: ISO 8601 format datetime
-
 ### Step 7 (MANDATORY)
+**Verification & Structured Output:**
+Run verification BEFORE writing JSON. Any violation sets status=FAIL unless already SKIPPED/FAIL.
+
+Verification checklist:
+1. Checklist file exists at `{{checklist_path}}`.
+2. Variable lines present exactly once for:
+   - `- {{repo_name}}` (non-empty)
+   - `- {{repo_directory}}` (non-empty if not SKIPPED)
+   - `- {{commands_extracted}}` (present; value may be NONE/SKIPPED/FAIL)
+   - `- {{executed_commands}}` (present)
+   - `- {{skipped_commands}}` (present)
+3. If status=SUCCESS:
+   - `safe_commands_count + unsafe_commands_count == total_commands_scanned`.
+   - `len(executed_commands) == safe_commands_count`.
+   - `len(skipped_commands) == unsafe_commands_count`.
+4. If status=SKIPPED: executed_commands and skipped_commands arrays SHOULD be empty.
+5. Each executed command object has mandatory keys: command, status, exit_code (except TIMEOUT/ERROR may omit exit_code), safety_category.
+6. Each skipped command object has command, reason, safety_category.
+7. No duplicate command strings across executed vs skipped sets.
+8. Task directive line `@task-execute-readme` appears exactly once.
+9. Arrow formatting: each variable line uses `- {{token}} → value`.
+10. Base variables (`repo_name`, `repo_directory`) unchanged.
+
+Record each failure as: `{ "type": "<code>", "target": "<file|repo>", "detail": "<description>" }` in `verification_errors`.
+If DEBUG=1 emit: `[debug][task-execute-readme][verification] FAIL code=<code> detail="<description>"`.
+
+Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST include:
+- repo_directory
+- repo_name
+- total_commands_scanned
+- safe_commands_count
+- unsafe_commands_count
+- executed_commands (array)
+- skipped_commands (array)
+- status (SUCCESS|SKIPPED|FAIL)
+- timestamp (ISO 8601 UTC seconds)
+- verification_errors (array, empty if none)
+- debug (optional array when DEBUG=1)
+
+### Step 8 (MANDATORY)
 **Result Tracking:**  
 - Use `create_file` or `replace_string_in_file` to append the result to:
   - results/repo-results.csv (CSV row)
   - Row format: timestamp, repo_name, task-execute-readme, status, symbol (✓ or ✗)
   - Status is SUCCESS if execution completed (even if individual commands failed)
 
-### Step 8 (MANDATORY)
+### Step 9 (MANDATORY)
 **Repo Checklist Update:**  
 - Open `tasks/{{repo_name}}_repo_checklist.md`
 - Set `[x]` only on the `@task-execute-readme` entry for the current repository
 - Do not modify other checklist items or other repositories' files
 
-### Step 9 (MANDATORY)
+### Step 10 (MANDATORY)
 **Repo Variable Refresh (INLINE ONLY):**
 - Open `tasks/{{repo_name}}_repo_checklist.md`.
 - Locate lines beginning with:
@@ -257,15 +272,15 @@ Save JSON object to `output/{{repo_name}}_task4_execute-readme.json` with:
 - If a line lacks an arrow, append one then the value: `- {{token}} → <value>`.
 **Inline Variable Policy:** Never create separate refreshed blocks; modify original lines only.
 
-### Step 10 (MANDATORY)
+### Step 11 (MANDATORY)
 **DEBUG Exit Trace:**  
 If DEBUG=1, print:  
 `[debug][task-execute-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} executed={{safe_count}} skipped={{unsafe_count}}`
 
 ## Output Contract
-- repo_directory: string
-- repo_name: string
-- total_commands_scanned: number (from task-scan-readme)
+- repo_directory: string (from checklist)
+- repo_name: string (from checklist)
+- total_commands_scanned: number (raw_commands length before safety classification; 0 if SKIPPED)
 - safe_commands_count: number
 - unsafe_commands_count: number
 - executed_commands: array of execution result objects

@@ -2,25 +2,34 @@
 temperature: 0.0
 ---
 
-@generate-solution-task-checklists repo_name={{repo_name}} solutions_json_path={{solutions_json_path}} append={{append}}
+@generate-solution-task-checklists checklist_path={{checklist_path}} append={{append}}
 
 # Task name: generate-solution-task-checklists
 
 ## Process Overview
 1. Debug Entry Trace
-2. Parameter & JSON Validation
-3. Parse Solution Task Definitions
-4. Workspace Preparation
-5. Derive Solution Metadata
-6. Generate / Update Solution Index
-7. Generate Individual Solution Checklists
-8. Structured Output JSON
-9. Consistency Checks
-10. Debug Exit Trace
- 11. Repo Variable Refresh (Inline Only)
+2. Checklist Load & Variable Extraction
+3. Solutions JSON Validation
+4. Parse Solution Task Definitions
+5. Workspace Preparation
+6. Derive Solution Metadata
+7. Generate / Update Solution Index
+8. Generate Individual Solution Checklists
+9. Structured Output JSON
+10. Consistency Checks
+11. Debug Exit Trace
+12. Repo Variable Refresh (Inline Only)
 
 ## Purpose
 Generate (or append) per-solution task checklist markdown files for every Visual Studio solution discovered for a repository. These checklists enable agents to execute and track solution-level tasks (restore, build, knowledge base enrichment, fix application, logging) independently from repository pipeline tasks.
+
+### STRICT REPO CHECKLIST NON-MODIFICATION POLICY (MANDATORY)
+This task MUST generate exactly ONE new standalone solution checklist file per discovered solution path. It MUST NOT add any new section, heading, or injected block inside the repository-level checklist beyond the inline variable refresh defined in Step 12. Specifically:
+- DO NOT add a section named `## Solution Task Sections` (or any variant/case) to the repo checklist.
+- DO NOT append per-solution task subsections into the repo checklist.
+- DO NOT duplicate or rewrite the canonical repo tasks block.
+- ONLY modify the arrow values of `- {{solutions_json}}` and `- {{solutions}}` lines during Step 12.
+Violation of any of the above MUST be treated as a verification failure in Step 9 (`type`: `repo_checklist_modification`).
 
 ## When This Runs
 Executed AFTER repository task `@task-find-solutions` has produced a JSON file containing discovered `.sln` paths. Can be safely re-run (idempotent). In append mode it only creates missing solution checklist files; in reset/non-append mode it can regenerate all.
@@ -31,15 +40,20 @@ Executed AFTER repository task `@task-find-solutions` has produced a JSON file c
 **THIS TASK IS SCRIPTABLE**
 
 ## Input Parameters
-- repo_name (required): Friendly repository name (matches `{repo_name}_repo_checklist.md`).
-- solutions_json_path (required): Path to JSON produced by `@task-find-solutions` (e.g. `output/{repo_name}_task5_find-solutions.json`).
-- append (optional, default = false): If true, do not overwrite existing solution checklist files—only add new ones for newly detected solutions.
+- checklist_path (required): Path to repository checklist file `tasks/{repo_name}_repo_checklist.md`.
+- append (optional, default=false): If true, do not overwrite existing solution checklist files—only add new ones for newly detected solutions.
+
+All base values (`repo_name`, `repo_directory`, `solutions_json` path, existing `solutions` summary) MUST be read from the checklist; they are not passed as separate parameters and MUST NOT be mutated in this task.
 
 If DEBUG=1 print:  
-`[debug][generate-solution-task-checklists] START repo_name='{{repo_name}}' solutions_json_path='{{solutions_json_path}}' append={{append}}`
+`[debug][generate-solution-task-checklists] START checklist_path='{{checklist_path}}' append={{append}}`
 
 ## Output Artifacts
-1. Per-solution checklist files: `tasks/{solution_slug}_solution_checklist.md`  
+1. Per-solution checklist files: `tasks/{{repo_name}}_{solution_name}_solution_checklist.md`  
+  - Naming Convention (MANDATORY): Prefix each solution checklist with the repository name, then an underscore, then the original solution_name (without extension), then `_solution_checklist.md`.
+  - Example: repo_name = `media_stack_all`, solution_name = `Core.Services` → `tasks/media_stack_all_Core.Services_solution_checklist.md`
+  - Characters not allowed in filenames (e.g. `:` `*` `?` `"` `<` `>` `|`) MUST be replaced by `_` before writing. Do NOT lowercase the solution_name segment—preserve original case.
+  - If two solutions produce identical filenames after sanitization, append an incrementing suffix: `_2`, `_3`, etc.
 2. (Optional aggregate) Solution index file: `tasks/{{repo_name}}_solutions_checklist.md` containing a list of all solutions.  
 3. JSON summary: `output/{{repo_name}}_generate-solution-task-checklists.json` with generation statistics.  
 
@@ -70,28 +84,42 @@ Generated: {timestamp}
 
 ## Instructions (Follow this Step by Step)
 
-### Step 1 (MANDATORY) – Parameter & Environment Validation
-1. Validate `repo_name` is non-empty.
-2. Validate `solutions_json_path` exists and is readable.
-3. Load JSON; must contain keys: `solutions` (array), `solution_count` (integer) or derive count from array.
-4. If DEBUG=1 print: `[debug][generate-solution-task-checklists] loaded solutions: {{solution_count}}`.
-5. If file missing or malformed → status=FAIL (abort remaining steps).
+### Step 1 (MANDATORY) – Debug Entry Trace
+Emit START debug line if DEBUG=1.
 
-### Step 2 (MANDATORY) – Parse Solution Tasks Definition
+### Step 2 (MANDATORY) – Checklist Load & Variable Extraction
+1. Read `{{checklist_path}}`.
+2. Locate `## Repo Variables Available` section.
+3. Extract (text after `→`) from lines:
+  - `- {{repo_name}}`
+  - `- {{repo_directory}}` (must not be blank; blank → FAIL)
+  - `- {{solutions_json}}` (path to JSON produced by @task-find-solutions; must not be blank; blank → FAIL)
+  - `- {{solutions}}` (summary list; may be blank prior to generation; capture for reference)
+4. If any required line missing or required value blank set status=FAIL and skip to Structured Output.
+5. If DEBUG=1 print: `[debug][generate-solution-task-checklists] extracted repo_name='{{repo_name}}' repo_directory='{{repo_directory}}' solutions_json='{{solutions_json}}'`
+6. Treat all extracted base variables as immutable; do NOT modify them.
+
+### Step 3 (MANDATORY) – Solutions JSON Validation
+1. Validate `solutions_json` path exists & readable.
+2. Load JSON; must contain `solutions` (array). Derive `solution_count = len(solutions)`.
+3. If file missing/malformed or array absent → status=FAIL and skip remaining generation steps.
+4. If DEBUG=1 print: `[debug][generate-solution-task-checklists] loaded solutions: {{solution_count}}`.
+
+### Step 4 (MANDATORY) – Parse Solution Tasks Definition
 1. Read `.github/prompts/solution_tasks_list.prompt.md`.
 2. Extract:
    - Task directives (lines beginning with `@task-...` except aggregate markers)
    - "Variables available:" block lines (preserve formatting)
 3. If DEBUG=1 print: `[debug][generate-solution-task-checklists] extracted {{task_count}} tasks`.
 
-### Step 3 (MANDATORY) – Prepare Workspace
+### Step 5 (MANDATORY) – Prepare Workspace
 1. Ensure `./tasks` and `./output` directories exist.
 2. If `append=false`:
    - Remove existing `tasks/*_solution_checklist.md` files for this repo (safe cleanup only for this repo’s solutions; do NOT delete repo checklists).
    - If DEBUG=1 print: `[debug][generate-solution-task-checklists] cleared existing solution checklists (append=false)`.
 3. If `append=true` leave existing solution checklists untouched.
 
-### Step 4 (MANDATORY) – Derive Solution Metadata
+### Step 6 (MANDATORY) – Derive Solution Metadata
 For each solution path in `solutions` array:
 1. Normalize path (absolute path, resolve `..`, symlinks if feasible).
 2. Derive `solution_name` = filename without extension.
@@ -99,7 +127,7 @@ For each solution path in `solutions` array:
 4. Track mapping in memory: `{solution_slug: {solution_name, solution_path}}`.
 5. If DEBUG=1 print each: `[debug][generate-solution-task-checklists] mapping slug='{{solution_slug}}' -> '{{solution_path}}'`.
 
-### Step 5 (MANDATORY) – Generate / Update Solution Index (Optional but Recommended)
+### Step 7 (MANDATORY) – Generate / Update Solution Index (Optional but Recommended)
 File: `tasks/{{repo_name}}_solutions_checklist.md`
 Format:
 ```
@@ -127,35 +155,65 @@ Validation:
 - After writing, ensure each listed solution has a corresponding checklist file (unless append=true and file pre-existed but checklist generation skipped). If mismatch detected → status may be set to FAIL after consistency checks.
 If append=true and file exists, preserve existing checkbox states; add only new, sorted solutions at the end.
 
-### Step 6 (MANDATORY) – Generate Individual Solution Checklists
+### Step 8 (MANDATORY) – Generate Individual Solution Checklists
 For each solution:
-1. Target file path: `tasks/{solution_slug}_solution_checklist.md`.
+1. Target file path: `tasks/{{repo_name}}_{solution_name}_solution_checklist.md` (apply filename sanitization rules above).
 2. If append=true and file exists → skip generation (record as skipped).  
 3. Insert template (see earlier “Solution Checklist Structure”) substituting variables.
 4. Inject extracted variables section content where placeholder line appears.
 5. If DEBUG=1 print: `[debug][generate-solution-task-checklists] wrote checklist: {{file_path}}`.
 
-### Step 7 (MANDATORY) – Structured Output JSON
-Write `output/{{repo_name}}_generate-solution-task-checklists.json` with:
-```
+### Step 9 (MANDATORY) – Verification & Structured Output JSON
+Run verification BEFORE writing JSON. Any violation sets status=FAIL unless already FAIL.
+
+Verification checklist:
+1. Checklist file exists at `{{checklist_path}}`.
+2. Base variable lines present exactly once for: `- {{repo_name}}`, `- {{repo_directory}}`, `- {{solutions_json}}`, `- {{solutions}}`.
+3. Solutions JSON was parsed (if status not FAIL) and `solutions_total == len(solutions array)`.
+4. `solutions_processed + solutions_skipped == solutions_total`.
+5. For each newly created checklist (in this run): file exists and contains headings:
+  - `# Solution Task Checklist:`
+  - `## Solution Tasks (Sequential Pipeline)`
+  - `## Solution Variables Available` OR a variables heading containing extracted block.
+6. Required task directives appear exactly once per checklist for:
+  - `@task-restore-solution`
+  - `@task-build-solution`
+  - `@task-search-knowledge-base`
+  - `@task-create-knowledge-base`
+  - `@task-apply-knowledge-base-fix`
+  - `@task-update-knowledgebase-log`
+7. If index file created:
+  - Exists at `tasks/{{repo_name}}_solutions_checklist.md`.
+  - Lines under `## Solutions` referencing solutions include each processed solution exactly once.
+8. Filename sanitization applied (no forbidden characters). For each checklist filename confirm it matches pattern: `tasks/{{repo_name}}_{solution_name}_solution_checklist.md` (with optional suffix `_2`, `_3`, ... for collisions).
+9. No duplicate filenames after sanitization.
+10. Arrow formatting: base variable lines in repo checklist use `- {{token}} → value`.
+11. If append=true skipped files are truly existing on disk prior to generation.
+12. On FAIL status ensure no partial checklist written missing critical headings (still record violation).
+
+Record each failure as object: `{ "type": "<code>", "target": "<file|repo|path>", "detail": "<description>" }` in `verification_errors`.
+If DEBUG=1 emit: `[debug][generate-solution-task-checklists][verification] FAIL code=<code> detail="<description>"` per violation.
+
+Write `output/{{repo_name}}_generate-solution-task-checklists.json` including:
 {
   "repo_name": "...",
   "solutions_total": <int>,
   "solutions_processed": <int>,
   "solutions_skipped": <int>,
   "solution_checklists_created": <int>,
-  "solution_index_path": "tasks/{{repo_name}}_solutions_checklist.md", (omit if not created)
+  "solution_index_path": "tasks/{{repo_name}}_solutions_checklist.md" | null,
   "append_mode": <true|false>,
   "status": "SUCCESS" | "FAIL",
-  "timestamp": "ISO 8601"
+  "timestamp": "ISO 8601 UTC seconds",
+  "verification_errors": [ {"type": "...", "target": "...", "detail": "..."}, ... ],
+  "debug": ["..."] (optional when DEBUG=1)
 }
-```
 
-### Step 8 (MANDATORY) – Debug Exit Trace
+### Step 10 (MANDATORY) – Debug Exit Trace
 If DEBUG=1 print:  
 `[debug][generate-solution-task-checklists] EXIT status={{status}} created={{solution_checklists_created}} skipped={{solutions_skipped}}`.
 
-### Step 9 (MANDATORY) – Repo Variable Refresh (INLINE ONLY)
+### Step 12 (MANDATORY) – Repo Variable Refresh (INLINE ONLY)
 After successful generation (status=SUCCESS):
 1. Open `tasks/{{repo_name}}_repo_checklist.md`.
 2. Locate line beginning with `- {{solutions_json}}` and replace text after `→` with the absolute path to `output/{{repo_name}}_generate-solution-task-checklists.json`.
@@ -165,6 +223,7 @@ After successful generation (status=SUCCESS):
 6. If a variable line lacks an arrow append one before inserting value (`- {{token}} → <value>`).
 7. Preserve the leading token EXACTLY.
 **Inline Variable Policy:** Never create a secondary block; modify original lines only.
+ **Prohibited Additions:** Do NOT add `## Solution Task Sections` or any new headings/blocks. Any such addition must trigger a verification error (`repo_checklist_modification`).
 
 ## Output Contract
 - repo_name: string
@@ -191,7 +250,7 @@ After successful generation (status=SUCCESS):
 
 ## Error Handling
 - Critical failure conditions (abort and status=FAIL):
-  - Missing / unreadable `solutions_json_path`.
+  - Missing / unreadable `solutions_json` path extracted from checklist.
   - JSON malformed or missing `solutions` array.
   - Inability to write output directories/files.
 - Non-critical (log and continue):
@@ -210,8 +269,8 @@ After generation:
 
 ## Cross-References
 Use freshest in-memory values; never reuse stale prior-run values. Variables:
-- repo_name – repository identifier passed in
-- solutions_json_path – path to discovery JSON
+- repo_name – repository identifier (from checklist)
+- solutions_json – path to discovery JSON (from checklist)
 - solutions – array of absolute solution paths
 - solution_name / solution_slug – derived per solution
 - solution_checklists_created – count of newly written files
@@ -238,7 +297,7 @@ Ensure per-solution checklist metadata (solution_path, solution_name) matches di
 
 ## DEBUG Examples
 ```
-[debug][generate-solution-task-checklists] START repo_name='media_stack_all' solutions_json_path='output/media_stack_all_task5_find-solutions.json' append=false
+[debug][generate-solution-task-checklists] START checklist_path='tasks/media_stack_all_repo_checklist.md' append=false
 [debug][generate-solution-task-checklists] loaded solutions: 3
 [debug][generate-solution-task-checklists] mapping slug='core_services' -> 'D:/repos/media_stack_all/src/Core.Services/Core.Services.sln'
 [debug][generate-solution-task-checklists] wrote checklist: tasks/core_services_solution_checklist.md
@@ -261,7 +320,7 @@ The following guarantees ensure reproducible outputs for identical inputs:
 
 ## Manual Usage (Source of Truth)
 This markdown is the authoritative specification. You may execute it manually without any helper script:
-1. Collect `repo_name`, set `solutions_json_path` to discovery output, choose `append=true|false`.
+1. Collect `checklist_path`, then read `repo_name` and `solutions_json` from the checklist, choose `append=true|false`.
 2. Load JSON, extract array `solutions` (absolute paths). If `solution_count` missing, compute as `len(solutions)`.
 3. Derive `solution_name`, `solution_slug` (collision handling) for each path; discard duplicates beyond the first.
 4. Sort solutions by `solution_name` (case-insensitive) unless in append mode where only new solutions are sorted and appended.

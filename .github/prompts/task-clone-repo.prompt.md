@@ -2,7 +2,7 @@
 temperature: 0.0
 ---
 
-@task-clone-repo repo_url={{repo_url}} clone_path={{clone_path}} repo_name={{repo_name}}
+@task-clone-repo clone_path={{clone_path}} checklist_path={{checklist_path}}
 
 # Task name: task-clone-repo
 
@@ -23,7 +23,9 @@ temperature: 0.0
 - Python 3.x installed (if scripting)
 - DEBUG environment variable set (optional, for debug output)
 - Directory permissions for clone_path
-- Required input parameters: repo_url, clone_path, (optional) repo_name
+- Required input parameters: clone_path, checklist_path (absolute or relative path to `tasks/<repo_name>_repo_checklist.md`).
+- The authoritative values for repo_url and repo_name are READ from the variable lines inside the checklist file (`## Repo Variables Available`).
+- The repo_name MUST be obtained from the `- {{repo_name}}` line's arrow value, not derived from filename; filename is only a consistency check.
 
 ## Description
 This task clones a repository from repo_url into clone_path directory. This is a straightforward git operation that CAN be implemented as a script.
@@ -38,26 +40,26 @@ This task clones a repository from repo_url into clone_path directory. This is a
 ### Step 1 (MANDATORY)
 DEBUG Entry Trace:  
 If DEBUG=1, print:  
-`[debug][task-clone-repo] START repo_url='{{repo_url}}' clone_path='{{clone_path}}'`
+`[debug][task-clone-repo] START checklist_path='{{checklist_path}}' clone_path='{{clone_path}}'`
 
 ### Step 2 (MANDATORY)
-Input Parameters: You are given repo_url, clone_path, and optionally repo_name from the calling context.
-
-Repository Name Extraction:  
-If repo_name not provided, extract from repo_url:
-- For Azure DevOps: Extract last segment after final "/" (e.g., "https://skype.visualstudio.com/SCC/_git/repo-name" → "repo-name")
-- For GitHub: Extract last segment before ".git" (e.g., "https://github.com/user/repo.git" → "repo")
-- If DEBUG=1, print: `[debug][task-clone-repo] extracted repo_name: {{repo_name}}`
-
-Pre-flight Checklist Verification:
-- Open `tasks/{{repo_name}}_repo_checklist.md`
-- Confirm the `## Repo Variables Available` section has one line starting with each of:
-  * `- {{repo_url}}`  
-  * `- {{clone_path}}`  
-  * `- {{repo_directory}}`  
-  * `- {{repo_name}}`
-- The portion after `→` may already contain a previous concrete value; that's acceptable. Do NOT recreate placeholder descriptive text.
-- If any required line is missing entirely, insert a new line using the pattern `- {{token}} →` (leave value blank before Step 9 updates).
+Load Authoritative Variables From Checklist:
+1. Resolve `checklist_path`; ensure file exists. If missing, set status=FAIL and abort.
+2. Open the checklist file and locate the `## Repo Variables Available` section.
+3. Parse lines beginning with:
+   * `- {{repo_url}}`
+   * `- {{repo_name}}`
+4. Extract values to right of `→` (trim whitespace). These become authoritative `repo_url` and `repo_name` for all subsequent steps.
+5. Derive filename_repo_name by stripping suffix `_repo_checklist.md` from filename for consistency check only.
+6. If the checklist `repo_name` value is blank and filename_repo_name is available, set the line's arrow value to filename_repo_name and treat that as authoritative.
+7. If both values exist and differ, log a debug warning; continue using the variable line value.
+8. If any required variable line is missing, insert `- {{token}} →` (blank) and mark status=FAIL unless later corrected.
+9. Ensure presence (may be blank) of:
+   * `- {{clone_path}}`
+   * `- {{repo_directory}}`
+   Insert if absent (blank value) for later refresh.
+10. If DEBUG=1 print: `[debug][task-clone-repo] loaded repo_url='{repo_url}' repo_name='{repo_name}' from {checklist_path}`.
+11. External repo_url values MUST be ignored; checklist content is single source of truth.
 
 ### Step 3 (MANDATORY)
 Directory Existence Check:  
@@ -87,17 +89,41 @@ Clone or Refresh Operation:
 - If all commands succeed, set status=SUCCESS
 
 ### Step 5 (MANDATORY)
-Structured Output:  
-Save JSON object to output/{{repo_name}}_task1_clone-repo.json with:
-- repo_url: echoed from input
-- clone_path: echoed from input
-- repo_name: extracted or provided
-- repo_directory: absolute path to cloned repository ({{clone_path}}/{{repo_name}})
-- operation: "CLONE" or "REFRESH"
-- clone_status: SUCCESS if operation completed with exit code 0, FAIL otherwise
-- status: SUCCESS / FAIL (same as clone_status for consistency)
-- timestamp: ISO 8601 format datetime when task completed
-- git_output: captured stdout/stderr from git commands (for debugging)
+Verification & Structured Output:
+Before writing JSON you MUST run a verification pass for Steps 2–4. Any violation sets status=FAIL (unless already FAIL) and is recorded.
+
+Verification checklist:
+1. Checklist file exists at `{{checklist_path}}`.
+2. Variable lines present exactly once for:
+  - `- {{repo_url}}` (non-empty arrow value)
+  - `- {{repo_name}}` (non-empty arrow value)
+3. Mutable variable lines exist (may be blank prior to update):
+  - `- {{clone_path}}`
+  - `- {{repo_directory}}`
+4. If clone_status=SUCCESS then:
+  - Target directory `{{clone_path}}/{{repo_name}}` exists.
+  - Directory contains a `.git` folder (for CLONE) OR `.git` folder remains (for REFRESH).
+5. No duplicate occurrences of any `- {{repo_url}}` or `- {{repo_name}}` lines.
+6. Task directive line `@task-clone-repo` appears exactly once in checklist.
+7. If operation=REFRESH ensure target directory existed prior to commands (skip if not trackable; informational only).
+8. Arrow formatting: each variable line uses `- {{token}} → value` (record violation if arrow missing).
+
+For each failure add object: `{ "type": "<code>", "target": "<file|repo|path>", "detail": "<description>" }` to `verification_errors`.
+If DEBUG=1 emit one line per failure:
+`[debug][task-clone-repo][verification] FAIL code=<code> detail="<description>"`
+
+Structured Output JSON (output/{{repo_name}}_task1_clone-repo.json) MUST include:
+- repo_url
+- clone_path
+- repo_name
+- repo_directory
+- operation (CLONE|REFRESH)
+- clone_status (SUCCESS|FAIL)
+- status (SUCCESS|FAIL)
+- timestamp (ISO 8601 truncated to seconds, UTC)
+- git_output (stdout/stderr aggregated, truncated if large)
+- verification_errors (array, empty if none)
+- debug (optional array of debug lines when DEBUG=1)
 
 #### Example Output
 ```json
@@ -152,17 +178,16 @@ Repo Checklist Update:
 
 ### Step 9 (MANDATORY)
 Repo Variable Refresh (INLINE ONLY):
-- Open `tasks/{{repo_name}}_repo_checklist.md` file.
-- For each of the lines under `## Repo Variables Available` beginning with:
-  * `- {{repo_url}}`
+- Open checklist file at `{{checklist_path}}`.
+- Update ONLY the following lines under `## Repo Variables Available`:
   * `- {{clone_path}}`
   * `- {{repo_directory}}`
-  * `- {{repo_name}}`
-  replace the text AFTER the arrow (`→`) with the concrete current value from this task.
-- Example transformation: `- {{repo_url}} → Original repository URL provided to the workflow.` becomes `- {{repo_url}} → https://example.com/_git/repo-name`.
-- Do NOT add a separate section (e.g., "### Current Variable Values (Refreshed)"). All values must live inline on the original lines.
-- Preserve the leading token portion exactly (`- {{repo_url}}` etc.) so future tasks can locate and update these lines.
-- If a line lacks an arrow, append ` → <value>`.
+- Do NOT modify the lines for `- {{repo_url}}` or `- {{repo_name}}`; these remain authoritative values set during checklist generation / Step 2 load and are immutable in this task.
+- Replace ONLY the text after the arrow (`→`) for the mutable lines with current concrete values.
+- Example transformation: `- {{clone_path}} → Root folder where repositories are cloned.` becomes `- {{clone_path}} → D:\repos`.
+- If a mutable line lacks an arrow, append ` → <value>`.
+- If a mutable required line was inserted blank in Step 2, populate it now.
+- No new sections may be added; all updates must be inline.
 
 ### Step 10 (MANDATORY)
 DEBUG Exit Trace:  
@@ -170,9 +195,9 @@ If DEBUG=1, print:
 `[debug][task-clone-repo] EXIT repo_name='{{repo_name}}' status={{clone_status}} operation={{operation}} repo_directory='{{repo_directory}}'`
 
 ## Output Contract
-- repo_url: string (repository URL, echoed from input)
+- repo_url: string (repository URL extracted from checklist file)
 - clone_path: string (base directory for clones, echoed from input)
-- repo_name: string (repository name extracted from URL or provided)
+- repo_name: string (repository name loaded from `- {{repo_name}}` variable line; filename used only for consistency check)
 - repo_directory: string (absolute path to cloned repository: {{clone_path}}/{{repo_name}})
 - operation: CLONE / REFRESH (indicates new clone vs existing reset/pull)
 - clone_status: SUCCESS / FAIL (SUCCESS if git operation completed with exit code 0)
@@ -189,7 +214,7 @@ If DEBUG=1, print:
 6. Security: Avoid embedding credentials in the URL; rely on pre-configured git auth (credential manager, SSH keys).
 7. Directory Creation: Ensure clone_path directory exists before attempting clone; create if necessary.
 8. Script Location: Save generated script to temp-script/ directory with naming pattern: step{N}_repo{M}_task1_clone-repo.py
-9. Inline Variable Policy: Step 9 must update values directly on existing `- {{token}} → value` lines; never create a secondary "refreshed" block. Failure to inline is considered NON-COMPLIANT.
+9. Inline Variable Policy: Step 9 must update values directly on existing `- {{token}} → value` lines; never create a secondary "refreshed" block. Step 2 loads repo_url and repo_name strictly from variable lines; they are immutable for this task.
 
 ## Error Handling
 - For any step that fails:

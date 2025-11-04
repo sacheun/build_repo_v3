@@ -2,26 +2,30 @@
 temperature: 0.0
 ---
 
-@task-find-solutions repo_directory={{repo_directory}} repo_name={{repo_name}}
+@task-find-solutions checklist_path={{checklist_path}}
 
 # Task name: task-find-solutions
 
 ## Process Overview
 1. Debug Entry Trace
-2. Input Validation & Checklist Verification
-3. Recursive `.sln` Search
-4. Path Collection & Counting
-5. Structured Output JSON
-6. Decision Log Entries (per solution or none found)
-7. Result Tracking CSV Append
-8. Repo Checklist Update
-9. Repo Variable Refresh
-10. Debug Exit Trace
+2. Checklist Load & Variable Extraction
+3. Input Validation
+4. Recursive `.sln` Search
+5. Path Collection & Counting
+6. Structured Output JSON
+7. Decision Log Entries (per solution or none found)
+8. Result Tracking CSV Append
+9. Repo Checklist Update
+10. Repo Variable Refresh
+11. Debug Exit Trace
 
 ## Prerequisites
-- Valid repository directory path
+- Checklist file at `checklist_path` containing variable lines for:
+  - `- {{repo_name}}`
+  - `- {{repo_directory}}`
+  - `- {{solutions_json}}`
+  - `- {{solutions}}`
 - Accessible filesystem permissions for recursive search
-- Repo checklist contains `{{solutions_json}}` and `{{solutions}}` tokens
 - git not required; Python or PowerShell available for scripting
 
 ## Description
@@ -35,26 +39,28 @@ This task discovers all Visual Studio solution files (`.sln`) within a repositor
 ## Instructions (Follow this Step by Step)
 
 ### Step 1 (MANDATORY)
-DEBUG Entry Trace: If DEBUG=1, print: `[debug][task-find-solutions] START repo_directory='{{repo_directory}}'`
+DEBUG Entry Trace: If DEBUG=1, print: `[debug][task-find-solutions] START checklist_path='{{checklist_path}}'`
 
 ### Step 2 (MANDATORY)
-Input Parameters:
-- You are given `repo_directory` (absolute path to repository root) and `repo_name` from the calling context.
+Checklist Load & Variable Extraction:
+- Open the file at `{{checklist_path}}`.
+- Extract (value after `→`) from lines:
+  - `- {{repo_name}}`
+  - `- {{repo_directory}}`
+  - Confirm presence of tokens `- {{solutions_json}}` and `- {{solutions}}` (values may be placeholders initially).
+- If any required line missing or value blank for repo_name/repo_directory, set `status=FAIL` and proceed to structured output.
+- Base variables (`repo_name`, `repo_directory`) are immutable; do NOT modify them.
+- If DEBUG=1, print: `[debug][task-find-solutions] extracted repo_name='{{repo_name}}' repo_directory='{{repo_directory}}'`
 
+### Step 3 (MANDATORY)
 Input Validation:
 - Verify that `repo_directory` exists and is accessible.
   - If directory does not exist, set `status=FAIL`.
   - If DEBUG=1 and directory does not exist, print: `[debug][task-find-solutions] directory does not exist: {{repo_directory}}`
   - If DEBUG=1 and directory exists, print: `[debug][task-find-solutions] directory validated: {{repo_directory}}`
+  - If status=FAIL here, skip Steps 4–7 and go to Structured Output.
 
-Pre-flight Checklist Verification:
-- Open `tasks/{{repo_name}}_repo_checklist.md`
-- Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
-  - `{{solutions_json}}`
-  - `{{solutions}}`
-- If any token is missing or altered, restore it prior to continuing.
-
-### Step 3 (MANDATORY)
+### Step 4 (MANDATORY)
 Recursive Solution Discovery:
 - Search all subdirectories recursively for files with `.sln` extension.
   - Use recursive glob pattern: `**/*.sln` (or equivalent for the language).
@@ -62,23 +68,47 @@ Recursive Solution Discovery:
   - If DEBUG=1, print: `[debug][task-find-solutions] searching for *.sln files recursively`
   - For each solution found, if DEBUG=1, print: `[debug][task-find-solutions] found: {{solution_path}}`
 
-### Step 4 (MANDATORY)
+### Step 5 (MANDATORY)
 Path Collection:
 - Build array of absolute paths to all discovered `.sln` files.
   - Order may vary by filesystem traversal; no guaranteed sorting.
   - If DEBUG=1 after collection complete, print: `[debug][task-find-solutions] discovered {{count}} solution(s)`
 
-### Step 5 (MANDATORY)
-Structured Output:
-- Save JSON object to `output/{{repo_name}}_task5_find-solutions.json` with:
-  - `local_path`: echoed from input (`repo_directory`)
-  - `repo_name`: echoed from input
-  - `solutions`: array of absolute paths to `.sln` files (empty array if none found)
-  - `solution_count`: integer count of discovered solutions
-  - `status`: SUCCESS if directory validated (even if 0 solutions found), FAIL if directory invalid
-  - `timestamp`: ISO 8601 format datetime when task completed
-
 ### Step 6 (MANDATORY)
+Verification & Structured Output:
+Run verification BEFORE writing JSON. Any violation sets status=FAIL unless already FAIL.
+
+Verification checklist:
+1. Checklist file exists at `{{checklist_path}}`.
+2. Variable lines present exactly once for:
+  - `- {{repo_name}}` (non-empty)
+  - `- {{repo_directory}}` (non-empty if status not FAIL)
+  - `- {{solutions_json}}` (present; may be blank pre-refresh)
+  - `- {{solutions}}` (present; may be blank pre-refresh)
+3. If status=SUCCESS:
+  - `solution_count == len(solutions array)`.
+  - Each path in `solutions` ends with `.sln`.
+  - Each path exists on disk (record violation if missing but keep SUCCESS unless critical).
+4. If `solution_count == 0` ensure status=SUCCESS (directory valid) and `solutions` is empty array.
+5. No duplicate solution basenames (case-insensitive) in `solutions` array.
+6. Task directive line `@task-find-solutions` appears exactly once.
+7. Arrow formatting: each variable line uses `- {{token}} → value`.
+8. Base variables (`repo_name`, `repo_directory`) unchanged.
+
+Record failures as objects: `{ "type": "<code>", "target": "<file|repo|path>", "detail": "<description>" }` in `verification_errors`.
+If DEBUG=1 emit: `[debug][task-find-solutions][verification] FAIL code=<code> detail="<description>"` per violation.
+
+Structured Output JSON (output/{{repo_name}}_task5_find-solutions.json) MUST include:
+- local_path
+- repo_name
+- solutions (array)
+- solution_count
+- status (SUCCESS|FAIL)
+- timestamp (ISO 8601 UTC seconds)
+- verification_errors (array, empty if none)
+- debug (optional array when DEBUG=1)
+
+### Step 7 (MANDATORY)
 Log to Decision Log:
 - Call @task-update-decision-log to log task execution:
   - For EACH solution discovered:
@@ -108,19 +138,19 @@ Log to Decision Log:
   - The `solution_name` is blank since this is a repository-level task
   - Status: "SUCCESS" (even if 0 solutions found, as long as directory was valid)
 
-### Step 7 (MANDATORY)
+### Step 8 (MANDATORY)
 Result Tracking:
 - Append the result to:
   - `results/repo-results.csv` (CSV row)
   - Row format: `timestamp, repo_name, task-find-solutions, {{solution_count}} solutions, status, symbol (✓ or ✗)`
 
-### Step 8 (MANDATORY)
+### Step 9 (MANDATORY)
 Repo Checklist Update:
 - Open `tasks/{{repo_name}}_repo_checklist.md`
 - Set `[x]` only on the `@task-find-solutions` entry for the current repository
 - Do not modify other checklist items or other repositories' files
 
-### Step 9 (MANDATORY)
+### Step 10 (MANDATORY)
 Repo Variable Refresh (INLINE ONLY):
 - Open `tasks/{{repo_name}}_repo_checklist.md`.
 - Locate lines beginning with:
@@ -133,12 +163,12 @@ Repo Variable Refresh (INLINE ONLY):
 - If a line lacks an arrow, append one then the value.
 **Inline Variable Policy:** Do not add new sections; update existing lines only.
 
-### Step 10 (MANDATORY)
+### Step 11 (MANDATORY)
 If DEBUG=1, print: `[debug][task-find-solutions] EXIT repo_directory='{{repo_directory}}' status={{status}} solution_count={{solution_count}}`
 
 ## Output Contract
-- `local_path`: string (absolute path to repository root, echoed from input)
-- `repo_name`: string (repository name, echoed from input)
+- `local_path`: string (absolute path to repository root, from checklist)
+- `repo_name`: string (repository name, from checklist)
 - `solutions`: array[string] (absolute paths to all `.sln` files discovered, empty array if none found)
 - `solution_count`: integer (number of solutions discovered)
 - `status`: SUCCESS or FAIL (SUCCESS if directory valid, FAIL if directory does not exist)
