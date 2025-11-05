@@ -97,7 +97,7 @@ Generate Checklist Content (for each solution file)
    - solution_path → `{solution_path}`
    - solution_name → `{solution_name}`
    - build_count → 0
-   - max_build_attempts → 3
+   - max_rebuild_attempts → 3
    - restore_status → NOT_EXECUTED
    - build_status → NOT_EXECUTED
    - kb_search_status → NOT_EXECUTED
