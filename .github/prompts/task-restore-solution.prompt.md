@@ -1,4 +1,4 @@
-@task-restore-solution solution_path={{solution_path}}
+@task-restore-solution solution_checklist={{solution_checklist}}
 ---
 temperature: 0.0
 ---
@@ -21,8 +21,16 @@ If environment variable DEBUG=1, print
    `[debug][task-restore-solution] START solution='{{solution_name}}' path='{{solution_path}}'`
 
 ### Step 2 (MANDATORY)
-Input Validation:
-Reads JSON from stdin expecting solution_path (absolute path to .sln file); raises ContractError if missing or nonexistent.
+Input & Checklist Validation:
+1. Expect input parameter: `solution_checklist` (path to `tasks/<repo_name>_<solution_name>_solution_checklist.md`).
+2. Validate file exists; if missing → status=FAIL; emit JSON with success=false; abort subsequent restore attempts.
+3. Read file content UTF-8; locate `### Solution Variables` section.
+4. Parse the line beginning with `- solution_path →` (exact arrow U+2192) and extract the value (strip surrounding backticks if present).
+5. If solution_path line missing or value blank → status=FAIL; record error code `variable_missing` and abort.
+6. Validate extracted solution_path ends with `.sln` and file exists on disk; if not, status=FAIL (error code `sln_missing`).
+7. Derive `solution_name` from solution_path (basename without extension) ignoring any differing name in checklist filename.
+8. If DEBUG=1, print: `[debug][task-restore-solution] parsed solution_path='{{solution_path}}' solution_name='{{solution_name}}' from checklist='{{solution_checklist}}'`.
+9. All subsequent steps MUST use the extracted solution_path; do NOT trust any external parameter or alternate source.
 
 ### Step 3 (MANDATORY)
 Primary Restore Attempt: 
@@ -109,11 +117,11 @@ Result Tracking: Append to solution-results.csv
 ### Step 10 (MANDATORY)
 Repo Checklist Update: Mark current task complete
 1. **Open checklist file:**
-   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
+   - Path: `{{solution_checklist}}`
 
 2. **Find and update ONLY the current task entry:**
-   - Search for line: `- [ ] [MANDATORY #1] @task-restore-solution`
-   - Replace with: `- [x] [MANDATORY #1] @task-restore-solution`
+   - Locate the unchecked restore task line containing the directive @task-restore-solution.
+   - Change its leading unchecked marker "- [ ]" to "- [x]" without altering the remainder of the line.
    - Do NOT modify any other task entries
    - Do NOT update other solution checklists
 
@@ -122,7 +130,7 @@ Repo Checklist Update: Mark current task complete
 ### Step 11 (MANDATORY)
 Repo Variable Refresh: Update solution variables
 1. **Open checklist file:**
-   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
+   - Path: `{{solution_checklist}}`
 
 2. **Find the Solution Variables section**
 
@@ -138,8 +146,73 @@ Repo Variable Refresh: Update solution variables
 5. **Write updated variables back to checklist file**
 
 ### Step 12 (MANDATORY)
+Verification (Post-Variable Refresh)
+Perform a verification pass AFTER Step 11 has updated the checklist and variables. This step validates correctness and records any violations. It MUST run even if the restore failed. It does NOT re-run restore commands.
+
+Scope of Verification:
+1. Checklist File Presence: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md` exists and is readable.
+2. Task Marking:
+   - If success=true: the `@task-restore-solution` line MUST be marked `- [x]`.
+   - If success=false: the line MUST still be marked `- [x]` (task executed) but restore_status MUST reflect FAILED.
+3. Directive Uniqueness: Exactly one line contains `@task-restore-solution`.
+4. Solution Variables Section:
+   - Section header `### Solution Variables` present.
+   - Parenthetical `(Variables set by tasks for this specific solution)` present.
+   - All required variable lines present with arrow format `variable_name → value` (U+2192 arrow, not `->`). Required base variables:
+     * solution_path
+     * solution_name
+     * max_build_attempts
+     * restore_status
+     * build_status
+     * kb_search_status
+     * kb_file_path
+     * kb_article_status
+     * fix_applied_attempt_1
+     * retry_build_status_attempt_1
+     * fix_applied_attempt_2
+     * retry_build_status_attempt_2
+     * fix_applied_attempt_3
+     * retry_build_status_attempt_3
+5. Arrow Formatting: Record violation if any required line missing arrow or uses wrong symbol.
+6. Value Consistency:
+   - `restore_status` matches success flag (SUCCEEDED when success=true, FAILED when success=false).
+   - `solution_path` ends with `.sln` and points to existing file.
+7. JSON Output Integrity:
+   - The structured JSON emitted in Step 7 MUST contain keys: success, stdout, stderr, errors, warnings.
+   - If a file `output/{{repo_name}}_{{solution_name}}_task-restore-solution.json` was also written (optional enhancement), it MUST include those keys.
+8. No Duplicate Variables: Each required variable appears exactly once.
+
+Violation Recording:
+- For each violation append object: `{ "type": "<code>", "target": "<file|variable|line>", "detail": "<human readable>" }` to `verification_errors`.
+- Recommended codes: file_missing, directive_duplicate, checklist_mark_incorrect, variable_missing, variable_mismatch, arrow_format_error, sln_missing, json_missing_key.
+- If DEBUG=1 emit: `[debug][task-restore-solution][verification] FAIL code=<code> target=<target> detail="<description>"` for each violation.
+
+Status Adjustment Logic:
+- Start with `status = SUCCESS` if success=true else `status = FAIL`.
+- If success=true but any violations exist → set `status = FAIL` (restore succeeded but checklist invalid).
+- If success=false keep `status = FAIL` regardless of violations.
+
+Output Update:
+1. If you captured the JSON output to a file `output/{{repo_name}}_{{solution_name}}_task-restore-solution.json`, update/add:
+   - `verification_errors` (sorted by type then target)
+   - `status` (adjusted final status) – DO NOT modify original `success` boolean.
+2. If JSON only emitted via stdout, ALSO produce a separate verification JSON file: `output/{{repo_name}}_{{solution_name}}_task-restore-solution_verification.json` containing:
+```json
+{
+  "repo_name": "{{repo_name}}",
+  "solution_name": "{{solution_name}}",
+  "success": <bool>,
+  "status": "SUCCESS"|"FAIL",
+  "verification_errors": [ ... ]
+}
+```
+3. Ensure deterministic ordering (sort errors array).
+
+Success Criteria for Step 12: Verification JSON written (either updated original or separate file) reflecting accurate error list and final status.
+
+### Step 13 (MANDATORY)
 DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), print:
-   `[debug][task-restore-solution] END solution='{{solution_name}}' status={{success}}`
+   `[debug][task-restore-solution] END solution='{{solution_name}}' status={{success}} final_status={{status}} verification_errors={{verification_errors_count}}`
 
 ## Implementation Notes:
 1. **Command Execution**: Use synchronous execution (NOT background jobs). In PowerShell: `msbuild ... ; $exitCode = $LASTEXITCODE`. In Bash: `msbuild ... ; exitCode=$?`. Do NOT proceed until the command completes.

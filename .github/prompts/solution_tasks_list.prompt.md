@@ -17,11 +17,33 @@ temperature: 0.1
 5. @task-apply-knowledge-base-fix - Apply the fix from KB article to the solution
 6. @task-update-knowledgebase-log - Update knowledgebase usage log and statistics
 
-### Variables available:
-- {{solution_path}} → Absolute path to the .sln file being processed
-- {{solution_name}} → Friendly solution name derived from the file name without extension
-- {{build_attempt}} → Current build attempt number (1-3)
-- {{max_build_attempts}} → Maximum allowed build attempts (3)
+### Solution Variables
+(Variables set by tasks for this specific solution)
+
+- {{solution_path}} → path value
+- {{solution_name}} → name value
+- {{max_build_attempts}} → 3
+- {{restore_status}} → SUCCEEDED | FAILED | NOT_EXECUTED
+- {{build_status}} → SUCCEEDED | FAILED | NOT_EXECUTED | SKIPPED
+- {{kb_search_status}} → COMPLETED | SKIPPED | NOT_FOUND
+- {{kb_file_path}} → path or N/A
+- {{kb_article_status}} → EXISTS | CREATED | SKIPPED
+
+**Retry Attempt 1:**
+- {{fix_applied_attempt_1}} → APPLIED | NOT_APPLIED | SKIPPED
+- {{kb_option_applied_attempt_1}} → 1 | 2 | 3 | null
+- {{retry_build_status_attempt_1}} → SUCCEEDED | FAILED | SKIPPED
+
+**Retry Attempt 2:**
+- {{fix_applied_attempt_2}} → APPLIED | NOT_APPLIED | SKIPPED
+- {{kb_option_applied_attempt_2}} → 1 | 2 | 3 | null
+- {{retry_build_status_attempt_2}} → SUCCEEDED | FAILED | SKIPPED
+
+**Retry Attempt 3:**
+- {{fix_applied_attempt_3}} → APPLIED | NOT_APPLIED | SKIPPED
+- {{kb_option_applied_attempt_3}} → 1 | 2 | 3 | null
+- {{retry_build_status_attempt_3}} → SUCCEEDED | FAILED | SKIPPED
+```
 
 Task name: solution-tasks-list
 

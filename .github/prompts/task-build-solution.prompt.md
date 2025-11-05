@@ -104,41 +104,135 @@ Result Tracking: Append to solution-results.csv
    - If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
 
 ### Step 8 (MANDATORY)
-Repo Checklist Update: Mark current task complete
-1. **Open checklist file:**
-   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
+Repo Checklist Update: Mark EXACTLY ONE build-related task line based on the PRE-INCREMENT build_count and then increment build_count by exactly 1.
 
-2. **Find and update ONLY the current task entry:**
-   - Search for line: `- [ ] [MANDATORY #2] @task-build-solution`
-   - Replace with: `- [x] [MANDATORY #2] @task-build-solution`
-   - Do NOT modify any other task entries
-   - Do NOT update other solution checklists
+Canonical Increment Requirement:
+   - The `build_count` variable MUST be treated as authoritative. Do NOT derive or recompute its value from previously marked task lines.
+   - On every invocation: new_build_count = old_build_count + 1 (always +1, no skipping, no collapsing, no recomputation).
+   - Persist the new value by overwriting ONLY the single `- build_count → <value>` variable line.
 
-3. **Write updated content back to file**
+Add & Use Variable:
+   - A solution variable `build_count` (integer) MUST exist in `### Solution Variables` (initialize to 0 if missing).
+   - Each invocation increments `build_count` AFTER marking exactly one applicable task line.
+
+Mapping Logic (choose ONE line to flip from `- [ ]` to `- [x]` using old_build_count BEFORE increment):
+         - If old_build_count == 0: mark the mandatory build line containing @task-build-solution
+         - If old_build_count == 1: mark the first retry build line containing @task-build-solution-retry
+         - If old_build_count == 2: mark the second retry build line containing @task-build-solution-retry
+         - If old_build_count == 3: mark the third retry build line containing @task-build-solution-retry
+   - If old_build_count >= 4: do NOT mark any additional lines (attempt limit reached) but still increment build_count by 1 (showing additional invocations) and proceed with variable refresh & verification.
+
+Rules:
+   - Never convert more than one `[ ]` to `[x]` per run.
+   - Do NOT unmark or modify already marked lines.
+   - Do NOT add, duplicate, or delete task lines.
+   - Preserve original text of the line except the leading `- [ ]` → `- [x]` change.
+   - Do NOT attempt to “correct” build_count based on observed markings; always trust and increment the stored value.
+
+Procedure:
+   1. Load checklist file: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`.
+   2. Read current `build_count` integer (default 0 if missing).
+   3. Select target task line per mapping using old_build_count; if eligible and unchecked, mark it.
+   4. Compute new_build_count = old_build_count + 1.
+   5. Overwrite the `- build_count → <old>` line with `- build_count → <new_build_count>` (insert after `- max_build_attempts →` if absent).
+   6. Write updated file content.
+
+Verification Note (enforced in Step 12): A violation MUST be recorded if the difference between successive runs is not exactly +1 or if build_count appears more than once.
 
 ### Step 9 (MANDATORY)
-Repo Variable Refresh: Update solution variables
-1. **Open checklist file:**
-   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
+Repo Variable Refresh (STRICT ISOLATED UPDATE): Use the PRE-INCREMENT build_count (cached BEFORE Step 8 wrote the new value) to update EXACTLY ONE status variable and NO OTHER VARIABLES. Then rely on the already-performed increment from Step 8 (DO NOT re-increment or recompute).
 
-2. **Find the Solution Variables section**
+Procedure:
+1. Open the same checklist file.
+2. Locate `### Solution Variables` section.
+3. Read cached old_build_count (value prior to Step 8). Never derive from task markings. Never read the newly incremented value for mapping.
+4. Apply EXACT ONE mapping based on old_build_count:
+   - If old_build_count == 0: ONLY set `build_status` to SUCCEEDED or FAILED. Do not modify any other variable lines.
+   - If old_build_count == 1: ONLY set `retry_build_status_attempt_1` to SUCCEEDED or FAILED. Do not modify any other variable lines.
+   - If old_build_count == 2: ONLY set `retry_build_status_attempt_2` to SUCCEEDED or FAILED. Do not modify any other variable lines.
+   - If old_build_count == 3: ONLY set `retry_build_status_attempt_3` to SUCCEEDED or FAILED. Do not modify any other variable lines.
+   - If old_build_count >= 4: Do NOT change ANY status variables.
+5. Never alter previously written statuses from earlier attempts.
+6. (Updated) `retry_build_status_attempt_3` MUST be modified ONLY when old_build_count == 3 per the mapping above; never at other counts.
+7. Do NOT touch restore_status, kb_search_status, kb_file_path, kb_article_status, fix_applied_attempt_* or any other variables.
+8. Ensure there remains EXACTLY ONE `- build_count → <value>` line (already updated in Step 8). Do not rewrite or duplicate it here.
+9. Write the updated file with only the single permitted change.
 
-3. **Update the following variables based on task execution:**
-   - `build_status` → "SUCCEEDED" if success=true, "FAILED" if success=false
-
-4. **Maintain all other existing variables unchanged:**
-   - solution_path, solution_name, max_build_attempts, restore_status, kb_search_status, kb_file_path, kb_article_status
-   - fix_applied_attempt_1, retry_build_status_attempt_1
-   - fix_applied_attempt_2, retry_build_status_attempt_2
-   - fix_applied_attempt_3, retry_build_status_attempt_3
-
-5. **Write updated variables back to checklist file**
+Validation Focus for Step 9:
+ - A run modifying more than the single allowed status variable MUST be considered a violation in Step 12 (`variable_mismatch`).
+ - Failure to update the required single status variable when old_build_count ∈ {0,1,2,3} MUST also be a violation (`variable_missing`).
 
 ### Step 11 (MANDATORY)
 DEBUG Exit Trace: 
 If environment variable DEBUG=1, print:
     `[debug][task-build-solution] END solution='{{solution_name}}' status={{success}} errors={{error_count}} warnings={{warning_count}}`
     This line marks task completion and provides quick status visibility for debugging pipeline execution.
+
+### Step 12 (MANDATORY)
+Verification (Post-Variable Refresh)
+Perform a verification pass AFTER Step 9 variable refresh and AFTER checklist marking (Step 8). This validates correctness and records violations. Runs regardless of build success.
+
+Scope of Verification:
+1. Checklist File Presence: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md` exists.
+2. Task Marking:
+   - Regardless of success, the `@task-build-solution` line MUST be marked `- [x]` (task executed).
+3. Directive Uniqueness: Exactly one occurrence of `@task-build-solution` in the checklist file.
+4. Solution Variables Section Integrity:
+   - Header `### Solution Variables` present.
+   - Parenthetical `(Variables set by tasks for this specific solution)` present.
+   - All required variable lines present in arrow format `variable_name → value` (U+2192):
+   * solution_path
+     * solution_name
+     * max_build_attempts
+   * build_count
+     * restore_status
+     * build_status
+     * kb_search_status
+     * kb_file_path
+     * kb_article_status
+     * fix_applied_attempt_1
+     * retry_build_status_attempt_1
+     * fix_applied_attempt_2
+     * retry_build_status_attempt_2
+     * fix_applied_attempt_3
+     * retry_build_status_attempt_3
+5. Arrow Formatting: Record violation if any required variable line missing arrow or using `->` instead of `→`.
+6. Value Consistency:
+   - `build_status` matches success flag (SUCCEEDED when success=true, FAILED when success=false).
+   - `solution_path` ends with `.sln` and file exists.
+7. JSON Output Integrity:
+   - The structured JSON emitted in Step 10 MUST contain keys: solution_path, solution_name, success, return_code, stdout_tail, stderr_tail, errors, warnings.
+   - If an optional file `output/{{repo_name}}_{{solution_name}}_task-build-solution.json` is written, ensure those keys exist.
+8. No Duplicate Variables: Each required variable appears exactly once.
+9. build_count Monotonicity: build_count MUST increase by exactly 1 compared to its value on the previous invocation; if tooling can detect previous value, record violation `variable_mismatch` when delta != 1.
+
+Violation Recording:
+- Append each violation as `{ "type": "<code>", "target": "<file|variable|line>", "detail": "<human readable>" }` to `verification_errors`.
+- Recommended codes: file_missing, directive_duplicate, checklist_mark_incorrect, variable_missing, variable_mismatch, arrow_format_error, sln_missing, json_missing_key.
+- If DEBUG=1 emit: `[debug][task-build-solution][verification] FAIL code=<code> target=<target> detail="<description>"` per violation.
+
+Status Adjustment Logic:
+- Start `status = SUCCESS` if success=true else `status = FAIL`.
+- If success=true but any violations exist → set `status = FAIL` (build succeeded but checklist invalid).
+- If success=false keep `status = FAIL`.
+
+Output Update:
+1. If a JSON file was created (optional enhancement) update/add:
+   - `verification_errors` (sorted by type then target)
+   - `status` (adjusted) without altering original `success`.
+2. If JSON only emitted via stdout, ALSO create a separate verification file: `output/{{repo_name}}_{{solution_name}}_task-build-solution_verification.json` containing:
+```json
+{
+  "repo_name": "{{repo_name}}",
+  "solution_name": "{{solution_name}}",
+  "success": <bool>,
+  "status": "SUCCESS"|"FAIL",
+  "verification_errors": [ ... ]
+}
+```
+3. Ensure deterministic ordering (sort errors by type then target).
+
+Success Criteria for Step 12: Verification JSON written reflecting accurate error list and final status.
 
 ## Output Contract:
 - solution_path: string (absolute path provided)
