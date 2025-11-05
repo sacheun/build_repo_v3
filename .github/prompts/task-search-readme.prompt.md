@@ -17,7 +17,8 @@ temperature: 0.0
 8. Result Tracking
 9. Repo Checklist Update
 10. Repo Variable Refresh
-11. Debug Exit Trace
+11. Verification (Post-Refresh)
+12. Debug Exit Trace
 
 ## Prerequisites
 - Python 3.x installed (if scripting)
@@ -41,20 +42,25 @@ If DEBUG=1, print:
 `[debug][task-search-readme] START checklist_path='{{checklist_path}}'`
 
 ### Step 2 (MANDATORY)
-Load Authoritative Variables From Checklist:
-1. Resolve `checklist_path`; ensure file exists. If missing, set status=FAIL and abort.
-2. Open the checklist file; locate the `## Repo Variables Available` section.
+Load Authoritative Variables From Checklist (and self-heal missing README variable lines):
+1. Resolve `checklist_path`; ensure file exists. If missing, set status=FAIL, emit JSON immediately, and skip remaining steps.
+2. Open the checklist file; locate the `## Repo Variables Available` section. Treat the lines from that heading up to (but not including) the next `## ` heading as the SINGLE authoritative variable block.
 3. Parse variable lines beginning with:
-  * `- {{repo_directory}}`
-  * `- {{repo_name}}`
+   * `- {{repo_directory}}`
+   * `- {{repo_name}}`
 4. Extract arrow (`→`) values (trim whitespace). These become authoritative `repo_directory` and `repo_name` for all subsequent steps.
-5. If `repo_directory` value is blank, set status=FAIL (cannot continue) but still produce JSON output; do not attempt README search.
-6. Ensure presence (may be blank) of lines for:
-  * `- {{readme_content}}`
-  * `- {{readme_filename}}`
-  Insert blank (`- {{token}} →`) if missing; mark status=FAIL unless corrected later.
-7. If DEBUG=1 print: `[debug][task-search-readme] loaded repo_directory='{repo_directory}' repo_name='{repo_name}' from checklist`.
-8. External parameters for repo_directory/repo_name MUST be ignored; checklist is single source of truth.
+5. If `repo_directory` value is blank, set preliminary status=FAIL (cannot attempt README search) but STILL continue with variable normalization (Steps 6–8) so the checklist stays consistent.
+6. REQUIRED README variable lines: ensure exactly one line each for:
+   * `- {{readme_content}}`
+   * `- {{readme_filename}}`
+   If either is missing OR present with single braces (e.g. `- {readme_content}`), INSERT/REWRITE them INSIDE the variable block (never after the definitions section) using blank placeholders:
+   * `- {{readme_content}} →`
+   * `- {{readme_filename}} →`
+  Insertion position rule: place them immediately after the line starting with - {{repo_directory}}; if that line is missing, append them at the end of the variable block (just before the next ## heading).
+7. Do NOT mark status=FAIL solely because they were missing; self-healing insertion is expected behavior. Failure status is driven only by README discovery or a missing `repo_directory` value.
+8. Normalize legacy single-brace variants to the double-brace canonical form (`{{token}}`).
+9. If DEBUG=1 print: `[debug][task-search-readme] loaded repo_directory='{repo_directory}' repo_name='{repo_name}' from checklist`.
+10. External parameters for repo_directory/repo_name MUST be ignored; checklist is single source of truth.
 
 ### Step 3 (MANDATORY)
 README Candidate Search (conditional):
@@ -77,27 +83,8 @@ Content Extraction:
 - If DEBUG=1 and no match, print: `[debug][task-search-readme] no README file found in repository root`
 
 ### Step 6 (MANDATORY)
-Verification & Structured Output:
-Run verification BEFORE writing JSON. Any violation sets status=FAIL unless already FAIL.
-
-Verification checklist:
-1. Checklist file exists at `{{checklist_path}}`.
-2. Variable lines present exactly once for:
-  - `- {{repo_directory}}` (non-empty if status not FAIL)
-  - `- {{repo_name}}` (non-empty)
-3. Mutable variable lines exist (may be blank prior to refresh):
-  - `- {{readme_content}}`
-  - `- {{readme_filename}}`
-4. If status=SUCCESS (README found):
-  - `readme_filename` not null and not NONE.
-  - `readme_content` length > 0.
-5. If status=FAIL due to missing repo_directory: ensure `readme_filename` and `readme_content` will be null in JSON.
-6. No duplicate variable lines for repo_directory or repo_name (case-insensitive).
-7. Task directive line `@task-search-readme` appears exactly once.
-8. Arrow formatting correct: each variable line uses `- {{token}} → value` (report if arrow missing).
-
-Record each failure as object: `{ "type": "<code>", "target": "<file|repo>", "detail": "<description>" }` in `verification_errors`.
-If DEBUG=1 emit: `[debug][task-search-readme][verification] FAIL code=<code> detail="<description>"` per violation.
+Structured Output:
+Generate JSON only (no verification in this step) at: `output/{{repo_name}}_task2_search-readme.json` including required fields below. `verification_errors` is emitted as an array (empty here) and may be populated in Step 11.
 
 Structured Output JSON (output/{{repo_name}}_task2_search-readme.json) MUST include:
 - repo_directory
@@ -155,29 +142,64 @@ Result Tracking:
 
 ### Step 9 (MANDATORY)
 Repo Checklist Update:
-- Open `{{checklist_path}}`
-- Set `[x]` only on the `@task-search-readme` entry for this repository
-- Do not modify other checklist items or other repositories' files
+- Open `{{checklist_path}}`.
+- Mark the `@task-search-readme` task with `[x]` ONLY if final status after verification will be SUCCESS. Leave as `[ ]` on failure.
+- Do not modify other checklist tasks.
+- Never duplicate the directive line.
 
 ### Step 10 (MANDATORY)
-Repo Variable Refresh (INLINE ONLY):
-- Open checklist file at `{{checklist_path}}`.
-- Locate lines under `## Repo Variables Available` beginning with:
+Repo Variable Refresh (INLINE ONLY – POINTER MODEL):
+- Within the SAME variable block, update ONLY:
   * `- {{readme_content}}`
   * `- {{readme_filename}}`
-- Do NOT modify lines for `- {{repo_directory}}` or `- {{repo_name}}` (immutable for this task).
-- Replace ONLY the text after the arrow `→` on each mutable line with the concrete value from this task's output JSON. If the line has no arrow, append one: `- {{token}} → <value>`.
-- Large README content: store either the first 200 characters + `...` suffix OR the literal string `EMPTY` if no README found (never null in JSON but reflected as NONE in checklist if not found).
-- If README was not found (status=FAIL) OR repo_directory missing:
-  * `{{readme_content}}` → NONE
-  * `{{readme_filename}}` → NONE
-- Example transformation:
-  * `- {{readme_filename}} → README.md`
-  * `- {{readme_content}} → # Project Title...`
-- Preserve leading `- {{token}}` exactly.
-**Inline Variable Policy:** Never add a secondary "refreshed" block; all updates must occur on original lines.
+- NEVER move them outside the block or create a second block.
+- Do NOT modify `- {{repo_directory}}` or `- {{repo_name}}`.
+- POINTER STORAGE POLICY (no embedded README text):
+  * On SUCCESS (README found):
+    - `{{readme_filename}}` → `<actual filename>` (e.g. `README.md`)
+    - `{{readme_content}}` → `output/{{repo_name}}_task2_search-readme.json (field=readme_content)`
+  * On FAIL (not found or repo_directory blank):
+    - `{{readme_filename}}` → NONE
+    - `{{readme_content}}` → NONE
+- Always ensure exactly one `→` per line. Replace only the portion after the arrow; preserve leading `- {{token}}` verbatim.
+- If the line exists but is missing an arrow or has extra arrows, normalize to the correct single-arrow format.
+- If the line was inserted blank earlier (Step 2), overwrite its value here according to status.
+**Inline Variable Policy:** Single authoritative block; no duplicates; no multi-line content.
 
 ### Step 11 (MANDATORY)
+Verification (Post-Refresh):
+Perform verification AFTER checklist update (Step 9) and variable refresh (Step 10). Load current checklist state and JSON (from Step 6) then populate `verification_errors` and adjust `status` if needed.
+
+Verification checklist:
+1. Checklist file exists at `{{checklist_path}}`.
+2. Variable lines present exactly once for (case-sensitive tokens):
+  - `- {{repo_directory}}` (non-empty unless original status FAIL due to missing directory)
+  - `- {{repo_name}}` (non-empty)
+  - `- {{readme_content}}` (present; value may be NONE)
+  - `- {{readme_filename}}` (present; value may be NONE)
+3. Arrow formatting: each variable line uses single `→`.
+4. No duplicate variable lines for repo_directory or repo_name.
+5. Task directive line `@task-search-readme` appears exactly once.
+6. If status=SUCCESS in JSON:
+  - JSON `readme_filename` not null/NONE.
+  - JSON `readme_content` length > 0.
+7. If status=FAIL due to missing repo_directory (detect by empty repo_directory value in checklist and null JSON fields): ensure JSON `readme_filename` and `readme_content` are null.
+8. Checklist variable refresh coherence:
+  - If README found: checklist `readme_filename` matches JSON `readme_filename`.
+  - If README not found: checklist values are NONE.
+9. JSON required keys present: repo_directory, repo_name, readme_content, readme_filename, status, timestamp.
+
+Violations recorded as objects: `{ "type": "<code>", "target": "<file|variable|json>", "detail": "<description>" }`.
+Recommended codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, mismatch_filename, content_missing, json_missing_key, invalid_status_consistency.
+
+Status Adjustment:
+- Start with existing JSON status.
+- If status=SUCCESS and any violations → set status=FAIL (do not alter original success criteria fields).
+- If status already FAIL leave unchanged.
+
+Update JSON in-place: overwrite `verification_errors` (sorted by type then target) and `status` (if changed). Preserve original timestamp.
+
+### Step 12 (MANDATORY)
 DEBUG Exit Trace:  
 If DEBUG=1, print:  
 `[debug][task-search-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} readme_found={{readme_filename}}`
@@ -196,16 +218,17 @@ If DEBUG=1, print:
 3. Prioritization: If multiple README files found, prioritize by extension: .md > .txt > .rst > (no extension)
 4. Error Handling: File read errors (permissions, encoding) should be caught and logged; set status=FAIL if content cannot be extracted.
 5. Contract Compliance: Always save JSON output file with all fields regardless of success/failure.
-6. Content Handling: Return entire file content; do not truncate or summarize at this stage.
+6. Content Handling: JSON output stores full README content; checklist stores only a pointer (`output/{{repo_name}}_task2_search-readme.json (field=readme_content)`) not the content itself.
 7. Encoding Tolerance: Use UTF-8 with ignore mode to handle malformed characters gracefully.
 8. Null Safety: Ensure readme_content and readme_filename are explicitly null (not empty string) when no README found.
 9. Script Location: Save generated script to temp-script/ directory with naming pattern: step{N}_repo{M}_task2_search-readme.py (or .ps1/.sh)
 
 ## Error Handling
-- For any step that fails:
-  - Log the error with details (stdout, stderr, exception message)
-  - Abort further steps if critical (e.g., file read fails)
-  - Do not update checklist or results CSV on failure
+- For a missing checklist file: emit JSON with status=FAIL, a `file_missing` violation, and skip Steps 3–12.
+- For missing `repo_directory` value: proceed with variable self-heal; skip README search but still emit JSON, update checklist variables to NONE, and perform verification.
+- For README not found: status=FAIL but still update checklist (variables set to NONE) and record decision log + CSV row.
+- For file read errors after discovery: treat as status=FAIL, set content to null, still perform Steps 7–11.
+- Always append the CSV row and decision log entry regardless of success/failure to maintain audit trail.
 
 ## Consistency Checks
 - After updating files (checklist, results CSV, output JSON), verify that the changes were written successfully.
@@ -219,4 +242,4 @@ If DEBUG=1, print:
   - readme_content (full README text or null)
   - readme_filename (discovered README filename or null)
   - timestamp (ISO 8601 time when task completed)
-- When updating checklist variables, ensure written values match output JSON (with truncation rules for readme_content).
+- When updating checklist variables, ensure pointer format or NONE matches status (never embed or truncate content in checklist).

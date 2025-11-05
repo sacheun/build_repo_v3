@@ -151,19 +151,31 @@ Generate Individual Checklist Files (Single Canonical Template):
        - Mark completed tasks with [x]
 
    ## Repo Variables Available
-   - {{repo_url}}
-   - {{repo_name}}
-   - {{clone_path}}
-   - {{repo_directory}}
-   - {{readme_content}}
-   - {{readme_filename}}
-   - {{commands_extracted}}
-   - {{executed_commands}}
-   - {{skipped_commands}}
-   - {{solutions_json}}
-   - {{solutions}}
-   [Variables section verbatim]
-   (All variable lines MUST appear ONLY in this section. DO NOT emit any `{{token}}=value` assignments in the Repo Tasks section or elsewhere.)
+   (Single authoritative variable block. EXACTLY ONE LINE PER TOKEN. No duplicate descriptive lines permitted. Every line MUST use arrow format even if value blank.)
+   - {{repo_url}} → {repo_url}
+   - {{repo_name}} → {repo_name}
+   - {{clone_path}} →
+   - {{repo_directory}} →
+   - {{readme_content}} →
+   - {{readme_filename}} →
+   - {{commands_extracted}} →
+   - {{executed_commands}} →
+   - {{skipped_commands}} →
+   - {{solutions_json}} →
+   - {{solutions}} →
+   ## Variable Definitions (Reference Only – DO NOT PARSE FOR VALUES)
+   - repo_url: Original repository URL provided to the workflow.
+   - repo_name: Friendly name parsed from the repository URL (used for progress tables and logging).
+   - clone_path: Root folder where repositories are cloned (populated later by task-clone-repo).
+   - repo_directory: Absolute path to the cloned repository (populated later by task-clone-repo).
+   - readme_content: README file content (output of @task-search-readme).
+   - readme_filename: README filename (output of @task-search-readme).
+   - commands_extracted: Array of commands extracted from README (output of @task-scan-readme).
+   - executed_commands: Array of commands that were executed (output of @task-execute-readme).
+   - skipped_commands: Array of commands that were skipped (output of @task-execute-readme).
+   - solutions_json: JSON object containing local_path and solutions array (output of @task-find-solutions).
+   - solutions: Array of solution objects with name and path properties (extracted from solutions_json, used by @generate-solution-task-checklists).
+   [Variables section verbatim REMOVED; dynamic extraction no longer inserts descriptive duplicates.]
 
        ## Parsed Task Directives
        - One bullet per unique directive in first-appearance order
@@ -179,25 +191,24 @@ Generate Individual Checklist Files (Single Canonical Template):
           * CONDITIONAL: @task-scan-readme, @task-execute-readme
           * SCRIPTABLE: @task-clone-repo, @task-search-readme, @task-find-solutions, @generate-solution-task-checklists
           * NON-SCRIPTABLE: @task-scan-readme, @task-execute-readme
-    - Dynamic Variables Section: Extract the entire "## Repo Variables Available" section from `.github\prompts\repo_tasks_list.prompt.md` verbatim.
-    - Prohibited: Adding any solution-specific task subsections or variable lines outside `## Repo Variables Available`.
+   - Dynamic Variables Section: IGNORE descriptive lines in `.github\prompts\repo_tasks_list.prompt.md`. Only emit the single authoritative block defined above with one arrow line per token. Do NOT duplicate variables or add explanatory duplicate lines. Explanations belong exclusively under `## Variable Definitions`.
+
 
 ### Step 8: (MANDATORY)
 Populate Base Repo Variables (repo_url & repo_name):
-   - After inserting the dynamic variables section for each individual checklist (from Step 7), ensure the following two lines exist under `## Repo Variables Available` (inline ONLY, update-in-place — NO duplicate block creation):
-      * `- {{repo_url}} → <exact repository URL from input file>`
-      * `- {{repo_name}} → <extracted repository name>`
+   - The template already contains authoritative arrow lines for ALL variable tokens.
+   - Populate ONLY the values for:
+    * `- {{repo_url}} → {repo_url}` (replace placeholder with exact normalized URL)
+    * `- {{repo_name}} → {repo_name}` (replace placeholder with derived friendly name)
+   - Leave all other variable values blank (i.e., keep trailing arrow with nothing after) – they will be filled by later tasks.
    - Extraction logic for repo_name (deterministic):
-         * Azure DevOps (URL contains `/_git/`): take the final segment after the last `/` (e.g., `https://skype.visualstudio.com/SCC/_git/repo-name` → `repo-name`).
-         * GitHub: take last path segment and strip optional `.git` suffix (e.g., `https://github.com/user/repo.git` → `repo`).
-         * Fallback: last non-empty URL path segment with trailing `.git` removed.
-   - Pre-normalize URL for storage: trim whitespace, strip trailing slashes, retain original case.
-   - Inline update rules:
-         * If line exists without an arrow, append ` → value`.
-         * If line exists with an arrow, replace ONLY the value to the right (preserve `- {{token}}`).
-   - Do NOT create secondary refreshed sections; never duplicate the variable heading.
-   - Validation (per checklist): both lines MUST appear exactly once post-generation; if either missing, mark run status=FAIL before JSON output.
-   - DEBUG (per repo if DEBUG=1): `[debug][generate-repo-task-checklists] repo_name extracted: {repo_name} from url: {repo_url}`.
+      * Azure DevOps (URL contains `/_git/`): final segment after last `/` (strip `.git`).
+      * GitHub: last path component (strip `.git`).
+      * Fallback: last non-empty URL segment stripped of `.git`.
+   - Pre-normalize URL: trim whitespace, strip trailing slashes, preserve case.
+   - Absolutely forbid creating duplicate variable lines or re-emitting the variables heading.
+   - Validation (per checklist): EXACTLY ONE occurrence of each variable line. Any duplicate → status=FAIL.
+   - DEBUG (if DEBUG=1): `[debug][generate-repo-task-checklists] populated repo_url and repo_name for {repo_name}`.
 
 ### Step 9: (MANDATORY)
 Verification & Structured Output:
@@ -223,12 +234,12 @@ Verification & Structured Output:
       * Second line `Repository:` includes the exact repo_url
       * `Generated:` line present (ISO 8601 seconds precision)
    8. Variables section validation (per processed repo checklist):
-      * Line with `- {{repo_url}}` appears exactly once and contains arrow with exact URL value
-      * Line with `- {{repo_name}}` appears exactly once and contains arrow with exact repo name value
-      * No second duplicate lines for these tokens
-      * No stray `{{token}}=value` lines present outside the variables section (violation code: `extraneous_variable_line`).
+      * Each of the 11 variable tokens appears EXACTLY once using arrow format: `- {{token}} →` (value may be blank except repo_url & repo_name which MUST be non-empty).
+      * `repo_url` line arrow value matches exact normalized URL.
+      * `repo_name` line arrow value matches derived friendly name.
+      * NO duplicate variable lines; NO descriptive duplicates starting with `- {{token}}` allowed outside the authoritative block.
    9. Task directive uniqueness: No duplicate lines referencing the same `@task-` directive.
-   10. Placeholder existence: Lines for `- {{solutions_json}}` and `- {{solutions}}` exist (value may be absent or arrow not yet applied—allowed).
+   10. Placeholder existence: All remaining variable lines (clone_path, repo_directory, readme_content, readme_filename, commands_extracted, executed_commands, skipped_commands, solutions_json, solutions) exist exactly once (value may be blank).
    11. File hygiene: No extra copies of the canonical template block; specifically count of `# Task Checklist:` MUST equal 1.
    12. If any check fails for a file:
       * Mark status=FAIL
@@ -263,7 +274,7 @@ DEBUG Exit Trace: If DEBUG=1, print:
    - Append mode preserves existing order; only sorted new entries appended (Step 4 & 6).
    - Master checklist formatting rules prevent whitespace drift (Step 6).
    - Individual checklist deterministic content + directive uniqueness enforced (Step 7).
-   - Base repo variable population deterministic (Step 8).
+   - Base repo variable population deterministic (Step 8) with single authoritative arrow-form block (no descriptive duplicates).
    - Consistency checks & key ordering already defined in Consistency Checks and Step 9.
    - No randomness, locale neutrality, placeholder fidelity guaranteed through explicit rules.
    Following these embedded rules ensures repeat runs with identical inputs produce identical artifacts except for timestamp.
@@ -309,7 +320,7 @@ All determinism rules are already embedded inline in Steps 3–8 and Manual Usag
 - Placeholders: keep `{{variable}}` literal; do not expand.
 - Directives: unique first appearance order; skip duplicates inside variables block.
    - Present them under a single heading `## Parsed Task Directives` with one bullet per directive.
- - Base repo variables (repo_url, repo_name) populated deterministically once (Step 8) with inline arrow update semantics.
+- Single authoritative variable block with arrow lines only; repo_url & repo_name populated, others left blank for later tasks.
 
 8. Idempotency (append=false):
    - A run with append=false MUST fully remove then recreate `./tasks`, `./output`, `./temp-script` before generation.

@@ -21,7 +21,8 @@ temperature: 0.1
 12. Result Tracking
 13. Repo Checklist Update
 14. Repo Variable Refresh
-15. Debug Exit Trace
+15. Verification (Post-Refresh)
+16. Debug Exit Trace
 
 ## Prerequisites
 - README content JSON produced by `@task-search-readme`
@@ -195,6 +196,10 @@ Example behavior for README with only external references:
      - Commands in numbered steps are likely sequential setup instructions
      - Commands with explanatory text like "First, install..." are setup commands
      - Distinguish between example code (showing API usage) vs. setup commands (preparing environment)
+   f. **Explicit Exclusion Policy (MANDATORY):**
+       - DO NOT include repository acquisition commands (e.g. any form of `git clone ...`) in `commands_extracted`.
+       - Rationale: cloning is a one-time repository fetch, not an environment setup operation.
+       - If such commands appear, ignore them (do not count toward total_commands) and do not list them in the checklist summary.
 
 ### Step 8 (MANDATORY)
 **Command Categorization:**  
@@ -216,11 +221,14 @@ Remove line continuations: backslash (\) or caret (^)
 Remove comments: truncate at first occurrence of one of: # // REM
 Trim whitespace
 Handle multi-line commands (join with proper syntax)
+ Apply exclusion filters (MANDATORY): discard any cleaned command whose original form began with or contains a repository clone invocation (e.g. starts with `git clone`, `gh repo clone`). These MUST NOT appear in the final JSON.
 If DEBUG=1, print: `[debug][task-scan-readme] cleaned {{original_count}} commands to {{cleaned_count}} valid commands`
 
 ### Step 10 (MANDATORY)
-**Verification & Structured Output:**
-Run verification BEFORE writing JSON. Any violation sets status=FAIL unless already SKIPPED/FAIL.
+Structured Output Assembly:
+Generate JSON only (no verification in this step) at `output/{{repo_name}}_task3_scan-readme.json`. The `verification_errors` array is emitted empty here and populated in Step 15.
+
+Structured Output JSON (output/{{repo_name}}_task3_scan-readme.json) MUST include:
 
 Verification checklist:
 1. Checklist file exists at `{{checklist_path}}`.
@@ -301,6 +309,31 @@ Append the result to:
 **Inline Variable Policy:** Never create a new section; update in place only.
 
 ### Step 15 (MANDATORY)
+Verification (Post-Refresh):
+Perform verification AFTER Steps 13–14 (checklist update and variable refresh). Load the JSON produced in Step 10 and current checklist state.
+
+Verification checklist:
+1. Checklist file exists at `{{checklist_path}}`.
+2. Variable lines present exactly once for required tokens: repo_name, repo_directory, readme_content_path, commands_extracted.
+3. Arrow formatting correct (single `→`).
+4. No duplicate variable lines among repo_name, repo_directory, commands_extracted.
+5. Task directive `@task-scan-readme` appears exactly once.
+6. JSON required keys present: repo_name, repo_directory, sections_identified, commands_extracted, total_commands, status, timestamp.
+7. Status-specific rules:
+   - SUCCESS: total_commands > 0 AND len(commands_extracted array) == total_commands.
+   - NONE: total_commands == 0 AND README existed (readme_content_path valid) AND commands_extracted array empty.
+   - SKIPPED: README missing/unreadable; commands_extracted empty; total_commands == 0.
+8. Consistency: safe that checklist `- {{commands_extracted}}` summary (if populated) reflects SUCCESS/NONE/SKIPPED semantics (FAIL not allowed unless status=FAIL).
+9. Base variables unchanged from Step 2 extraction.
+
+Violations: record objects `{ "type": "<code>", "target": "<file|variable|json>", "detail": "<description>" }`.
+Suggested codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, status_inconsistent, base_variable_modified.
+
+Status Adjustment:
+- Begin with existing JSON status. If status in {SUCCESS, NONE} and violations exist → set status=FAIL. If SKIPPED and violations unrelated to README absence appear, may set status=FAIL.
+
+Update JSON: overwrite verification_errors (sorted by type then target) and updated status if changed. Preserve timestamp.
+
 **DEBUG Exit Trace:**  
 If DEBUG=1, print:  
 `[debug][task-scan-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} commands_extracted={{total_commands}}]`

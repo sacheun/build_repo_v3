@@ -19,7 +19,8 @@ temperature: 0.1
 10. Result Tracking
 11. Repo Checklist Update
 12. Repo Variable Refresh
-13. Debug Exit Trace
+13. Verification (Post-Refresh)
+14. Debug Exit Trace
 
 ## Prerequisites
 - Repo checklist (at checklist_path) contains variable lines for `{{repo_name}}`, `{{repo_directory}}`, `{{commands_extracted}}`, `{{executed_commands}}`, `{{skipped_commands}}`
@@ -204,31 +205,8 @@ For each UNSAFE command:
 - If DEBUG=1 and any failures, print: `[debug][task-execute-readme] {{failed_count}} commands failed during execution`
 
 ### Step 7 (MANDATORY)
-**Verification & Structured Output:**
-Run verification BEFORE writing JSON. Any violation sets status=FAIL unless already SKIPPED/FAIL.
-
-Verification checklist:
-1. Checklist file exists at `{{checklist_path}}`.
-2. Variable lines present exactly once for:
-   - `- {{repo_name}}` (non-empty)
-   - `- {{repo_directory}}` (non-empty if not SKIPPED)
-   - `- {{commands_extracted}}` (present; value may be NONE/SKIPPED/FAIL)
-   - `- {{executed_commands}}` (present)
-   - `- {{skipped_commands}}` (present)
-3. If status=SUCCESS:
-   - `safe_commands_count + unsafe_commands_count == total_commands_scanned`.
-   - `len(executed_commands) == safe_commands_count`.
-   - `len(skipped_commands) == unsafe_commands_count`.
-4. If status=SKIPPED: executed_commands and skipped_commands arrays SHOULD be empty.
-5. Each executed command object has mandatory keys: command, status, exit_code (except TIMEOUT/ERROR may omit exit_code), safety_category.
-6. Each skipped command object has command, reason, safety_category.
-7. No duplicate command strings across executed vs skipped sets.
-8. Task directive line `@task-execute-readme` appears exactly once.
-9. Arrow formatting: each variable line uses `- {{token}} → value`.
-10. Base variables (`repo_name`, `repo_directory`) unchanged.
-
-Record each failure as: `{ "type": "<code>", "target": "<file|repo>", "detail": "<description>" }` in `verification_errors`.
-If DEBUG=1 emit: `[debug][task-execute-readme][verification] FAIL code=<code> detail="<description>"`.
+Structured Output Assembly:
+Generate JSON only (no verification in this step) at `output/{{repo_name}}_task4_execute-readme.json`. Emit empty `verification_errors` array here; populate in Step 13.
 
 Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST include:
 - repo_directory
@@ -272,7 +250,35 @@ Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST inc
 - If a line lacks an arrow, append one then the value: `- {{token}} → <value>`.
 **Inline Variable Policy:** Never create separate refreshed blocks; modify original lines only.
 
-### Step 11 (MANDATORY)
+### Step 13 (MANDATORY)
+Verification (Post-Refresh):
+Run verification AFTER Steps 11–12 (checklist update & variable refresh). Load JSON (Step 7) and current checklist.
+
+Verification checklist:
+1. Checklist file exists at `{{checklist_path}}`.
+2. Variable lines present exactly once for: repo_name, repo_directory, commands_extracted, executed_commands, skipped_commands.
+3. Arrow formatting correct (single arrow, no duplicates).
+4. Task directive `@task-execute-readme` appears exactly once.
+5. JSON required keys present: repo_name, repo_directory, total_commands_scanned, safe_commands_count, unsafe_commands_count, executed_commands, skipped_commands, status, timestamp.
+6. Status-specific rules:
+  - SUCCESS: counts align: safe+unsafe == total_scanned; lengths of executed/skipped arrays match counts.
+  - SKIPPED: executed_commands and skipped_commands arrays empty; total_commands_scanned may be 0.
+7. Command object integrity:
+  - executed: command, status, safety_category present; exit_code present unless status in {TIMEOUT, ERROR}.
+  - skipped: command, reason, safety_category present.
+8. No command string appears in both executed and skipped arrays.
+9. Base variables (repo_name, repo_directory) unchanged from Step 2 values.
+10. Checklist summaries for executed/skipped reflect counts or SKIPPED token.
+
+Record violations as `{ "type": "<code>", "target": "<file|variable|json>", "detail": "<description>" }`.
+Suggested codes: file_missing, variable_missing, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, status_inconsistent, command_object_invalid, duplicate_command, base_variable_modified, summary_mismatch.
+
+Status Adjustment:
+- If status=SUCCESS and violations exist → set status=FAIL. If status=SKIPPED and only non-critical issues appear (e.g., empty arrays) keep SKIPPED unless a structural violation occurs, then FAIL.
+
+Update JSON: overwrite verification_errors (sorted by type then target) & status (if updated). Preserve timestamp.
+
+### Step 14 (MANDATORY)
 **DEBUG Exit Trace:**  
 If DEBUG=1, print:  
 `[debug][task-execute-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} executed={{safe_count}} skipped={{unsafe_count}}`

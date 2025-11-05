@@ -17,7 +17,8 @@ temperature: 0.0
 8. Result Tracking CSV Append
 9. Repo Checklist Update
 10. Repo Variable Refresh
-11. Debug Exit Trace
+11. Verification (Post-Refresh)
+12. Debug Exit Trace
 
 ## Prerequisites
 - Checklist file at `checklist_path` containing variable lines for:
@@ -75,28 +76,8 @@ Path Collection:
   - If DEBUG=1 after collection complete, print: `[debug][task-find-solutions] discovered {{count}} solution(s)`
 
 ### Step 6 (MANDATORY)
-Verification & Structured Output:
-Run verification BEFORE writing JSON. Any violation sets status=FAIL unless already FAIL.
-
-Verification checklist:
-1. Checklist file exists at `{{checklist_path}}`.
-2. Variable lines present exactly once for:
-  - `- {{repo_name}}` (non-empty)
-  - `- {{repo_directory}}` (non-empty if status not FAIL)
-  - `- {{solutions_json}}` (present; may be blank pre-refresh)
-  - `- {{solutions}}` (present; may be blank pre-refresh)
-3. If status=SUCCESS:
-  - `solution_count == len(solutions array)`.
-  - Each path in `solutions` ends with `.sln`.
-  - Each path exists on disk (record violation if missing but keep SUCCESS unless critical).
-4. If `solution_count == 0` ensure status=SUCCESS (directory valid) and `solutions` is empty array.
-5. No duplicate solution basenames (case-insensitive) in `solutions` array.
-6. Task directive line `@task-find-solutions` appears exactly once.
-7. Arrow formatting: each variable line uses `- {{token}} → value`.
-8. Base variables (`repo_name`, `repo_directory`) unchanged.
-
-Record failures as objects: `{ "type": "<code>", "target": "<file|repo|path>", "detail": "<description>" }` in `verification_errors`.
-If DEBUG=1 emit: `[debug][task-find-solutions][verification] FAIL code=<code> detail="<description>"` per violation.
+Structured Output JSON:
+Generate JSON only (no verification here) at `output/{{repo_name}}_task5_find-solutions.json`. Emit empty `verification_errors` array; populate in Step 11.
 
 Structured Output JSON (output/{{repo_name}}_task5_find-solutions.json) MUST include:
 - local_path
@@ -164,6 +145,34 @@ Repo Variable Refresh (INLINE ONLY):
 **Inline Variable Policy:** Do not add new sections; update existing lines only.
 
 ### Step 11 (MANDATORY)
+Verification (Post-Refresh):
+Perform verification AFTER Steps 9–10 (checklist update and variable refresh). Load JSON from Step 6 and current checklist.
+
+Verification checklist:
+1. Checklist file exists at `{{checklist_path}}`.
+2. Variable lines present exactly once (case-sensitive tokens): repo_name, repo_directory, solutions_json, solutions.
+3. Arrow formatting correct (single arrow).
+4. Task directive `@task-find-solutions` appears exactly once.
+5. JSON required keys present: local_path, repo_name, solutions, solution_count, status, timestamp.
+6. If status=SUCCESS:
+  - `solution_count == len(solutions array)`.
+  - Each listed solution path ends with `.sln`.
+7. If `solution_count == 0` and status=SUCCESS: solutions array empty.
+8. No duplicate solution basenames (case-insensitive) in JSON solutions array.
+9. Checklist refreshed values coherence:
+  - `solutions_json` checklist line points to generated JSON path.
+  - `solutions` checklist summary begins with `<solution_count> solutions` (or `0 solutions`).
+10. Base variables (repo_name, repo_directory) unchanged from Step 2 extraction.
+
+Violations recorded as `{ "type": "<code>", "target": "<file|variable|json>", "detail": "<description>" }`.
+Suggested codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, invalid_extension, duplicate_solution_basename, summary_mismatch, base_variable_modified.
+
+Status Adjustment:
+- Start with JSON status. If status=SUCCESS and violations exist → set status=FAIL. Leave FAIL unchanged.
+
+Update JSON: overwrite verification_errors (sorted by type then target) and updated status if changed. Preserve timestamp.
+
+### Step 12 (MANDATORY)
 If DEBUG=1, print: `[debug][task-find-solutions] EXIT repo_directory='{{repo_directory}}' status={{status}} solution_count={{solution_count}}`
 
 ## Output Contract
