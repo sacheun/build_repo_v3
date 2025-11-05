@@ -28,9 +28,10 @@ Input Validation:
 
 ### Step 3 (MANDATORY)
 Build Invocation:
-   - Command: `msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release   --verbosity:quiet -noLogo`
-   - **IMPORTANT**: All parameters starting with `--` or `-` are command arguments to the msbuild executable, NOT file system paths
-   - If DEBUG=1, print to console: `[debug][task-build-solution] executing: msbuild "{{solution_path}}" --target:Clean,Build`--property:Configuration=Release --verbosity:quiet -noLogo`
+   - Command: `msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo`
+   - The flag `--maxcpucount` is included for parallel build consistency (matches decision log message).
+   - **IMPORTANT**: All parameters starting with `--` or `-` are command arguments to msbuild, NOT file paths.
+   - If DEBUG=1, print: `[debug][task-build-solution] executing: msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo`
    - Assumes packages already restored by @task-restore-solution.
    - Capture full stdout and stderr streams.
 
@@ -87,7 +88,7 @@ Structured Output Emission:
    - On unexpected exception emit success=false, return_code=-1, errors=[{"code":"EXCEPTION","message":"<optional brief>"}].
    - Always emit warnings array (empty if none).
 
-### Step 7 (MANDATORY)
+### Step 11 (MANDATORY)
 Result Tracking: Append to solution-results.csv
 1. **Prepare CSV entry:**
    - timestamp: Current UTC timestamp in ISO 8601 format (e.g., "2025-10-26T12:00:00Z")
@@ -103,7 +104,7 @@ Result Tracking: Append to solution-results.csv
    - Ensure directory exists: `.\results\`
    - If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
 
-### Step 8 (MANDATORY)
+### Step 12 (MANDATORY)
 Repo Checklist Update: Mark EXACTLY ONE build-related task line based on the PRE-INCREMENT build_count and then increment build_count by exactly 1.
 
 Canonical Increment Requirement:
@@ -139,7 +140,7 @@ Procedure:
 
 Verification Note (enforced in Step 12): A violation MUST be recorded if the difference between successive runs is not exactly +1 or if build_count appears more than once.
 
-### Step 9 (MANDATORY)
+### Step 13 (MANDATORY)
 Repo Variable Refresh (STRICT ISOLATED UPDATE): Use the PRE-INCREMENT build_count (cached BEFORE Step 8 wrote the new value) to update EXACTLY ONE status variable and NO OTHER VARIABLES. Then rely on the already-performed increment from Step 8 (DO NOT re-increment or recompute).
 
 Procedure:
@@ -162,13 +163,13 @@ Validation Focus for Step 9:
  - A run modifying more than the single allowed status variable MUST be considered a violation in Step 12 (`variable_mismatch`).
  - Failure to update the required single status variable when old_build_count ∈ {0,1,2,3} MUST also be a violation (`variable_missing`).
 
-### Step 11 (MANDATORY)
+### Step 14 (MANDATORY)
 DEBUG Exit Trace: 
 If environment variable DEBUG=1, print:
     `[debug][task-build-solution] END solution='{{solution_name}}' status={{success}} errors={{error_count}} warnings={{warning_count}}`
     This line marks task completion and provides quick status visibility for debugging pipeline execution.
 
-### Step 12 (MANDATORY)
+### Step 15 (MANDATORY)
 Verification (Post-Variable Refresh)
 Perform a verification pass AFTER Step 9 variable refresh and AFTER checklist marking (Step 8). This validates correctness and records violations. Runs regardless of build success.
 
@@ -176,7 +177,7 @@ Scope of Verification:
 1. Checklist File Presence: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md` exists.
 2. Task Marking:
    - Regardless of success, the `@task-build-solution` line MUST be marked `- [x]` (task executed).
-3. Directive Uniqueness: Exactly one occurrence of `@task-build-solution` in the checklist file.
+3. Directive Uniqueness: Exactly one occurrence of the mandatory build directive line containing `@task-build-solution` and `[MANDATORY]`. Retry lines may use `@task-build-solution-retry` and are NOT counted toward uniqueness.
 4. Solution Variables Section Integrity:
    - Header `### Solution Variables` present.
    - Parenthetical `(Variables set by tasks for this specific solution)` present.
@@ -202,9 +203,17 @@ Scope of Verification:
    - `solution_path` ends with `.sln` and file exists.
 7. JSON Output Integrity:
    - The structured JSON emitted in Step 10 MUST contain keys: solution_path, solution_name, success, return_code, stdout_tail, stderr_tail, errors, warnings.
-   - If an optional file `output/{{repo_name}}_{{solution_name}}_task-build-solution.json` is written, ensure those keys exist.
+   - Base file: `output/{{repo_name}}_{{solution_name}}_task-build-solution.json` MUST exist.
+   - Count-suffixed file for this invocation: `output/{{repo_name}}_{{solution_name}}_task-build-solution_buildcount-{{old_build_count}}.json` MUST also exist with identical key set.
 8. No Duplicate Variables: Each required variable appears exactly once.
-9. build_count Monotonicity: build_count MUST increase by exactly 1 compared to its value on the previous invocation; if tooling can detect previous value, record violation `variable_mismatch` when delta != 1.
+9. build_count Monotonicity: build_count MUST increase by exactly 1 relative to its previous stored value; record violation `variable_mismatch` if delta != 1.
+10. Stderr Artifact Variable: For each attempt, exactly one stderr artifact variable MUST be updated to the count-suffixed JSON path:
+   - Attempt 0 (old_build_count==0): `build_stderr_content`
+   - Attempt 1 (old_build_count==1): `retry_build_stderr_content_attempt_1`
+   - Attempt 2 (old_build_count==2): `retry_build_stderr_content_attempt_2`
+   - Attempt 3 (old_build_count==3): `retry_build_stderr_content_attempt_3`
+   - Attempts >=4: no stderr artifact variable updated.
+   Missing or multiple updates → `variable_mismatch`.
 
 Violation Recording:
 - Append each violation as `{ "type": "<code>", "target": "<file|variable|line>", "detail": "<human readable>" }` to `verification_errors`.
@@ -234,6 +243,13 @@ Output Update:
 
 Success Criteria for Step 12: Verification JSON written reflecting accurate error list and final status.
 
+### Step 16 (MANDATORY)
+Count-Suffixed Artifact Capture & Variable Update:
+   - BEFORE incrementing build_count, write secondary JSON: `output/{{repo_name}}_{{solution_name}}_task-build-solution_buildcount-{{old_build_count}}.json` containing identical payload to base JSON.
+   - Update exactly one stderr artifact variable (per mapping above) to point to that count-suffixed file.
+   - Do NOT modify more than one stderr artifact variable per run.
+   - Arrow format MUST use U+2192.
+
 ## Output Contract:
 - solution_path: string (absolute path provided)
 - solution_name: string (basename without extension)
@@ -252,3 +268,5 @@ Success Criteria for Step 12: Verification JSON written reflecting accurate erro
 5. Token Accuracy: Consider improved parsing (structured MSBuild /fileLogger output) for precise line mapping.
 6. **Error Output on Failure**: When the build command fails (non-zero exit code) AND DEBUG=1, print stderr to console: `[debug][task-build-solution] command failed with exit code <code>, stderr: <stderr_content>`
 7. **Command Line Arguments**: MSBuild flags (starting with `--` or `-`) are command arguments, not file paths. Do not request directory access for parameters like `--target:Clean,Build`, `--property:Configuration=Release`, `--maxcpucount`, `--verbosity:quiet`, or `-noLogo`.
+8. **Retry Directive Naming**: Use `@task-build-solution-retry` for retry attempt task lines to avoid uniqueness conflicts with the mandatory directive.
+9. **Artifact Suffix Logic**: The suffix uses PRE-INCREMENT build_count value (old_build_count). After writing suffixed file and updating variable, increment build_count.

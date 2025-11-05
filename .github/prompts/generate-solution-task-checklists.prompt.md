@@ -33,11 +33,11 @@ Checklist & Variable Extraction (source of truth)
 
 ### Step 2 (MANDATORY)
 Parse Task Definitions
-    • Read `.github/prompts/solution_taks_list.prompt.md` to extract:
+    • Read `.github/prompts/solution_task_list.prompt.md` to extract:
        - All task directives (e.g., @task-restore-solution, @task-build-solution, etc.)
        - Short descriptions for each task
        - The complete "### Solution Variables" section content (if present)
-    • If DEBUG=1, print: `[debug][generate-solution-task-checklists] extracted {{task_count}} tasks from solution_taks_list.prompt.md`
+    • If DEBUG=1, print: `[debug][generate-solution-task-checklists] extracted {{task_count}} tasks from solution_task_list.prompt.md`
     • Store the variables section for inclusion in each solution section
 
 ### Step 3 (MANDATORY)
@@ -82,7 +82,7 @@ Generate Checklist Content (for each solution file)
    3. Apply fixes and perform retry attempts in order (Attempt 1 → Attempt 2 → Attempt 3)
    4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
 
-   **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-restore-solution`) as defined in `.github\prompts\solution_taks_list.prompt.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
+   **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-restore-solution`) as defined in `.github\prompts\solution_task_list.prompt.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
 
    **Quick Reference:**
    - [MANDATORY] tasks must be completed before conditional retries
@@ -100,6 +100,7 @@ Generate Checklist Content (for each solution file)
    - max_rebuild_attempts → 3
    - restore_status → NOT_EXECUTED
    - build_status → NOT_EXECUTED
+   - build_stderr_content → NOT_EXECUTED
    - kb_search_status → NOT_EXECUTED
    - kb_file_path → N/A
    - kb_article_status → NOT_EXECUTED
@@ -108,23 +109,26 @@ Generate Checklist Content (for each solution file)
    - fix_applied_attempt_1 → NOT_EXECUTED
    - kb_option_applied_attempt_1 → null
    - retry_build_status_attempt_1 → NOT_EXECUTED
+   - retry_build_stderr_content_attempt_1 → NOT_EXECUTED
    
    **Retry Attempt 2:**
    - fix_applied_attempt_2 → NOT_EXECUTED
    - kb_option_applied_attempt_2 → null
    - retry_build_status_attempt_2 → NOT_EXECUTED
-   
+   - retry_build_stderr_content_attempt_2 → NOT_EXECUTED
+
    **Retry Attempt 3:**
    - fix_applied_attempt_3 → NOT_EXECUTED
    - kb_option_applied_attempt_3 → null
    - retry_build_status_attempt_3 → NOT_EXECUTED
+   - retry_build_stderr_content_attempt_3 → NOT_EXECUTED
 
-   [Content dynamically extracted from .github/prompts/solution_taks_list.prompt.md "### Solution Variables" section]
+   [Content dynamically extracted from .github/prompts/solution_task_list.prompt.md "### Solution Variables" section]
    ```
    • Each solution file is self-contained with all its tasks and variables
    • No separator needed (each solution is in its own file)
    • Log generated file path if DEBUG=1
-   • **Variables Section**: Include the explicit retry attempt variables above PLUS dynamically extract any additional variables from solution_taks_list.prompt.md to ensure complete compatibility
+   • **Variables Section**: Include the explicit retry attempt variables above PLUS dynamically extract any additional variables from solution_task_list.prompt.md to ensure complete compatibility
 
 ### Step 6 (MANDATORY)
 Write and Close Each File
