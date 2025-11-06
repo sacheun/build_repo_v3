@@ -156,6 +156,7 @@ Generate Individual Repository Checklist Files:
    - {{skipped_commands}} →
    - {{solutions_json}} →
    - {{solutions}} →
+
    ## Variable Definitions (Reference Only – DO NOT PARSE FOR VALUES)
    - repo_url: Original repository URL provided to the workflow.
    - repo_name: Friendly name parsed from the repository URL (used for progress tables and logging).
@@ -168,7 +169,6 @@ Generate Individual Repository Checklist Files:
    - skipped_commands: Array of commands that were skipped (output of @task-execute-readme).
    - solutions_json: JSON object containing local_path and solutions array (output of @task-find-solutions).
    - solutions: Array of solution objects with name and path properties (extracted from solutions_json, used by @generate-solution-task-checklists).
-   [Variables section verbatim REMOVED; dynamic extraction no longer inserts descriptive duplicates.]
 
        ```
     - Do NOT include any secondary or alternative template examples. The above block is authoritative.
@@ -182,8 +182,6 @@ Generate Individual Repository Checklist Files:
           * CONDITIONAL: @task-scan-readme, @task-execute-readme
           * SCRIPTABLE: @task-clone-repo, @task-search-readme, @task-find-solutions, @generate-solution-task-checklists
           * NON-SCRIPTABLE: @task-scan-readme, @task-execute-readme
-   - Dynamic Variables Section: IGNORE descriptive lines in `.github\prompts\repo_tasks_list.prompt.md`. Only emit the single authoritative block defined above with one arrow line per token. Do NOT duplicate variables or add explanatory duplicate lines. Explanations belong exclusively under `## Variable Definitions`.
-
 
 ### Step 7: (MANDATORY)
 Populate Base Repo Variables (repo_url & repo_name):
@@ -201,54 +199,6 @@ Populate Base Repo Variables (repo_url & repo_name):
    - Validation (per checklist): EXACTLY ONE occurrence of each variable line. Any duplicate → status=FAIL.
    - DEBUG (if DEBUG=1): `[debug][generate-repo-task-checklists] populated repo_url and repo_name for {repo_name}`.
 
-### Step 8: (MANDATORY)
-Verification & Structured Output:
-   BEFORE writing JSON output you MUST run a full verification pass for Steps 6–8.
-   Any violation MUST set status=FAIL. Collect all violations in an in-memory list.
-   If DEBUG=1, emit a debug line for each failure discovered in the form:
-   `[debug][generate-repo-task-checklists][verification] FAIL code=<code> detail="<human readable detail>"`
-   Verification checklist (run in order):
-   1. Master checklist file exists at `./tasks/all_repository_checklist.md`.
-   2. Master checklist contains headings `# All Repositories Checklist` and `## Repositories` exactly once.
-   3. Count of repo lines (`- [ ] name [url]` or `- [x] name [url]`) equals:
-      * append=false → repositories_total
-      * append=true  → existing + new (i.e., repositories_total after append logic)
-   4. No duplicate repo names (case-insensitive) in master checklist.
-   5. Each processed repository (append=false: all, append=true: new subset) has a checklist file.
-   6. Each processed checklist contains REQUIRED headings exactly once:
-      * `# Task Checklist:`
-      * `## Repo Tasks (Sequential Pipeline - Complete in Order)`
-      * `## Repo Variables Available`
-   7. In each processed checklist, validate canonical template anchors:
-      * First line starts with `# Task Checklist:` and includes repo_name
-      * Second line `Repository:` includes the exact repo_url
-      * `Generated:` line present (ISO 8601 seconds precision)
-   8. Variables section validation (per processed repo checklist):
-      * Each of the 11 variable tokens appears EXACTLY once using arrow format: `- {{token}} →` (value may be blank except repo_url & repo_name which MUST be non-empty).
-      * `repo_url` line arrow value matches exact normalized URL.
-      * `repo_name` line arrow value matches derived friendly name.
-      * NO duplicate variable lines; NO descriptive duplicates starting with `- {{token}}` allowed outside the authoritative block.
-   9. Task directive uniqueness: No duplicate lines referencing the same `@task-` directive.
-   10. Placeholder existence: All remaining variable lines (clone_path, repo_directory, readme_content, readme_filename, commands_extracted, executed_commands, skipped_commands, solutions_json, solutions) exist exactly once (value may be blank).
-   11. File hygiene: No extra copies of the canonical template block; specifically count of `# Task Checklist:` MUST equal 1.
-   12. If any check fails for a file:
-      * Mark status=FAIL
-      * Add structured violation object: `{ "type": "<code>", "target": "<file or repo>", "detail": "<description>" }`
-   13. If status=FAIL you MAY still write JSON output (for diagnostics) including all violations.
-
-   Structured JSON Output (file: output/generate-repo-task-checklists.json) MUST include keys:
-   - input_file: path to input file used
-   - append_mode: boolean (true/false)
-   - repositories_total: integer (total in input file after normalization)
-   - repositories_processed: integer (new repos if append=true, all if append=false)
-   - repositories_skipped: integer (existing repos if append=true, 0 if append=false)
-   - checklists_generated: integer (number of individual checklist files created this run)
-   - master_checklist_path: string (./tasks/all_repository_checklist.md)
-   - individual_checklists_path: string (./tasks/)
-   - status: SUCCESS if all verifications pass, FAIL otherwise
-   - timestamp: ISO 8601 format datetime when task completed
-   - verification_errors: array (empty if none) of objects `{type, target, detail}` documenting each failure condition
-   - debug: optional array of debug trace lines (include only if DEBUG=1)
 
 ### Step 9: (MANDATORY)
 DEBUG Exit Trace: If DEBUG=1, print:

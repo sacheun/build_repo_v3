@@ -12,8 +12,8 @@ This task searches for and reads the README documentation file from a repository
 ## Execution Policy
 **STRICT MODE ON**
 - All steps are **MANDATORY**.
-- **Verification (Step 8)** must **always** execute.
-- If Step 8 fails, **re-run Steps 1–8** automatically (up to `max_verification_retries`).
+- **Verification (Step 7)** must **always** execute.
+- If Step 7 fails, **re-run Steps 1–7** automatically (up to `max_verification_retries`).
 - Never summarize or skip steps.
 **THIS TASK IS SCRIPTABLE**
 
@@ -51,7 +51,7 @@ Content Extraction:
 
 ### Step 5 (MANDATORY)
 Structured Output:
-Generate JSON only (no verification in this step) at: `output/{{repo_name}}_task2_search-readme.json` including required fields below. `verification_errors` is emitted as an array (empty here) and may be populated in Step 11.
+Generate JSON only (no verification in this step) at: `./output/{{repo_name}}_task2_search-readme.json` including required fields below. `verification_errors` is emitted as an array (empty here) and may be populated in Step 7.
 
 Structured Output JSON (output/{{repo_name}}_task2_search-readme.json) MUST include:
 - repo_directory
@@ -78,34 +78,30 @@ This is the README.",
 ```
 
 ### Step 6 (MANDATORY)
-Repo Checklist Update:
-- Open `{{checklist_path}}`.
-- Mark the `@task-search-readme` task with `[x]` ONLY if final status after verification will be SUCCESS. Leave as `[ ]` on failure.
-- Do not modify other checklist tasks.
-- Never duplicate the directive line.
+Checklist Update & Variable Refresh (INLINE ONLY – POINTER MODEL):
+1. Open `{{checklist_path}}`.
+2. Mark the `@task-search-readme` task with `[x]` ONLY if final status after verification will be SUCCESS. Leave as `[ ]` on failure.
+3. Within the SAME `## Repo Variables Available` block, update ONLY:
+   * `- {{readme_content}}`
+   * `- {{readme_filename}}`
+4. NEVER move them outside the block or create a second block.
+5. Do NOT modify `- {{repo_directory}}` or `- {{repo_name}}`.
+6. POINTER STORAGE POLICY (no embedded README text):
+   * On SUCCESS (README found):
+     - `{{readme_filename}}` → `<actual filename>` (e.g. `README.md`)
+     - `{{readme_content}}` → `output/{{repo_name}}_task2_search-readme.json (field=readme_content)`
+   * On FAIL (not found or repo_directory blank):
+     - `{{readme_filename}}` → NONE
+     - `{{readme_content}}` → NONE
+7. Always ensure exactly one `→` per line. Replace only the portion after the arrow; preserve leading `- {{token}}` verbatim.
+8. If the line exists but is missing an arrow or has extra arrows, normalize to the correct single-arrow format.
+9. If the line was inserted blank earlier (Step 2), overwrite its value here according to status.
+10. **Inline Variable Policy:** Single authoritative block; no duplicates; no multi-line content.
+11. If DEBUG=1, after updates print: `[debug][task-search-readme] checklist & pointer variables updated`.
 
 ### Step 7 (MANDATORY)
-Repo Variable Refresh (INLINE ONLY – POINTER MODEL):
-- Within the SAME variable block, update ONLY:
-  * `- {{readme_content}}`
-  * `- {{readme_filename}}`
-- NEVER move them outside the block or create a second block.
-- Do NOT modify `- {{repo_directory}}` or `- {{repo_name}}`.
-- POINTER STORAGE POLICY (no embedded README text):
-  * On SUCCESS (README found):
-    - `{{readme_filename}}` → `<actual filename>` (e.g. `README.md`)
-    - `{{readme_content}}` → `output/{{repo_name}}_task2_search-readme.json (field=readme_content)`
-  * On FAIL (not found or repo_directory blank):
-    - `{{readme_filename}}` → NONE
-    - `{{readme_content}}` → NONE
-- Always ensure exactly one `→` per line. Replace only the portion after the arrow; preserve leading `- {{token}}` verbatim.
-- If the line exists but is missing an arrow or has extra arrows, normalize to the correct single-arrow format.
-- If the line was inserted blank earlier (Step 2), overwrite its value here according to status.
-**Inline Variable Policy:** Single authoritative block; no duplicates; no multi-line content.
-
-### Step 8 (MANDATORY)
 Verification (Post-Refresh):
-Perform verification AFTER checklist update (Step 6) and variable refresh (Step 7). Load current checklist state and JSON (from Step 5) then populate `verification_errors` and adjust `status` if needed.
+Perform verification AFTER combined checklist update & variable refresh (Step 6). Load current checklist state and JSON (from Step 5) then populate `verification_errors` and adjust `status` if needed.
 
 Verification checklist:
 1. Checklist file exists at `{{checklist_path}}`.
@@ -126,7 +122,7 @@ Verification checklist:
   - If README not found: checklist values are NONE.
 9. JSON required keys present: repo_directory, repo_name, readme_content, readme_filename, status, timestamp.
 
-### Step 9 (MANDATORY)
+### Step 8 (MANDATORY)
 DEBUG Exit Trace:  
 If DEBUG=1, print:  
 `[debug][task-search-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} readme_found={{readme_filename}}`

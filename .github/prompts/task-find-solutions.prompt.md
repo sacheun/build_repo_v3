@@ -12,8 +12,8 @@ This task discovers all Visual Studio solution files (`.sln`) within a repositor
 ## Execution Policy
 **STRICT MODE ON**
 - All steps are **MANDATORY**.
-- **Verification (Step 8)** must **always** execute.
-- If Step 8 fails, **re-run Steps 1–8** automatically (up to `max_verification_retries`).
+- **Verification (Step 7)** must **always** execute.
+- If Step 7 fails, **re-run Steps 1–7** automatically (up to `max_verification_retries`).
 - Never summarize or skip steps.
 **THIS TASK IS SCRIPTABLE**
 
@@ -54,7 +54,7 @@ Path Collection:
 
 ### Step 5 (MANDATORY)
 Structured Output JSON:
-Generate JSON only (no verification here) at `output/{{repo_name}}_task5_find-solutions.json`. Emit empty `verification_errors` array; populate in Step 11.
+Generate JSON only (no verification here) at `output/{{repo_name}}_task5_find-solutions.json`. Emit empty `verification_errors` array; populate in Step 7.
 
 Structured Output JSON (output/{{repo_name}}_task5_find-solutions.json) MUST include:
 - local_path
@@ -67,27 +67,23 @@ Structured Output JSON (output/{{repo_name}}_task5_find-solutions.json) MUST inc
 - debug (optional array when DEBUG=1)
 
 ### Step 6 (MANDATORY)
-Repo Checklist Update:
-- Open `tasks/{{repo_name}}_repo_checklist.md`
-- Set `[x]` only on the `@task-find-solutions` entry for the current repository
-- Do not modify other checklist items or other repositories' files
+Checklist Update & Variable Refresh (INLINE ONLY):
+1. Open `tasks/{{repo_name}}_repo_checklist.md`.
+2. Set `[x]` only on the `@task-find-solutions` entry if status=SUCCESS. Leave `[ ]` on FAIL.
+3. Locate lines beginning with:
+   * `- {{solutions_json}}`
+   * `- {{solutions}}`
+4. Replace ONLY text after `→` as follows:
+   * `{{solutions_json}}` → `output/{{repo_name}}_task5_find-solutions.json`
+   * `{{solutions}}` → `<count> solutions: Name1; Name2; Name3 ...` (list up to 5 names, then `...` if more). If zero: `0 solutions`.
+5. If FAIL status: set both to `FAIL` (do not mark checklist).
+6. If a line lacks an arrow, normalize: `- {{token}} → <value>`.
+7. **Inline Variable Policy:** Do not add new sections; update existing lines only; never duplicate variable lines.
+8. If DEBUG=1, print: `[debug][task-find-solutions] checklist updated & solution variables refreshed`.
 
 ### Step 7 (MANDATORY)
-Repo Variable Refresh (INLINE ONLY):
-- Open `tasks/{{repo_name}}_repo_checklist.md`.
-- Locate lines beginning with:
-  * `- {{solutions_json}}`
-  * `- {{solutions}}`
-- Replace ONLY text after `→` as follows:
-  * `{{solutions_json}}` → path to JSON output file `output/{{repo_name}}_task5_find-solutions.json`.
-  * `{{solutions}}` → `<count> solutions: Name1; Name2; Name3 ...` (list up to 5 names, then `...` if more). If zero: `0 solutions`.
-- If FAIL status: set both to FAIL.
-- If a line lacks an arrow, append one then the value.
-**Inline Variable Policy:** Do not add new sections; update existing lines only.
-
-### Step 8 (MANDATORY)
 Verification (Post-Refresh):
-Perform verification AFTER Steps 6–7 (checklist update and variable refresh). Load JSON from Step 5 and current checklist.
+Perform verification AFTER Step 6 (combined checklist update and variable refresh). Load JSON from Step 5 and current checklist.
 
 Verification checklist:
 1. Checklist file exists at `{{checklist_path}}`.
@@ -107,7 +103,7 @@ Verification checklist:
  
 
 
-### Step 9 (MANDATORY)
+### Step 8 (MANDATORY)
 If DEBUG=1, print: `[debug][task-find-solutions] EXIT repo_directory='{{repo_directory}}' status={{status}} solution_count={{solution_count}}`
 
 ## Output Contract

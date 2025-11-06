@@ -153,7 +153,7 @@ For each UNSAFE command:
 
 ### Step 5 (MANDATORY)
 Structured Output Assembly:
-Generate JSON only (no verification in this step) at `output/{{repo_name}}_task4_execute-readme.json`. Emit empty `verification_errors` array here; populate in Step 13.
+Generate JSON only (no verification in this step) at `./output/{{repo_name}}_task4_execute-readme.json`. Emit empty `verification_errors` array here; populate in Step 8.
 
 Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST include:
 - repo_directory
@@ -169,30 +169,27 @@ Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST inc
 - debug (optional array when DEBUG=1)
 
 ### Step 6 (MANDATORY)
-**Repo Checklist Update:**  
-- Open `tasks/{{repo_name}}_repo_checklist.md`
-- Set `[x]` only on the `@task-execute-readme` entry for the current repository
-- Do not modify other checklist items or other repositories' files
+**Checklist Update & Variable Refresh (INLINE ONLY):**
+1. Open `tasks/{{repo_name}}_repo_checklist.md`.
+2. Set `[x]` only on the `@task-execute-readme` entry if status in {SUCCESS, SKIPPED}. Leave `[ ]` on FAIL.
+3. Locate lines beginning with:
+   * `- {{executed_commands}}`
+   * `- {{skipped_commands}}`
+4. Replace ONLY the text after `→` with summary values:
+   * `{{executed_commands}}` → `<count> executed: cmd1; cmd2; cmd3 ...` (list up to 5 commands, then `...` if more)
+   * `{{skipped_commands}}` → `<count> skipped: cmdA; cmdB ...` (same truncation rule)
+5. If no executed commands: `0 executed` (no trailing colon list).
+6. If no skipped commands: `0 skipped`.
+7. On SKIPPED status (no execution attempted): set both to `SKIPPED`.
+8. On FAIL: retain existing values but append ` (FAIL)` unless already marked.
+9. If a line lacks an arrow, normalize: `- {{token}} → <value>`.
+10. **Inline Variable Policy:** Never create separate refreshed blocks; modify original lines only.
+11. Do not modify other checklist tasks or repository entries.
+12. If DEBUG=1, print: `[debug][task-execute-readme] checklist updated & summary variables refreshed`.
 
 ### Step 7 (MANDATORY)
-**Repo Variable Refresh (INLINE ONLY):**
-- Open `tasks/{{repo_name}}_repo_checklist.md`.
-- Locate lines beginning with:
-  * `- {{executed_commands}}`
-  * `- {{skipped_commands}}`
-- Replace ONLY the text after `→` with summary values:
-  * `{{executed_commands}}` → `<count> executed: cmd1; cmd2; cmd3 ...` (list up to 5 commands, then `...` if more)
-  * `{{skipped_commands}}` → `<count> skipped: cmdA; cmdB ...` (same truncation rule)
-- If no executed commands: `0 executed` (no trailing colon list).
-- If no skipped commands: `0 skipped`.
-- On SKIPPED status (no execution attempted): set both to SKIPPED.
-- On FAIL: retain existing values but append ` (FAIL)` unless already marked.
-- If a line lacks an arrow, append one then the value: `- {{token}} → <value>`.
-**Inline Variable Policy:** Never create separate refreshed blocks; modify original lines only.
-
-### Step 8 (MANDATORY)
 Verification (Post-Refresh):
-Run verification AFTER Steps 6–7 (checklist update & variable refresh). Load JSON (Step 5) and current checklist.
+Run verification AFTER Step 6 (combined checklist update & variable refresh). Load JSON (Step 5) and current checklist.
 
 Verification checklist:
 1. Checklist file exists at `{{checklist_path}}`.
@@ -211,7 +208,7 @@ Verification checklist:
 10. Checklist summaries for executed/skipped reflect counts or SKIPPED token.
  
 
-### Step 9 (MANDATORY)
+### Step 8 (MANDATORY)
 **DEBUG Exit Trace:**  
 If DEBUG=1, print:  
 `[debug][task-execute-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} executed={{safe_count}} skipped={{unsafe_count}}`

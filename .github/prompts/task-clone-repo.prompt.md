@@ -12,8 +12,8 @@ This task clones a repository from repo_url into clone_path directory. This is a
 ## Execution Policy
 **STRICT MODE ON**
 - All steps are **MANDATORY**.
-- **Verification (Step 7)** must **always** execute.
-- If Step 7 fails, **re-run Steps 1–7** automatically (up to `max_verification_retries`).
+- **Verification (Step 6)** must **always** execute.
+- If Step 6 fails, **re-run Steps 1–6** automatically (up to `max_verification_retries`).
 - Never summarize or skip steps.
 **THIS TASK IS SCRIPTABLE**
 
@@ -32,33 +32,21 @@ Load Variables From Checklist:
 ### Step 2 (MANDATORY)
 Directory Existence Check:  
 Check if target directory exists: {{clone_path}}/{{repo_name}}
-- If DEBUG=1 and directory exists, print: `[debug][task-clone-repo] repository directory exists, will refresh`
-- If DEBUG=1 and directory does not exist, print: `[debug][task-clone-repo] repository directory does not exist, will clone`
+ Remove any debug print statements (no DEBUG output for this step).
 
 ### Step 3 (MANDATORY)
 Clone or Refresh Operation:
 
 **If target directory does NOT exist (CLONE):**
-- If DEBUG=1, print: `[debug][task-clone-repo] executing: git clone --depth 1 {{repo_url}} {{clone_path}}/{{repo_name}}`
-- Execute: `git clone --depth 1 {{repo_url}} {{clone_path}}/{{repo_name}}`
-- Capture stdout, stderr, and exit code
-- If DEBUG=1 and exit code != 0, print: `[debug][task-clone-repo] clone failed with exit code: {{exit_code}}`
-- If DEBUG=1 and exit code == 0, print: `[debug][task-clone-repo] clone completed successfully`
 
 **If target directory already exists (REFRESH):**
-- If DEBUG=1, print: `[debug][task-clone-repo] executing refresh sequence`
-- Navigate to directory: `cd {{clone_path}}/{{repo_name}}`
-- Execute commands in sequence:
   a. `git reset --hard HEAD` (revert local changes)
   b. `git clean -fd` (remove untracked files)
   c. `git pull` (fetch latest changes)
-- If DEBUG=1, print status after each command
-- If any command fails (exit code != 0), set status=FAIL
-- If all commands succeed, set status=SUCCESS
 
 ### Step 4 (MANDATORY)
 Structured Output:
-Generate a JSON file only (no verification logic in this step) at: `output/{{repo_name}}_task1_clone-repo.json`.
+Generate a JSON file only (no verification logic in this step) at: `./output/{{repo_name}}_task1_clone-repo.json`.
 
 Required JSON fields (emit all fields every run):
 1. repo_url
@@ -90,23 +78,23 @@ Notes:
 }
 ```
 ### Step 5 (MANDATORY)
-Repo Checklist Update:
-- Open checklist file at `{{checklist_path}}`.
-- Set `[x]` only on the `@task-clone-repo` entry for the current repository
-- Do not modify other checklist items or other repositories' files
+Checklist Update & Variable Refresh (INLINE ONLY):
+1. Open checklist file at `{{checklist_path}}`.
+2. Mark `[x]` ONLY on the `@task-clone-repo` entry (do not alter other task lines).
+3. Under `## Repo Variables Available` update ONLY:
+  * `- {{clone_path}}` → set to the runtime `clone_path` argument (absolute or normalized path you are using for clones)
+  * `- {{repo_directory}}` → set to `{{clone_path}}/{{repo_name}}`
+4. Do NOT modify:
+  * `- {{repo_url}}`
+  * `- {{repo_name}}`
+5. Preserve arrow format exactly: `- {{token}} → value` (single space before and after arrow, value may be blank only if operation failed and field legitimately unknown).
+6. Make changes inline—do NOT add duplicate variable lines or new sections.
+7. If clone failed (clone_status=FAIL), still update `- {{clone_path}}` (echo argument) but leave `- {{repo_directory}}` blank if directory absent.
+8. If DEBUG=1, after edits print: `[debug][task-clone-repo] checklist updated (tasks + variables)`.
 
-### Step 6 (MANDATORY)
-Repo Variable Refresh (INLINE ONLY):
-- Open checklist file at `{{checklist_path}}`.
-- Update ONLY the following lines under `## Repo Variables Available`:
-  * `- {{clone_path}}`
-  * `- {{repo_directory}}`
-- Do NOT modify the lines for `- {{repo_url}}` or `- {{repo_name}}`; these remain authoritative values set during checklist generation / Step 2 load and are immutable in this task.
-- No new sections may be added; all updates must be inline.
-
-### Step 7 (MANDATORY VERIFICATION)
+### Step 6 (MANDATORY VERIFICATION)
 Verification (Post-Refresh):
-Perform a verification pass AFTER Step 9 variable refresh and AFTER checklist marking (Step 8). This step validates correctness and, if needed, updates the JSON file produced in Step 5 by populating verification_errors and adjusting overall status.
+Perform a verification pass AFTER Step 5 (combined checklist update & variable refresh). This step validates correctness and, if needed, updates the JSON file produced in Step 4 by populating `verification_errors` and adjusting overall `status`.
 
 Scope of Verification:
 1. Checklist File Presence: `{{checklist_path}}` exists.
@@ -127,9 +115,9 @@ Scope of Verification:
 8. Consistency: repo_name in variable line matches the directory name actually used. If mismatch, violation.
 9. JSON Output Integrity: The JSON file from Step 4 exists and contains all required top-level keys.
 
-Success Criteria for Step 10: JSON file updated (if needed) and reflects accurate verification_errors content.
+Success Criteria: JSON file updated (if needed) and reflects accurate `verification_errors` content.
 
-### Step 8 (MANDATORY)
+### Step 7 (MANDATORY)
 DEBUG Exit Trace:  
 If DEBUG=1, print:  
 `[debug][task-clone-repo] EXIT repo_name='{{repo_name}}' status={{clone_status}} final_status={{status}} operation={{operation}} repo_directory='{{repo_directory}}'`
@@ -152,6 +140,6 @@ If DEBUG=1, print:
 4. Contract Compliance: Always save JSON output file with all fields regardless of success/failure.
 5. Progress Update: Only set [x] in repo-progress for task-clone-repo on SUCCESS.
 6. Script Location: Save generated script to temp-script/ directory with naming pattern: step{N}_repo{M}_task1_clone-repo.py
-7. Inline Variable Policy: Step 9 must update values directly on existing `- {{token}} → value` lines; never create a secondary "refreshed" block. Step 2 loads repo_url and repo_name strictly from variable lines; they are immutable for this task.
-8. Post-Refresh Verification: Step 7 performs non-destructive validation and ONLY mutates `verification_errors` and `status` fields inside the JSON output.
+7. Inline Variable Policy: Step 5 updates values directly on existing `- {{token}} → value` lines; never create a secondary "refreshed" block. Step 2 loads repo_url and repo_name strictly from variable lines; they are immutable for this task.
+8. Post-Refresh Verification: Step 6 performs non-destructive validation and ONLY mutates `verification_errors` and `status` fields inside the JSON output.
 

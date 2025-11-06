@@ -81,12 +81,10 @@ def run_pipeline(log_file: str, continue_on_error: bool, step_by_step: bool, mod
         ts = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
         print(f"\n[stage {idx}/{len(PIPELINE)}] /{prompt}")
         if step_by_step:
-            # Step mode now auto-continues; we only display parameters for transparency.
+            # Step mode auto-continues; display parameters only.
             print("  Parameters:")
             for k,v in params.items():
                 print(f"    - {k} = {v}")
-            # Always continue without prompting.
-            print("[step-by-step] Auto-continue (interactive prompts disabled by user request).")
         print(f"[execute] Executing /{prompt} ...")
         exit_code, stdout, stderr = executor.execute_prompt(prompt_name=prompt, params=params)
         stage_status = 'SUCCESS' if exit_code == 0 else 'FAIL'
