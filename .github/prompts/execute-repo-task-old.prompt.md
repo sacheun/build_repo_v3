@@ -1,6 +1,6 @@
 @execute-repo-task repo_checklist=<required> clone=<required>
 ---
-temperature: 0.0
+temperature: 0.1
 ---
 
 ## Description:
@@ -44,31 +44,91 @@ It processes all uncompleted tasks in the specified checklist until all are comp
 4. If no unmarked tasks found, return status: ALL_TASKS_COMPLETE
 5. Extract task_name from that line (e.g., "@task-clone-repo")
 6. Extract repo_name from checklist header (e.g., "# Task Checklist: {repo_name}")
-7. **Continue to next step to execute this task**
+7. **Read existing "## Task Variables" section (if it exists)**:
+   - Parse all variable values from previous task executions
+   - Store these values for use in task parameter preparation
+8. **Continue to next step to execute this task**
 
-### Step 2: Evaluate Conditions and Execute Task (MANDATORY)
-#### 2.1 Pre-Execution Conditional Evaluation
-Before logging and invoking any task, FIRST determine if the task line is a CONDITIONAL task (contains the marker `[CONDITIONAL]`).
+### Step 2: Prepare Task Parameters (MANDATORY)
+Extract task_name (e.g., "@task-clone-repo")
+- **Prepare parameters using variables from checklist "## Task Variables" section first**:
+  - @task-clone-repo: [SCRIPTABLE]
+    - repo_url: From checklist variables OR from all_repository_checklist.md
+    - clone_path: From checklist variables OR from clone= parameter (required)
+  - @task-search-readme: [SCRIPTABLE]
+    - repo_directory: **Read from checklist "## Task Variables" section** (must be set by @task-clone-repo)
+    - repo_name: From checklist variables
+    - **If repo_directory is missing or "NONE"**: BLOCK with error - @task-clone-repo must be completed first
+  - @task-scan-readme: [NON-SCRIPTABLE]
+    - repo_directory: **Read from checklist "## Task Variables" section**
+    - repo_name: From checklist variables
+    - readme_content_path: **Read from checklist variables** (set by @task-search-readme)
+    - **If repo_directory or readme_content_path is missing**: BLOCK with error
+  - @task-execute-readme: [NON-SCRIPTABLE]
+    - repo_directory: **Read from checklist "## Task Variables" section**
+    - repo_name: From checklist variables
+    - commands_json_path: **Read from checklist variables** (set by @task-scan-readme)
+    - **If repo_directory or commands_json_path is missing**: BLOCK with error
+  - @task-find-solutions: [SCRIPTABLE]
+    - repo_directory: **Read from checklist "## Task Variables" section** (must be set by @task-clone-repo)
+    - **If repo_directory is missing or "NONE"**: BLOCK with error - @task-clone-repo must be completed first
+  - @generate-solution-task-checklists: [SCRIPTABLE]
+    - repo_name: From checklist variables
+    - solutions: **Read from checklist variables** (reference to solutions_json file, extract solutions array)
+    - **If solutions_json is missing**: BLOCK with error - @task-find-solutions must be completed first
 
-Step 2.1 actions:
-1. If task is NOT conditional → skip to Step 2.2.
-2. If task IS conditional → evaluate its condition BEFORE calling the task prompt:
-   - Read previously populated repo variables ("## Task Variables" section) and any artifact JSONs needed for condition evaluation.
-   - Examples:
-     - `@task-scan-readme` executes ONLY if README.md exists and is non-empty.
-     - `@task-execute-readme` executes ONLY if the README scan produced SAFE commands.
-   - If condition FALSE:
-     - Do NOT invoke the task prompt.
-     - Mark checklist line `[x] ... - SKIPPED (condition not met)`.
-     - Log decision entry status="SKIPPED" with reason.
-     - Append tasks_executed entry task_status="SKIPPED".
-     - Return to Step 1 for next unmarked task.
-   - If condition TRUE → proceed to Step 2.2.
+### Step 3: Gather Required Input Data (MANDATORY)
+For tasks that need output from previous tasks:
+- **Primary Source: Check repo checklist "## Task Variables" section** for variable values
+  - These values are preserved from previous task executions
+  - Enables resuming work after interruption
+- **If variable value is a reference to a JSON file** (e.g., "saved to ./output/..."):
+  - Extract the file path from the reference
+  - Read the JSON file to get the actual data
+- **If variable is embedded directly in checklist**, use that value
+- **Fallback: Check ./output/ directory** for JSON files (if variable not in checklist)
+- Read relevant JSON files to get required input parameters
+- Example: @generate-solution-task-checklists needs solutions array:
+  1. Check checklist variables for `solutions_json`
+  2. Read the JSON file to get the solutions array
+  3. Transform array to required format (objects with name and path properties)
 
-#### 2.2 Task Invocation Sequence
+**Variable Resolution Priority:**
+1. **Check ./tasks/{repo_name}_repo_checklist.md → "## Task Variables" section** (FIRST)
+2. **If variable references a JSON file**, read from ./output/{filename}
+3. **If variable is not found in checklist**, check ./output/ directory directly (FALLBACK)
+
+**Variable Value Formats:**
+- Simple values: Used directly (e.g., `repo_directory`: `C:\cloned\repo`)
+- File references: Parse and read (e.g., `readme_content_path`: `output/repo_task2_search-readme.json`)
+- Not set: Shows "not set" - task cannot proceed if this variable is required
+
+**How to Use Variables When Executing Tasks:**
+- For @task-search-readme: 
+  * Read `repo_directory` from checklist variables
+  * Pass as parameter: repo_directory={value_from_checklist}
+
+- For @task-scan-readme:
+  * Read `repo_directory` from checklist variables
+  * Read `readme_content_path` from checklist variables (e.g., "output/repo_task2_search-readme.json")
+  * Pass as parameters: repo_directory={value} readme_content_path={value}
+
+- For @task-execute-readme:
+  * Read `repo_directory` from checklist variables
+  * Read `commands_json_path` from checklist variables (e.g., "output/repo_task3_scan-readme.json")
+  * Pass as parameters: repo_directory={value} commands_json_path={value}
+
+**If required input data is missing:**
+- Mark the current task as BLOCKED in the checklist
+- Log blocked status using @task-update-decision-log: timestamp={current_timestamp} repo_name={repo_name} solution_name="" task={task_name} message={blocking_reason} status="BLOCKED"
+- Stop processing remaining tasks in the checklist
+- Return execution_status: BLOCKED with error message indicating missing dependency
+- Example: "Cannot execute @task-search-readme: Variable 'repo_directory' not set (previous task @task-clone-repo not completed)"
+
+### Step 4: Execute the Task (MANDATORY)
 1. Log the execution attempt using @task-update-decision-log:
-   - Invoke: @task-update-decision-log timestamp={current_timestamp} repo_name={repo_name} task={task_name} message="Starting task execution" status="IN_PROGRESS"
-   - This appends a row to results/decision-log.csv with execution start details
+   - Invoke: @task-update-decision-log timestamp={current_timestamp} repo_name={repo_name} solution_name="" task={task_name} message="Starting task execution" status="IN_PROGRESS"
+   - This will append a row to results/decision-log.csv with execution start details
 
 2. Invoke the task prompt with required parameters (e.g., @task-clone-repo)
 
@@ -84,7 +144,7 @@ Step 2.1 actions:
    - Stop processing remaining tasks in the checklist
    - Return execution_status: BLOCKED with blocking reason
 
-### Step 3: Check for More Tasks and Continue
+### Step 5: Check for More Tasks and Continue
 1. After completing the current task, **return to Step 1**
 2. Read the checklist again to find the next unmarked task
 3. If more unmarked tasks exist, execute them
@@ -117,6 +177,26 @@ Output Contract:
 - error_message: string | null (if execution_status == FAIL)
 - failed_task: string | null (task name that failed)
 - status: SUCCESS | FAIL
+
+Special Cases:
+
+**Case 1: First task for a repository (@task-clone-repo [SCRIPTABLE])**
+- Extract repo_url from the repository checklist header section
+- Use clone_path from clone= parameter (required)
+- After completion, repo_directory will be in task output
+
+**Case 2: Task depends on previous task output**
+- **First, check checklist "## Task Variables" section** for the required variable
+- If variable is set in checklist:
+  - If value is a file path (e.g., readme_content_path, commands_json_path), use directly as parameter
+  - If value is embedded, use directly
+- If variable is not set in checklist (shows "not set"):
+  - Check ./output/{repo_name}_{previous_task}.json as fallback
+- If missing from both sources, return BLOCKED status
+
+**Case 3: All tasks complete**
+- Return execution_status: ALL_TASKS_COMPLETE
+- Log final completion using @task-update-decision-log with appropriate message
 
 Implementation Notes:
 1. **Sequential Task Execution**: This prompt executes ALL unmarked tasks sequentially in one run

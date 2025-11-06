@@ -1,4 +1,4 @@
-@task-search-knowledge-base solution_path={{solution_path}} solution_name={{solution_name}} build_status={{build_status}} build_stderr={{build_stderr}} errors={{errors}} warnings={{warnings}}
+@task-search-knowledge-base solution_checklist={{solution_checklist}}
 
 Task name: task-search-knowledge-base
 
@@ -7,6 +7,45 @@ temperature: 0.1
 ---
 ## Description:
 This task analyzes build failures, extracts detection tokens from error output, and searches existing knowledge base articles for matches. If a match is found, it returns the path to the existing KB article. If no match is found, it signals that a new KB article should be created.
+
+## Input Parameter Change (MANDATORY)
+This task now receives ONE parameter: `solution_checklist={{solution_checklist}}` which is the full markdown content of the solution checklist file (NOT just a path). Do NOT expect discrete variables like `solution_path`, `build_status`, or `build_stderr` to be passed separately.
+
+You MUST parse the markdown content to recover required variables and artifact JSON paths. Do not assume ordering beyond the existing "Solution Variables" section. Use AI reasoning plus simple line parsing (not heavy regex) to extract variable values of the form:
+`- variable_name → value`
+
+Required variables to extract from the checklist:
+1. solution_path
+2. solution_name
+3. build_status
+4. build_stderr_content (initial attempt JSON artifact path only)
+
+## stderr_tail Source (SIMPLIFIED)
+Open ONLY the JSON artifact referenced by `build_stderr_content`.
+Steps:
+1. Parse the checklist to find the line defining `build_stderr_content`.
+2. If its value is `NOT_EXECUTED` or blank, treat stderr_tail as empty string and errors/warnings as empty arrays.
+3. Otherwise open the JSON file path with read_file.
+4. Extract `stderr_tail`, `errors`, and `warnings` from the JSON.
+5. Use that `stderr_tail` directly for token extraction and KB matching (do NOT consider retry artifacts).
+
+Expose internally:
+- build_stderr := stderr_tail
+- errors := errors array from JSON (list of code objects or strings; prefer code field if objects)
+- warnings := warnings array from JSON
+
+If the file cannot be read or parsed, log debug line "build_stderr_content unreadable" and proceed with empty stderr_tail.
+
+## Assumptions & Fallbacks
+* Arrow variants ("->" or "→") are both valid.
+* If JSON `success` is false you still may use its stderr_tail.
+* Truncate extremely long stderr tails to first 5000 characters for reasoning only.
+
+## Additional Debug Lines
+When DEBUG=1 before Step 2 add:
+`[KB-SEARCH-DEBUG] build_stderr_content path: {artifact_path}`
+After reading JSON add:
+`[KB-SEARCH-DEBUG] stderr_tail length={len(stderr_tail)}`
 
 ## Execution Policy
 ** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
@@ -79,9 +118,9 @@ DO NOT:
         * Property not set: "The <PropertyName> property is not set"
         * Missing file: "Could not find file"
         * Missing assembly: "Could not load file or assembly"
-        * Compilation error: "error CS####:"
-        * MSBuild error: "error MSB####:"
-        * NuGet error: "NU####:"
+   * Compilation error pattern: error CS#### (no trailing colon needed)
+   * MSBuild error pattern: error MSB####
+   * NuGet error pattern: NU#### (code followed by context)
         * Service Fabric: "SF.sfproj", "BaseOutputPath", "OutputPath"
       - DEBUG: Log "[KB-SEARCH-DEBUG] Extracted {len(raw_tokens)} raw tokens: {raw_tokens}"
       - **USE AI**: Understand WHY these patterns matter, not just that they exist
@@ -148,11 +187,11 @@ DO NOT:
 **Output**: Return search results.
    - DEBUG: Log "[KB-SEARCH-DEBUG] Final status: kb_search_status={status}, kb_file_path={path}, tokens={tokens}"
 
-Variables available:
-- {{solution_path}} → Absolute path to the .sln file that failed to build
-- {{solution_name}} → Friendly solution name derived from file name
-- {{build_status}} → Result of build task (SUCCESS | FAIL | SKIPPED)
-- {{build_stderr}} → Standard error output from build command
+Variables available (after parsing solution_checklist and applying selection logic):
+- {{solution_path}} → Absolute path to the .sln file that failed to build (parsed)
+- {{solution_name}} → Friendly solution name derived from file name (parsed)
+- {{build_status}} → Result of build task (SUCCESS | FAIL | SKIPPED) (parsed)
+- {{build_stderr}} → Selected effective stderr_tail from prioritized artifacts
 
 Output Contract:
 - kb_search_status: FOUND | NOT_FOUND | SKIPPED
@@ -181,7 +220,7 @@ The guidelines below are for AI analysis, not strict regex patterns to automate.
 You must understand the error context and extract meaningful tokens using AI judgment.
 
 1. **Error Code Priority**:
-   - Always extract error codes if present (NU####, MSB####, CS####)
+   - Always extract error codes if present: examples NU#### MSB#### CS####
    - Error codes are the strongest detection tokens
    - Example: "NU1008", "MSB3644", "CS0246"
 
@@ -254,9 +293,9 @@ Mark current task complete
    - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
 
 2. **Find and update ONLY the current task entry:**
-   - Search for line: `- [ ] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base`
-   - If task was executed: Replace with `- [x] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base`
-   - If task was skipped: Replace with `- [x] [CONDITIONAL #3] Search knowledge base for error fix @task-search-knowledge-base - SKIPPED (build succeeded)`
+   - Search for line: `- [ ] [CONDITIONAL (3)] Search knowledge base for error fix @task-search-knowledge-base`
+   - If task was executed: Replace with `- [x] [CONDITIONAL (3)] Search knowledge base for error fix @task-search-knowledge-base`
+   - If task was skipped: Replace with `- [x] [CONDITIONAL (3)] Search knowledge base for error fix @task-search-knowledge-base - SKIPPED (build succeeded)`
    - Do NOT modify any other task entries
    - Do NOT update other solution checklists
 

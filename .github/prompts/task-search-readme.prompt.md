@@ -188,9 +188,10 @@ Verification checklist:
   - If README found: checklist `readme_filename` matches JSON `readme_filename`.
   - If README not found: checklist values are NONE.
 9. JSON required keys present: repo_directory, repo_name, readme_content, readme_filename, status, timestamp.
+10. Results CSV row present and correctly formatted for this task execution (pattern: `{{timestamp}},{{repo_name}},task-search-readme,{{status}},✓|✗`).
 
 Violations recorded as objects: `{ "type": "<code>", "target": "<file|variable|json>", "detail": "<description>" }`.
-Recommended codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, mismatch_filename, content_missing, json_missing_key, invalid_status_consistency.
+Recommended codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, mismatch_filename, content_missing, json_missing_key, invalid_status_consistency, results_row_missing.
 
 Status Adjustment:
 - Start with existing JSON status.

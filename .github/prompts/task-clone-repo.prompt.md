@@ -6,35 +6,15 @@ temperature: 0.0
 
 # Task name: task-clone-repo
 
-## Process Overview
-1. Debug Entry Trace
-2. Input Parameter Extraction & Checklist Verification
-3. Directory Existence Check
-4. Clone or Refresh Operation
-5. Structured Output
-6. Log to Decision Log
-7. Result Tracking
-8. Repo Checklist Update
-9. Repo Variable Refresh
-10. Verification (Post-Refresh)
-11. Debug Exit Trace
-
-## Prerequisites
-- git installed and available in PATH
-- Python 3.x installed (if scripting)
-- DEBUG environment variable set (optional, for debug output)
-- Directory permissions for clone_path
-- Required input parameters: clone_path, checklist_path (absolute or relative path to `tasks/<repo_name>_repo_checklist.md`).
-- The authoritative values for repo_url and repo_name are READ from the variable lines inside the checklist file (`## Repo Variables Available`).
-- The repo_name MUST be obtained from the `- {{repo_name}}` line's arrow value, not derived from filename; filename is only a consistency check.
-
 ## Description
 This task clones a repository from repo_url into clone_path directory. This is a straightforward git operation that CAN be implemented as a script.
 
 ## Execution Policy
-**ALL STEPS BELOW ARE MANDATORY.**  
-**DO NOT SKIP OR SUMMARIZE.**  
-**THIS TASK IS SCRIPTABLE**
+**STRICT MODE ON**
+- All steps are **MANDATORY**.
+- **Verification (Step 9)** must **always** execute.
+- If Step 9 fails, **re-run Steps 1–9** automatically (up to `max_verification_retries`).
+- Never summarize or skip steps.
 
 ## Instructions (Follow this Step by Step)
 
@@ -51,16 +31,9 @@ Load Authoritative Variables From Checklist:
    * `- {{repo_url}}`
    * `- {{repo_name}}`
 4. Extract values to right of `→` (trim whitespace). These become authoritative `repo_url` and `repo_name` for all subsequent steps.
-5. Derive filename_repo_name by stripping suffix `_repo_checklist.md` from filename for consistency check only.
-6. If the checklist `repo_name` value is blank and filename_repo_name is available, set the line's arrow value to filename_repo_name and treat that as authoritative.
-7. If both values exist and differ, log a debug warning; continue using the variable line value.
-8. If any required variable line is missing, insert `- {{token}} →` (blank) and mark status=FAIL unless later corrected.
-9. Ensure presence (may be blank) of:
-   * `- {{clone_path}}`
-   * `- {{repo_directory}}`
-   Insert if absent (blank value) for later refresh.
-10. If DEBUG=1 print: `[debug][task-clone-repo] loaded repo_url='{repo_url}' repo_name='{repo_name}' from {checklist_path}`.
-11. External repo_url values MUST be ignored; checklist content is single source of truth.
+5. If any required variable line is missing, insert `- {{token}} →` (blank) and mark status=FAIL unless later corrected.
+6. If DEBUG=1 print: `[debug][task-clone-repo] loaded repo_url='{repo_url}' repo_name='{repo_name}' from {checklist_path}`.
+7. External repo_url values MUST be ignored; checklist content is single source of truth.
 
 ### Step 3 (MANDATORY)
 Directory Existence Check:  
@@ -169,13 +142,9 @@ Repo Variable Refresh (INLINE ONLY):
   * `- {{clone_path}}`
   * `- {{repo_directory}}`
 - Do NOT modify the lines for `- {{repo_url}}` or `- {{repo_name}}`; these remain authoritative values set during checklist generation / Step 2 load and are immutable in this task.
-- Replace ONLY the text after the arrow (`→`) for the mutable lines with current concrete values.
-- Example transformation: `- {{clone_path}} → Root folder where repositories are cloned.` becomes `- {{clone_path}} → D:\repos`.
-- If a mutable line lacks an arrow, append ` → <value>`.
-- If a mutable required line was inserted blank in Step 2, populate it now.
 - No new sections may be added; all updates must be inline.
 
-### Step 10 (MANDATORY)
+### Step 10 (MANDATORY VERIFICATION)
 Verification (Post-Refresh):
 Perform a verification pass AFTER Step 9 variable refresh and AFTER checklist marking (Step 8). This step validates correctness and, if needed, updates the JSON file produced in Step 5 by populating verification_errors and adjusting overall status.
 
@@ -197,10 +166,13 @@ Scope of Verification:
 7. No Duplicate Task Directive: `@task-clone-repo` appears exactly once in the checklist file.
 8. Consistency: repo_name in variable line matches the directory name actually used. If mismatch, violation.
 9. JSON Output Integrity: The JSON file from Step 5 exists and contains all required top-level keys.
+10. Results CSV Row: `results/repo-results.csv` contains at least one line matching the row format:
+    `timestamp,repo_name,task-clone-repo,status,symbol` where symbol is `✓` if SUCCESS or `✗` if FAIL. (Header line excluded from this check.)
 
 Violation Recording:
 - For each violation append object: `{ "type": "<code>", "target": "<file|path|variable>", "detail": "<human-readable description>" }` to `verification_errors`.
 - Recommended codes: file_missing, variable_missing, variable_empty, variable_mismatch, arrow_format_error, duplicate_variable, directory_missing, git_folder_missing, checklist_mark_incorrect, directive_duplicate, json_missing_key.
+  - Additional code: results_row_missing (row for task-clone-repo not found in results/repo-results.csv)
 - If DEBUG=1 emit: `[debug][task-clone-repo][verification] FAIL code=<code> detail="<description>"` for each recorded violation.
 
 Status Adjustment Logic:

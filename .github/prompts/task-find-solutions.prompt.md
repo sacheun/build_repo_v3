@@ -124,6 +124,7 @@ Result Tracking:
 - Append the result to:
   - `results/repo-results.csv` (CSV row)
   - Row format: `timestamp, repo_name, task-find-solutions, {{solution_count}} solutions, status, symbol (✓ or ✗)`
+ - (Do NOT verify presence here; CSV row presence/format is validated only in Step 11.)
 
 ### Step 9 (MANDATORY)
 Repo Checklist Update:
@@ -163,9 +164,10 @@ Verification checklist:
   - `solutions_json` checklist line points to generated JSON path.
   - `solutions` checklist summary begins with `<solution_count> solutions` (or `0 solutions`).
 10. Base variables (repo_name, repo_directory) unchanged from Step 2 extraction.
+11. Results CSV row present and correctly formatted for this task execution (pattern begins with `{{timestamp}},{{repo_name}},task-find-solutions,{{solution_count}} solutions,{{status}},` and ends with ✓ or ✗).
 
 Violations recorded as `{ "type": "<code>", "target": "<file|variable|json>", "detail": "<description>" }`.
-Suggested codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, invalid_extension, duplicate_solution_basename, summary_mismatch, base_variable_modified.
+Suggested codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, invalid_extension, duplicate_solution_basename, summary_mismatch, base_variable_modified, results_row_missing.
 
 Status Adjustment:
 - Start with JSON status. If status=SUCCESS and violations exist → set status=FAIL. Leave FAIL unchanged.

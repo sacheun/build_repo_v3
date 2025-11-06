@@ -136,10 +136,7 @@ class CopilotExecutor:
             # Executes: copilot --prompt "/execute-repo-task repo_checklist=\"...\" clone=\"...\"" --allow-all-tools
         """
         # Read copilot-instructions.md content
-        instructions_content = """
-        *** Important ***
-        1. Execute the tasks in the markdown file one task at a time. Do not skip any task. Do not group scriptable and non scriptable tasks in 1 script."
-        """
+        instructions_content = """*** Important *** 1. Execute the tasks in the markdown file one task at a time. Do not skip any task. Do not group scriptable and non scriptable tasks in 1 script."""
         
         # Build parameter string
         param_str = ""
@@ -160,8 +157,9 @@ class CopilotExecutor:
 
         # for some reason, these does not work. it just hjangs
         #if instructions_content:
-        #    prompt_parts.append("\n")
-        #    prompt_parts.append(instructions_content)
+            #prompt_parts.append("\n")
+            #prompt_parts.append(instructions_content)
+            #prompt_parts.append("\n")
         #prompt_parts.append("Now perform task:")
 
         full_prompt = "\n".join(prompt_parts)

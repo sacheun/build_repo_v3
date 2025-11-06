@@ -140,7 +140,8 @@ Write and Close Each File
 Result Tracking:
    - Append the result to:
      - results/repo-results.csv (CSV row)
-   - Row format: timestamp | repo_name | generate-repo-task-checklists | status | symbol (✓ or ✗)
+   - Row format: timestamp, repo_name, generate-repo-task-checklists, status, symbol (✓ or ✗)
+   - (Do NOT verify presence here; CSV row presence/format is validated only in Step 9.)
 
 ### Step 8 (MANDATORY)
 Repo Checklist Update:
@@ -174,6 +175,7 @@ Verification & Structured Output:
    8. No duplicate checklist filenames after sanitization (case-insensitive compare).
    9. JSON field integrity: pending output JSON MUST include all contract keys before verification augmentation.
   10. If any skipped solutions (append mode), ensure skipped files pre-existed; else violation `skip_mismatch`.
+   11. Results CSV row present and correctly formatted for this task execution (pattern: `{{timestamp}},{{repo_name}},generate-repo-task-checklists,{{status}},✓|✗`).
   11. On success, optionally append `verification_errors: []`; on failure populate array of objects `{type, target, detail}` sorted by `type`, then `target`.
    Structured Output JSON (file: `output/{repo_name}_task6_generate-solution-checklists.json`) MUST include keys:
    - repo_name

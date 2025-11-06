@@ -288,6 +288,7 @@ status="{{status}}"
 Append the result to:
 - results/repo-results.csv (CSV row)
 - Row format: timestamp, repo_name, task-scan-readme, status, symbol (✓ or ✗)
+   (CSV row presence and formatting are verified ONLY in Step 15; do not perform early verification here.)
 
 ### Step 13 (MANDATORY)
 **Repo Checklist Update:**  
@@ -325,9 +326,10 @@ Verification checklist:
    - SKIPPED: README missing/unreadable; commands_extracted empty; total_commands == 0.
 8. Consistency: safe that checklist `- {{commands_extracted}}` summary (if populated) reflects SUCCESS/NONE/SKIPPED semantics (FAIL not allowed unless status=FAIL).
 9. Base variables unchanged from Step 2 extraction.
+10. Results CSV row present and correctly formatted for this task execution (pattern: `{{timestamp}},{{repo_name}},task-scan-readme,{{status}},✓|✗`).
 
 Violations: record objects `{ "type": "<code>", "target": "<file|variable|json>", "detail": "<description>" }`.
-Suggested codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, status_inconsistent, base_variable_modified.
+Suggested codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, status_inconsistent, base_variable_modified, results_row_missing.
 
 Status Adjustment:
 - Begin with existing JSON status. If status in {SUCCESS, NONE} and violations exist → set status=FAIL. If SKIPPED and violations unrelated to README absence appear, may set status=FAIL.

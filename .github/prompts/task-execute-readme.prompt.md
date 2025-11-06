@@ -227,6 +227,7 @@ Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST inc
   - results/repo-results.csv (CSV row)
   - Row format: timestamp, repo_name, task-execute-readme, status, symbol (✓ or ✗)
   - Status is SUCCESS if execution completed (even if individual commands failed)
+  - (Do NOT verify presence here; CSV row presence/format is validated only in Step 13.)
 
 ### Step 9 (MANDATORY)
 **Repo Checklist Update:**  
@@ -269,9 +270,10 @@ Verification checklist:
 8. No command string appears in both executed and skipped arrays.
 9. Base variables (repo_name, repo_directory) unchanged from Step 2 values.
 10. Checklist summaries for executed/skipped reflect counts or SKIPPED token.
+11. Results CSV row present and correctly formatted for this task execution (pattern: `{{timestamp}},{{repo_name}},task-execute-readme,{{status}},✓|✗`).
 
 Record violations as `{ "type": "<code>", "target": "<file|variable|json>", "detail": "<description>" }`.
-Suggested codes: file_missing, variable_missing, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, status_inconsistent, command_object_invalid, duplicate_command, base_variable_modified, summary_mismatch.
+Suggested codes: file_missing, variable_missing, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, status_inconsistent, command_object_invalid, duplicate_command, base_variable_modified, summary_mismatch, results_row_missing.
 
 Status Adjustment:
 - If status=SUCCESS and violations exist → set status=FAIL. If status=SKIPPED and only non-critical issues appear (e.g., empty arrays) keep SKIPPED unless a structural violation occurs, then FAIL.
