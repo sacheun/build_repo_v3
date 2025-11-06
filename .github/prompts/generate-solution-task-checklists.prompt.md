@@ -50,15 +50,15 @@ Create One Checklist File Per Solution
    • Log creation if DEBUG=1
 
 ### Step 4 (MANDATORY)
-Write File Header (for each solution file)
+Write Solution Checklist File (Header + Content)
+   Combine header and content generation into a single atomic write per solution file.
+   File MUST begin with:
    ```
    # Solution Checklist: {solution_name}
    Repository: {repo_name}
    Generated: {timestamp}
    ```
-   
-### Step 5 (MANDATORY)
-Generate Checklist Content (for each solution file)
+   Then append the body below:
    ```
    ## Solution: {solution_name}
 
@@ -130,19 +130,19 @@ Generate Checklist Content (for each solution file)
    • Log generated file path if DEBUG=1
    • **Variables Section**: Include the explicit retry attempt variables above PLUS dynamically extract any additional variables from `solution_task_list.prompt.md` to ensure complete compatibility
 
-### Step 6 (MANDATORY)
+### Step 5 (MANDATORY)
 Write and Close Each File
    • Confirm each file written successfully  
    • Log total solution files created if DEBUG=1
 
 
-### Step 7 (MANDATORY)
+### Step 6 (MANDATORY)
 Repo Checklist Update:
    - Open `tasks/{{repo_name}}_repo_checklist.md`
    - Set `[x]` only on the `@generate-repo-task-checklists` entry for the current repository markdown `tasks/{{repo_name}}_repo_checklist.md`
   - Do not modify other checklist items or other repositories' files
 
-### Step 8 (MANDATORY)
+### Step 7 (MANDATORY)
 Verification & Structured Output:
    Perform a full verification pass BEFORE finalizing JSON. Any violation sets `status=FAIL` but JSON must still be written for diagnostics.
    If DEBUG=1 emit a debug line per violation:
@@ -196,7 +196,7 @@ JSON saved to:
 | checklist_paths | array of strings | List of all created checklist file paths (e.g., `./tasks/{repo_name}_{solution_name}_solution_checklist.md`) |
 | status | SUCCESS or FAIL |
 | timestamp | ISO8601 timestamp |
-| verification_errors | array | Populated in Step 8 (empty if SUCCESS) |
+| verification_errors | array | Populated in Step 7 (empty if SUCCESS) |
 
 ---
 

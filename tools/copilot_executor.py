@@ -181,6 +181,10 @@ class CopilotExecutor:
         Args:
             header: Header text to write at the beginning of the log file
         """
+        # Ensure parent directory exists to avoid FileNotFoundError when logs dir was cleaned.
+        parent = self.log_file.parent
+        if parent and not parent.exists():
+            parent.mkdir(parents=True, exist_ok=True)
         with open(self.log_file, 'w', encoding='utf-8') as log:
             log.write(header)
             log.write(f"\n{'='*80}\n\n")

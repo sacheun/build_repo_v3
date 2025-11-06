@@ -40,15 +40,9 @@ Primary Restore Attempt:
    - If DEBUG=1, print to console: `[debug][task-restore-solution] executing: msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
    - **Execute the command synchronously and wait for process completion** before proceeding.
    - **CRITICAL**: After process completes, capture the exit code (e.g., `$LASTEXITCODE` in PowerShell, `$?` in Bash).
-   - **Log to Decision Log**: Append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo,{{status}}"
-     * timestamp: ISO 8601 format (e.g., "2025-10-22T14:30:45Z")
-     * status: "SUCCESS" if exit code is 0, "FAIL" if non-zero
    - Captures stdout/stderr without throwing exceptions.
-   - **Special Case - MSBuild Not Found**: If command fails with error code 9009 (Windows "command not found") or stderr contains "not recognized", switches to `dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
    - If DEBUG=1 and dotnet fallback triggered, print to console: `[debug][task-restore-solution] executing: dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
    - **Execute the dotnet msbuild fallback command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
-   - **Log to Decision Log**: If dotnet msbuild was executed,  Call @task-update-decision-log to log task execution:, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo,{{status}}"
-   - **IMPORTANT**: Proceed to step 4 (NuGet fallback) if the final MSBuild exit code (msbuild or dotnet msbuild) is non-zero, regardless of the specific error code.
 
 ### Step 4 (MANDATORY)
 NuGet Fallback (executed when step 3 MSBuild fails with ANY non-zero exit code): 
@@ -57,12 +51,9 @@ NuGet Fallback (executed when step 3 MSBuild fails with ANY non-zero exit code):
    - If DEBUG=1, print: `[debug][task-restore-solution] NuGet fallback triggered (msbuild exitCode={exitCode})`
    - If DEBUG=1, print: `[debug][task-restore-solution] executing: nuget restore "{{solution_path}}"`
    - **Execute the nuget command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
-   - **Log to Decision Log**: Append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,nuget restore "{{solution_path}}",{{status}}"
-     * timestamp: ISO 8601 format
      * status: "SUCCESS" if exit code is 0, "FAIL" if non-zero
    - **Check NuGet exit code**: If NuGet succeeds (return code 0), re-runs the original MSBuild restore command once (with DEBUG command print if enabled), 
    - **wait for completion and capture exit code**, then aggregates all outputs (NuGet + retry) with labeled sections (=== NuGet Restore Output ===, etc.).
-   - **Log MSBuild Retry to Decision Log**: If MSBuild retry was executed after successful NuGet, append to results/decision-log.csv with: "{{timestamp}},{{repo_name}},{{solution_name}},task-restore-solution,msbuild "{{solution_path}}" --restore (retry after nuget),{{status}}"
    - If NuGet fails (non-zero exit code), appends its output but skips MSBuild retry.
    - If DEBUG=1 and NuGet failed, print to console: `[debug][task-restore-solution] NuGet restore failed with exitCode={nugetExitCode}, skipping MSBuild retry`
 
@@ -155,58 +146,13 @@ Scope of Verification:
    - If success=true: the `@task-restore-solution` line MUST be marked `- [x]`.
    - If success=false: the line MUST still be marked `- [x]` (task executed) but restore_status MUST reflect FAILED.
 3. Directive Uniqueness: Exactly one line contains `@task-restore-solution`.
-4. Solution Variables Section:
-   - Section header `### Solution Variables` present.
-   - Parenthetical `(Variables set by tasks for this specific solution)` present.
-   - All required variable lines present with arrow format `variable_name → value` (U+2192 arrow, not `->`). Required base variables:
-     * solution_path
-     * solution_name
-     * max_build_attempts
-     * restore_status
-     * build_status
-     * kb_search_status
-     * kb_file_path
-     * kb_article_status
-     * fix_applied_attempt_1
-     * retry_build_status_attempt_1
-     * fix_applied_attempt_2
-     * retry_build_status_attempt_2
-     * fix_applied_attempt_3
-     * retry_build_status_attempt_3
-5. Arrow Formatting: Record violation if any required line missing arrow or uses wrong symbol.
-6. Value Consistency:
+4. Value Consistency:
    - `restore_status` matches success flag (SUCCEEDED when success=true, FAILED when success=false).
    - `solution_path` ends with `.sln` and points to existing file.
-7. JSON Output Integrity:
+5. JSON Output Integrity:
    - The structured JSON emitted in Step 7 MUST contain keys: success, stdout, stderr, errors, warnings.
    - If a file `output/{{repo_name}}_{{solution_name}}_task-restore-solution.json` was also written (optional enhancement), it MUST include those keys.
-8. No Duplicate Variables: Each required variable appears exactly once.
-
-Violation Recording:
-- For each violation append object: `{ "type": "<code>", "target": "<file|variable|line>", "detail": "<human readable>" }` to `verification_errors`.
-- Recommended codes: file_missing, directive_duplicate, checklist_mark_incorrect, variable_missing, variable_mismatch, arrow_format_error, sln_missing, json_missing_key.
-- If DEBUG=1 emit: `[debug][task-restore-solution][verification] FAIL code=<code> target=<target> detail="<description>"` for each violation.
-
-Status Adjustment Logic:
-- Start with `status = SUCCESS` if success=true else `status = FAIL`.
-- If success=true but any violations exist → set `status = FAIL` (restore succeeded but checklist invalid).
-- If success=false keep `status = FAIL` regardless of violations.
-
-Output Update:
-1. If you captured the JSON output to a file `output/{{repo_name}}_{{solution_name}}_task-restore-solution.json`, update/add:
-   - `verification_errors` (sorted by type then target)
-   - `status` (adjusted final status) – DO NOT modify original `success` boolean.
-2. If JSON only emitted via stdout, ALSO produce a separate verification JSON file: `output/{{repo_name}}_{{solution_name}}_task-restore-solution_verification.json` containing:
-```json
-{
-  "repo_name": "{{repo_name}}",
-  "solution_name": "{{solution_name}}",
-  "success": <bool>,
-  "status": "SUCCESS"|"FAIL",
-  "verification_errors": [ ... ]
-}
-```
-3. Ensure deterministic ordering (sort errors array).
+6. No Duplicate Variables: Each required variable appears exactly once.
 
 Success Criteria for Step 12: Verification JSON written (either updated original or separate file) reflecting accurate error list and final status.
 

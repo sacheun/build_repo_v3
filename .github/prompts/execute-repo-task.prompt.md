@@ -7,7 +7,13 @@ temperature: 0.0
 This prompt finds all unmarked tasks from a repository checklist markdown file and executes them sequentially.
 It processes all uncompleted tasks in the specified checklist until all are complete or an error occurs.
 
+
 ## Execution Policy
+**⚠️ CRITICAL – THIS TASK IS NON-SCRIPTABLE ⚠️**  
+This task MUST be performed using **direct tool calls** and **structural reasoning**:
+*STRICT MODE ON**
+- All steps are **MANDATORY**.
+
 **CRITICAL REQUIREMENT:** After completing a task, you must update the designated repository markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
 
 **CRITICAL - SEQUENTIAL EXECUTION:**
@@ -30,12 +36,6 @@ It processes all uncompleted tasks in the specified checklist until all are comp
       repo_checklist = <required> (path to repository checklist markdown file, e.g., "./tasks/ic3_spool_cosine-dep-spool_repo_checklist.md")
       clone = <required> (root directory for cloned repositories)
 2. Ensure the clone directory exists; create if it does not.
-3. **[MANDATORY] Initialize repo_result.csv tracking file:**
-   - Check if file `results/repo_result.csv` exists
-   - If it does NOT exist, create it with the following header row using comma (`,`) as the separator:
-     ```
-     repo,task name,status
-     ```
 
 ### Step 1: Read Repository Task Checklist and Find Next Unmarked Task (MANDATORY)
 1. Read the repository checklist file specified by repo_checklist parameter
@@ -53,17 +53,18 @@ Before logging and invoking any task, FIRST determine if the task line is a COND
 Step 2.1 actions:
 1. If task is NOT conditional → skip to Step 2.2.
 2. If task IS conditional → evaluate its condition BEFORE calling the task prompt:
-   - Read previously populated repo variables ("## Task Variables" section) and any artifact JSONs needed for condition evaluation.
-   - Examples:
-     - `@task-scan-readme` executes ONLY if README.md exists and is non-empty.
-     - `@task-execute-readme` executes ONLY if the README scan produced SAFE commands.
-   - If condition FALSE:
-     - Do NOT invoke the task prompt.
-     - Mark checklist line `[x] ... - SKIPPED (condition not met)`.
-     - Log decision entry status="SKIPPED" with reason.
-     - Append tasks_executed entry task_status="SKIPPED".
-     - Return to Step 1 for next unmarked task.
-   - If condition TRUE → proceed to Step 2.2.
+    - Locate the `**Quick Reference:**` section in the repo checklist and use its stated condition rules (e.g., readme_content not blank and not "NONE" for `@task-scan-readme`). Treat this checklist section as the authoritative source; do not invent or alter conditions.
+    - Read previously populated repo variables ("## Task Variables" or "## Repo Variables Available" section) and any artifact JSONs needed for condition evaluation.
+    - Explicit examples (must align with Quick Reference):
+       - `@task-scan-readme` executes ONLY if `{{readme_content}}` exists, is non-blank, and not equal to "NONE".
+       - `@task-execute-readme` executes ONLY if `{{commands_extracted}}` exists, is non-blank, and not equal to "NONE".
+    - If condition FALSE:
+       - Do NOT invoke the task prompt.
+       - Mark checklist line `[x] ... - SKIPPED (condition not met)`.
+       - Log decision entry status="SKIPPED" with reason (include evaluated variable name and its value).
+       - Append tasks_executed entry task_status="SKIPPED".
+       - Return to Step 1 for next unmarked task.
+    - If condition TRUE → proceed to Step 2.2 (log the variable values that satisfied the condition if DEBUG=1).
 
 #### 2.2 Task Invocation Sequence
 1. Log the execution attempt using @task-update-decision-log:
@@ -93,7 +94,7 @@ Step 2.1 actions:
    - A task fails (return FAIL with error details)
    - A task is blocked (return BLOCKED with blocking reason)
 
-### Step 6: Return Final Execution Summary
+### Step 4: Return Final Execution Summary
 
 Return execution summary after all tasks are processed or execution stops.
 
@@ -138,33 +139,3 @@ If the executor is interrupted (Ctrl+C, crash, etc.):
 2. All task variables are saved for completed tasks
 3. Re-running @execute-task will resume from the first uncompleted task
 4. No work is lost - resumes exactly where it stopped
-
-This prompt enables fully autonomous, resumable task execution with complete traceability and checkpoint recovery.
-## Error Handling
-- Missing required parameter repo_checklist or clone: Immediately return execution_status="FAIL" with error_message.
-- Checklist file not found: execution_status="FAIL"; do not create or modify files.
-- Unable to parse "## Repo Tasks" section: execution_status="FAIL" with parsing error details.
-- Dependency variable missing (e.g., repo_directory for @task-search-readme): Mark task BLOCKED; execution_status="BLOCKED"; blocking_reason explains prerequisite.
-- JSON output referenced but unreadable: Treat variable as missing and apply BLOCKED logic.
-- Decision log write failure: Retry once; if still failing continue but include warning in error_message field for that task.
-- Unexpected exception: Catch, log failed_task and error_message; execution_status="FAIL".
-
-## Consistency Checks
-- tasks_executed length MUST equal total_tasks_executed.
-- Each tasks_executed entry must have task_status in {SUCCESS, FAIL, BLOCKED, SKIPPED}.
-- If execution_status == ALL_TASKS_COMPLETE then no entry task_status == FAIL or BLOCKED.
-- If execution_status == BLOCKED then blocking_reason is non-empty and exactly one task_status == BLOCKED.
-- If execution_status == FAIL then failed_task is non-empty and at least one task_status == FAIL.
-- When a CONDITIONAL task is skipped, checklist line updated to "[x] SKIPPED".
-
-## Cross-References
-- {{repo_checklist}} → Path to the repository checklist being processed.
-- {{clone_path}} → Root directory for cloned repositories.
-- {{tasks_dir}} / {{output_dir}} / {{results_dir}} → Standard workspace directories for state and artifacts.
-- {{execution_status}} → Final status summarizing run outcome.
-- {{tasks_executed}} → Detailed per-task execution records.
-- {{total_tasks_executed}} → Count of tasks processed in this invocation.
-- {{failed_task}} → Name of the task that failed (if any).
-- {{blocking_reason}} → Dependency or condition that prevented a task from executing.
-- {{error_message}} → Error detail for FAIL scenarios.
-
