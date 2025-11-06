@@ -123,12 +123,12 @@ Generate Checklist Content (for each solution file)
    - retry_build_status_attempt_3 → NOT_EXECUTED
    - retry_build_stderr_content_attempt_3 → NOT_EXECUTED
 
-   [Content dynamically extracted from .github/prompts/solution_task_list.prompt.md "### Solution Variables" section]
+   [Content dynamically extracted from `.github/prompts/solution_task_list.prompt.md` "### Solution Variables" section]
    ```
    • Each solution file is self-contained with all its tasks and variables
    • No separator needed (each solution is in its own file)
    • Log generated file path if DEBUG=1
-   • **Variables Section**: Include the explicit retry attempt variables above PLUS dynamically extract any additional variables from solution_task_list.prompt.md to ensure complete compatibility
+   • **Variables Section**: Include the explicit retry attempt variables above PLUS dynamically extract any additional variables from `solution_task_list.prompt.md` to ensure complete compatibility
 
 ### Step 6 (MANDATORY)
 Write and Close Each File
@@ -137,19 +137,12 @@ Write and Close Each File
 
 
 ### Step 7 (MANDATORY)
-Result Tracking:
-   - Append the result to:
-     - results/repo-results.csv (CSV row)
-   - Row format: timestamp, repo_name, generate-repo-task-checklists, status, symbol (✓ or ✗)
-   - (Do NOT verify presence here; CSV row presence/format is validated only in Step 9.)
-
-### Step 8 (MANDATORY)
 Repo Checklist Update:
    - Open `tasks/{{repo_name}}_repo_checklist.md`
    - Set `[x]` only on the `@generate-repo-task-checklists` entry for the current repository markdown `tasks/{{repo_name}}_repo_checklist.md`
   - Do not modify other checklist items or other repositories' files
 
-### Step 9 (MANDATORY)
+### Step 8 (MANDATORY)
 Verification & Structured Output:
    Perform a full verification pass BEFORE finalizing JSON. Any violation sets `status=FAIL` but JSON must still be written for diagnostics.
    If DEBUG=1 emit a debug line per violation:
@@ -175,8 +168,7 @@ Verification & Structured Output:
    8. No duplicate checklist filenames after sanitization (case-insensitive compare).
    9. JSON field integrity: pending output JSON MUST include all contract keys before verification augmentation.
   10. If any skipped solutions (append mode), ensure skipped files pre-existed; else violation `skip_mismatch`.
-   11. Results CSV row present and correctly formatted for this task execution (pattern: `{{timestamp}},{{repo_name}},generate-repo-task-checklists,{{status}},✓|✗`).
-  11. On success, optionally append `verification_errors: []`; on failure populate array of objects `{type, target, detail}` sorted by `type`, then `target`.
+      11. On success, optionally append `verification_errors: []`; on failure populate array of objects `{type, target, detail}` sorted by `type`, then `target`.
    Structured Output JSON (file: `output/{repo_name}_task6_generate-solution-checklists.json`) MUST include keys:
    - repo_name
    - solutions_json_path
@@ -204,7 +196,7 @@ JSON saved to:
 | checklist_paths | array of strings | List of all created checklist file paths (e.g., `./tasks/{repo_name}_{solution_name}_solution_checklist.md`) |
 | status | SUCCESS or FAIL |
 | timestamp | ISO8601 timestamp |
-| verification_errors | array | Populated in Step 9 (empty if SUCCESS) |
+| verification_errors | array | Populated in Step 8 (empty if SUCCESS) |
 
 ---
 

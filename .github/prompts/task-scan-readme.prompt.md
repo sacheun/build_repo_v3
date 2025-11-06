@@ -6,55 +6,21 @@ temperature: 0.1
 
 # Task name: task-scan-readme
 
-## Process Overview
-1. Debug Entry Trace
-2. Checklist Load & Variable Extraction
-3. README Load
-4. Prerequisites & Checklist Verification
-5. Structural Section Identification
-6. Follow Referenced Markdown Files
-7. Command Extraction
-8. Command Categorization
-9. Command Cleaning
-10. Structured Output Assembly
-11. Log to Decision Log
-12. Result Tracking
-13. Repo Checklist Update
-14. Repo Variable Refresh
-15. Verification (Post-Refresh)
-16. Debug Exit Trace
-
-## Prerequisites
-- README content JSON produced by `@task-search-readme`
-- Repository directory accessible
-- tokens `{{commands_extracted}}` present in `## Repo Variables Available` section of repo checklist
-- DEBUG environment variable optional for verbose tracing
 
 ## Description
 This task analyzes the README content (from task-search-readme output) using structural reasoning to identify and extract setup/build environment commands. This task requires AI structural reasoning and **cannot** be scripted.
 
 ## Execution Policy
-**CRITICAL**: DO NOT GENERATE OR EXECUTE A SCRIPT FOR THIS TASK.  
-This task MUST be performed using **direct tool calls** and **structural reasoning**:
-
-1. Use `read_file` tool to load the README content from task-search-readme output JSON.
-2. Use structural reasoning to parse and analyze README structure.
-3. Use AI reasoning to identify setup sections and extract commands.
-4. Use `create_file` tool to save the parsed command list to JSON output.
-5. Use `replace_string_in_file` tool to update progress/results files.
-
 **⚠️ CRITICAL – THIS TASK IS NON-SCRIPTABLE ⚠️**  
-**NEVER use regex or simple text parsing – use structural reasoning.**  
+This task MUST be performed using **direct tool calls** and **structural reasoning**:
+*STRICT MODE ON**
+- All steps are **MANDATORY**.
+
 The AI agent must analyze the README content intelligently to understand context and extract meaningful setup commands.
 
 ## Instructions (Follow this Step by Step)
 
 ### Step 1 (MANDATORY)
-**DEBUG Entry Trace:**  
-If DEBUG=1, print:  
-`[debug][task-scan-readme] START checklist_path='{{checklist_path}}'`
-
-### Step 2 (MANDATORY)
 **Checklist Load & Variable Extraction:**
 - Open the file at `{{checklist_path}}` (this is the authoritative repo checklist).
 - Extract the following variable values ONLY from the `## Repo Variables Available` section lines:
@@ -67,14 +33,14 @@ If DEBUG=1, print:
 - If DEBUG=1, print: `[debug][task-scan-readme] extracted repo_name='{{repo_name}}' repo_directory='{{repo_directory}}' readme_content_path='{{readme_content_path}}'`
 - Immute base variables: NEVER modify `repo_name`, `repo_directory`, `repo_url`, or `readme_content_path` in this task.
 
-### Step 3 (MANDATORY)
+### Step 2 (MANDATORY)
 **README Load:**
 - Use `read_file` to load the JSON at `readme_content_path` (extracted in Step 2).
 - Parse and extract `readme_content` and `readme_filename` fields.
 - If file missing or unreadable, set `status=SKIPPED` (if produced by previous task but now absent) or `status=FAIL` (unexpected error) and proceed to output.
 - If DEBUG=1, print: `[debug][task-scan-readme] loaded README from {{readme_content_path}}: {{char_count}} characters`
 
-### Step 4 (MANDATORY)
+### Step 3 (MANDATORY)
 **Prerequisites Check:**  
 - If README was not found in task-search-readme (`readme_content` is null or empty), skip analysis.
 - If DEBUG=1, print: `[debug][task-scan-readme] no README content available, skipping scan`
@@ -87,7 +53,7 @@ If DEBUG=1, print:
   - `{{commands_extracted}}`
 - If any token is missing or altered, restore it prior to continuing.
 
-### Step 5 (MANDATORY)
+### Step 4 (MANDATORY)
 **Structural Reasoning – Section Identification:**  
 - **YOU MUST ACTUALLY READ THE README CONTENT LOADED IN STEP 2**
 - Analyze the actual text of the README using AI reasoning capabilities.
@@ -107,7 +73,7 @@ If DEBUG=1, print:
 - Consider context: sections near the beginning of README are more likely to be setup instructions.
 - Ignore sections like "Contributing", "License", "FAQ", "Troubleshooting" unless they explicitly mention setup.
 
-### Step 6 (MANDATORY)
+### Step 5 (MANDATORY)
 **Follow Referenced Markdown Files:**  
 - **CRITICAL REQUIREMENT:** If README references other .md files, you MUST ALWAYS follow them.
 - **THIS IS NOT OPTIONAL – This step is MANDATORY for all README files.**
@@ -121,7 +87,7 @@ If DEBUG=1, print:
   - Link text containing: "setup", "installation", "getting started", "prerequisites", "building", "development", "local dev", "running", "how to"
 - If DEBUG=1, print: `[debug][task-scan-readme] found reference to file: {{filename}}`
 
-**For each referenced markdown file (MANDATORY – NOT OPTIONAL):**
+**For each referenced markdown file (MANDATORY):**
 a. **Determine File Path (MANDATORY):**
    - If relative path (e.g., `setup.md`, `docs/setup.md`, `getting_started.md`): construct absolute path using repo_directory.
    - If URL to external wiki (e.g., `https://...`): log as external reference, cannot read locally.
@@ -140,7 +106,7 @@ c. **Read Referenced File (MANDATORY):**
    - If DEBUG=1, print: `[debug][task-scan-readme] reading referenced file: {{filename}}, {{char_count}} characters`
    - Treat this as additional README content for analysis (REQUIRED, not optional).
 d. **Analyze Referenced Content (MANDATORY):**
-   - **MANDATORY**: Apply the same structural reasoning from steps 4–7 to this markdown file.
+   - **MANDATORY**: Apply the same structural reasoning from steps 3–6 to this markdown file.
    - Look for setup sections, extract commands, categorize them.
    - Include file source in command metadata: `source_file: "getting_started.md"`
    - If DEBUG=1, print: `[debug][task-scan-readme] analyzing referenced file: {{filename}}`
@@ -169,7 +135,7 @@ Example behavior for README with only external references:
 - CORRECT: Read getting_started.md, extract commands from it, report commands in output
 - INCORRECT: Report "README contains only links" and stop without reading getting_started.md
 
-### Step 7 (MANDATORY)
+### Step 6 (MANDATORY)
 **Structural Reasoning – Command Extraction:**  
 - **YOU MUST ANALYZE THE ACTUAL README CONTENT, NOT JUST CREATE EMPTY OUTPUT**
 - Within identified setup sections, use structural reasoning to extract commands:
@@ -201,7 +167,7 @@ Example behavior for README with only external references:
        - Rationale: cloning is a one-time repository fetch, not an environment setup operation.
        - If such commands appear, ignore them (do not count toward total_commands) and do not list them in the checklist summary.
 
-### Step 8 (MANDATORY)
+### Step 7 (MANDATORY)
 **Command Categorization:**  
 For each extracted command, use structural reasoning to categorize by purpose:
 - **package_install**: npm install, pip install, dotnet restore, nuget restore, yarn install
@@ -214,7 +180,7 @@ For each extracted command, use structural reasoning to categorize by purpose:
 
 If DEBUG=1, print for each command: `[debug][task-scan-readme] extracted command [{{category}}]: {{command}}`
 
-### Step 9 (MANDATORY)
+### Step 8 (MANDATORY)
 **Command Cleaning:**  
 Remove shell prompts: $, >, C:\>, PS>, #
 Remove line continuations: backslash (\) or caret (^)
@@ -224,9 +190,9 @@ Handle multi-line commands (join with proper syntax)
  Apply exclusion filters (MANDATORY): discard any cleaned command whose original form began with or contains a repository clone invocation (e.g. starts with `git clone`, `gh repo clone`). These MUST NOT appear in the final JSON.
 If DEBUG=1, print: `[debug][task-scan-readme] cleaned {{original_count}} commands to {{cleaned_count}} valid commands`
 
-### Step 10 (MANDATORY)
+### Step 9 (MANDATORY)
 Structured Output Assembly:
-Generate JSON only (no verification in this step) at `output/{{repo_name}}_task3_scan-readme.json`. The `verification_errors` array is emitted empty here and populated in Step 15.
+Generate JSON only (no verification in this step) at `output/{{repo_name}}_task3_scan-readme.json`. The `verification_errors` array is emitted empty here and populated in Step 12.
 
 Structured Output JSON (output/{{repo_name}}_task3_scan-readme.json) MUST include:
 
@@ -263,40 +229,13 @@ Structured Output JSON (output/{{repo_name}}_task3_scan-readme.json) MUST includ
 - verification_errors (array, empty if none)
 - debug (optional array when DEBUG=1)
 
-### Step 11 (MANDATORY)
-**Log to Decision Log:**  
-Call @task-update-decision-log to log task execution:
-```
-@task-update-decision-log
-timestamp="{{timestamp}}"
-repo_name="{{repo_name}}"
-solution_name=""
-task="task-scan-readme"
-message="{{message}}"
-status="{{status}}"
-```
-- Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-- The solution_name is blank since this is a repository-level task
-- Message format:
-  - If sections found: "Found {{section_count}} setup sections across {{file_count}} files"
-  - If no sections found but README exists: "No setup sections found in README"
-  - If README not found (status=SKIPPED): "README not found – scan skipped"
-  - If scan failed (status=FAIL): "Scan failed: {{error_reason}}"
-
-### Step 12 (MANDATORY)
-**Result Tracking:**  
-Append the result to:
-- results/repo-results.csv (CSV row)
-- Row format: timestamp, repo_name, task-scan-readme, status, symbol (✓ or ✗)
-   (CSV row presence and formatting are verified ONLY in Step 15; do not perform early verification here.)
-
-### Step 13 (MANDATORY)
+### Step 10 (MANDATORY)
 **Repo Checklist Update:**  
 - Open `tasks/{{repo_name}}_repo_checklist.md`
 - Set `[x]` only on the `@task-scan-readme` entry for the current repository
 - Do not modify other checklist items or other repositories' files
 
-### Step 14 (MANDATORY)
+### Step 11 (MANDATORY)
 **Repo Variable Refresh (INLINE ONLY):**
 - Open `tasks/{{repo_name}}_repo_checklist.md`.
 - Locate the line beginning with `- {{commands_extracted}}`.
@@ -309,9 +248,9 @@ Append the result to:
 - Preserve `- {{commands_extracted}}` prefix verbatim.
 **Inline Variable Policy:** Never create a new section; update in place only.
 
-### Step 15 (MANDATORY)
+### Step 12 (MANDATORY)
 Verification (Post-Refresh):
-Perform verification AFTER Steps 13–14 (checklist update and variable refresh). Load the JSON produced in Step 10 and current checklist state.
+Perform verification AFTER Steps 10–11 (checklist update and variable refresh). Load the JSON produced in Step 9 and current checklist state.
 
 Verification checklist:
 1. Checklist file exists at `{{checklist_path}}`.
@@ -326,17 +265,15 @@ Verification checklist:
    - SKIPPED: README missing/unreadable; commands_extracted empty; total_commands == 0.
 8. Consistency: safe that checklist `- {{commands_extracted}}` summary (if populated) reflects SUCCESS/NONE/SKIPPED semantics (FAIL not allowed unless status=FAIL).
 9. Base variables unchanged from Step 2 extraction.
-10. Results CSV row present and correctly formatted for this task execution (pattern: `{{timestamp}},{{repo_name}},task-scan-readme,{{status}},✓|✗`).
-
 Violations: record objects `{ "type": "<code>", "target": "<file|variable|json>", "detail": "<description>" }`.
-Suggested codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, status_inconsistent, base_variable_modified, results_row_missing.
+Suggested codes: file_missing, variable_missing, variable_empty, duplicate_variable, arrow_format_error, json_missing_key, count_mismatch, status_inconsistent, base_variable_modified.
 
 Status Adjustment:
 - Begin with existing JSON status. If status in {SUCCESS, NONE} and violations exist → set status=FAIL. If SKIPPED and violations unrelated to README absence appear, may set status=FAIL.
 
 Update JSON: overwrite verification_errors (sorted by type then target) and updated status if changed. Preserve timestamp.
 
-**DEBUG Exit Trace:**  
+### Step 13 (MANDATORY)
 If DEBUG=1, print:  
 `[debug][task-scan-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} commands_extracted={{total_commands}}]`
 
@@ -358,36 +295,5 @@ If DEBUG=1, print:
 4. **Context Matters**: Use surrounding text to determine if something is a setup command vs example code
 5. **Language Awareness**: Understand different markdown dialects, code fence syntax, list formats
 6. **False Positive Prevention**: Don't extract every code snippet – use reasoning to identify actual setup commands
-7. **Multi-line Handling**: Commands split across lines (with \ or ^) should be joined properly
-8. **Empty Results**: If no setup commands found after analyzing README AND all referenced local .md files, return empty arrays and status=NONE (scan completed, but no commands found)
-9. **Error Handling**: If README content is malformed or cannot be parsed, set status=FAIL and log reason
-10. **Next Task Dependency**: The output of this task (commands_extracted array) is input to task-execute-readme
-11. **Parameter Usage**: The readme_content_path parameter specifies where to load README content – do not hardcode paths
-12. **Referenced Files Tracking**: Store list of processed referenced markdown files (avoid duplicates, depth <= 3).
-
-## Error Handling
-- For any step that fails:
-   - Log the error with details (exception type, message, partial context)
-   - If a critical step fails (cannot read primary README, cannot parse commands), set status=FAIL and abort remaining steps
-   - Do not update checklist or results CSV on critical failure
-   - Non-critical failures (one referenced file missing) should be logged; continue processing others
-
-## Consistency Checks
-- After creating output file `output/{{repo_name}}_task3_scan-readme.json`, verify it exists and contains keys: `repo_name`, `sections_identified`, `commands_extracted`, `status`.
-- After updating `tasks/{{repo_name}}_repo_checklist.md`, verify the checkbox for `@task-scan-readme` is set only if status is SUCCESS/NONE/SKIPPED (not FAIL) and variable `{{commands_extracted}}` token remains present.
-- If any verification fails, log an error and abort subsequent updates.
-
-## Cross-References
-- Always reference and use the freshest values collected earlier in this task (never reuse stale interim data).
-- Variables for this task workflows:
-   - repo_directory (absolute path)
-   - repo_name (repository identifier)
-   - readme_content_path (path to search-readme JSON)
-   - readme_filename (extracted from search-readme output)
-   - sections_identified (array of detected setup sections)
-   - commands_extracted (array of command metadata objects)
-   - referenced_files_processed (list of additional markdown files analyzed)
-   - total_commands (count of commands_extracted)
-   - status (SUCCESS | NONE | SKIPPED | FAIL)
-   - timestamp (ISO 8601)
-- Ensure any checklist variable updates mirror the final JSON output exactly.
+7. **Empty Results**: If no setup commands found after analyzing README AND all referenced local .md files, return empty arrays and status=NONE (scan completed, but no commands found)
+8. **Referenced Files Tracking**: Store list of processed referenced markdown files (avoid duplicates, depth <= 3).
