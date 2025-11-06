@@ -45,9 +45,9 @@ Use these tools:
 
 ## Instructions (Follow this Step by Step)
 ### Step 1 (MANDATORY)
-DEBUG Entry Trace:
-   - If environment variable DEBUG=1 (string comparison), print
-   `[debug][task-apply-knowledge-base-fix] START solution='{{solution_name}}' kb_file='{{kb_file_path}}' error_code='{{error_code}}'`
+Entry Trace:
+  Print a single line:
+  `[task-apply-knowledge-base-fix] START solution='{{solution_name}}' kb_file='{{kb_file_path}}' error_code='{{error_code}}'`
 
 
 ### Step 2: (MANDATORY)
@@ -243,10 +243,9 @@ Repo Variable Refresh: Update solution variables
 
 ### Step 7 (MANDATORY)
 Output Results
-DEBUG Exit Trace:
-   - If environment variable DEBUG=1, emit a line to stdout before returning:
-   - `[debug][task-apply-knowledge-base-fix] END fix_status='{{fix_status}}' files_modified={{files_modified}}`
-   - This helps trace when the task completes and its outcome.
+Unconditional Exit Summary:
+  Emit a single line:
+  `[task-apply-knowledge-base-fix] END fix_status='{{fix_status}}' files_modified={{files_modified}}`
 
 ### Step 8 (MANDATORY)
 Log to Decision Log:
@@ -374,23 +373,8 @@ Follow same sequential option logic as Scenario 1
 
 ---
 
-## Debug Output
-
-When DEBUG=1 is set, output verbose logs:
-
-```
-[FIX-DEBUG] Parsing KB article: nu1008_central_package_management.md
-[FIX-DEBUG] last_option_applied: 1
-[FIX-DEBUG] Total options available in KB: 3
-[FIX-DEBUG] Calculating next option: 1 + 1 = 2
-[FIX-DEBUG] Applying Option 2: Disable CPM globally
-[FIX-DEBUG] Fix type: NU1008 - Central Package Management
-[FIX-DEBUG] Target action: Add <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
-[FIX-DEBUG] Finding Directory.Build.props
-[FIX-DEBUG] Modifying Directory.Build.props: Adding CPM disable flag
-[FIX-DEBUG] Fix applied successfully - 1 file modified
-[FIX-DEBUG] option_applied: "2", next_available: "3"
-```
+## Logging
+Use concise unconditional informational lines only (no DEBUG mode). Avoid verbose per-step dumps; summarize key decisions (selected option, files modified, counts) in the final JSON and exit line.
 
 ---
 

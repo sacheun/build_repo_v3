@@ -4,8 +4,8 @@ temperature: 0.1
 ---
 
 Description:
-This prompt executes a sequence of tasks for a single repository.
-Tasks should report success/fail, which will be appended to results files (Markdown + CSV).
+This lists a sequence of tasks for a single repository.
+Tasks should report success/fail
 
 ### Available Tasks:
 1. @task-clone-repo
@@ -21,13 +21,14 @@ Tasks should report success/fail, which will be appended to results files (Markd
 - {{repo_name}} → Friendly name parsed from the repository URL (used for progress tables and logging).
 - {{clone_path}} → Root folder where repositories are cloned.
 - {{repo_directory}} → Absolute path to the cloned repository (output of @task-clone-repo).
+- {{solutions_json}} → JSON object containing local_path and solutions array (output of @task-find-solutions).
+- {{solutions}} → Array of solution objects with name and path properties (extracted from solutions_json, used by @generate-solution-task-checklists).
 - {{readme_content}} → README file content (output of @task-search-readme).
 - {{readme_filename}} → README filename (output of @task-search-readme).
 - {{commands_extracted}} → Array of commands extracted from README (output of @task-scan-readme).
 - {{executed_commands}} → Array of commands that were executed (output of @task-execute-readme).
 - {{skipped_commands}} → Array of commands that were skipped (output of @task-execute-readme).
-- {{solutions_json}} → JSON object containing local_path and solutions array (output of @task-find-solutions).
-- {{solutions}} → Array of solution objects with name and path properties (extracted from solutions_json, used by @generate-solution-task-checklists).
+
 
 Output Contract (aggregate after pipeline completion):
 - repo_name: string

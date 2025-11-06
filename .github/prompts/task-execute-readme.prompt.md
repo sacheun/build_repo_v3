@@ -31,14 +31,14 @@ The AI agent must use reasoning to determine command safety and execute safe com
 - Interpret `{{commands_extracted}}` value:
   - If value in {NONE, SKIPPED, FAIL, ""}: set `status=SKIPPED` and no execution will occur.
   - Else split by comma into raw_commands list; trim whitespace per item.
-- If DEBUG=1, print: `[debug][task-execute-readme] extracted repo_name='{{repo_name}}' repo_directory='{{repo_directory}}' commands_extracted_count={{raw_count}} status={{status}}`
+  (No debug output.)
 - Base variables (`repo_name`, `repo_directory`) are immutable in this task.
 
 ### Step 2 (MANDATORY)
 **Prerequisites & Checklist Verification:**
 - If status already SKIPPED or FAIL from Step 2, bypass classification and execution.
 - Validate repo_directory exists (optional list_dir). If missing, set status=FAIL.
-- If DEBUG=1, print: `[debug][task-execute-readme] prerequisites ok, proceeding to safety classification` (only if continuing).
+  (No debug output.)
 
 ### Step 3 (MANDATORY)
 **Structural Reasoning – Safety Classification:**  
@@ -51,31 +51,31 @@ For EACH command in commands_extracted array, use AI reasoning to determine if i
   - `dotnet restore`, `nuget restore`
   - `composer install`, `bundle install`
   - `go get`, `cargo build`
-  - If DEBUG=1: `[debug][task-execute-readme] SAFE [package_install]: {{command}}`
+  - (no debug output)
 - **Version Checks** (read-only, informational):
   - `node --version`, `npm --version`, `python --version`, `pip --version`
   - `dotnet --version`, `git --version`, `java -version`
   - `msbuild -version`, `gcc --version`
-  - If DEBUG=1: `[debug][task-execute-readme] SAFE [version_check]: {{command}}`
+  - (no debug output)
 - **Configuration Reads** (non-modifying queries):
   - `git config --list`, `git config --get user.name`
   - `npm config list`, `npm config get registry`
   - Environment variable reads: `echo $PATH`, `$env:PATH`
-  - If DEBUG=1: `[debug][task-execute-readme] SAFE [config_read]: {{command}}`
+  - (no debug output)
 - **Non-Destructive File Operations**:
   - Directory listing: `ls`, `dir`, `tree`
   - Directory navigation: `cd <path>` (safe when used to set context)
   - File reading: `cat`, `type`, `Get-Content` (read-only)
-  - If DEBUG=1: `[debug][task-execute-readme] SAFE [file_read]: {{command}}`
+  - (no debug output)
 - **Environment Variable Assignment** (local scope):
   - `export VAR=value` (Bash/sh)
   - `$env:VAR='value'` (PowerShell)
   - `set VAR=value` (CMD - local scope)
-  - If DEBUG=1: `[debug][task-execute-readme] SAFE [env_var]: {{command}}`
+  - (no debug output)
 - **Safe Directory Creation** (non-destructive):
   - `mkdir <name>` (creating directories is generally safe)
   - `New-Item -Type Directory`
-  - If DEBUG=1: `[debug][task-execute-readme] SAFE [mkdir]: {{command}}`
+  - (no debug output)
 
 **UNSAFE Commands** (destructive, modifying, risky, or out-of-scope):
 - **File Deletion/Modification**:
@@ -83,37 +83,37 @@ For EACH command in commands_extracted array, use AI reasoning to determine if i
   - `mv`, `move`, `ren`, `rename`
   - `cp -f`, `copy /Y` (overwriting files)
   - Reason: "destructive_file_operation"
-  - If DEBUG=1: `[debug][task-execute-readme] UNSAFE [destructive]: {{command}}`
+  - (no debug output)
 - **System/Permission Modifications**:
   - `sudo <anything>`, `su`
   - `chmod`, `chown`, `icacls`
   - `setx` (permanent environment variables)
   - Reason: "system_modification"
-  - If DEBUG=1: `[debug][task-execute-readme] UNSAFE [system_mod]: {{command}}`
+  - (no debug output)
 - **Network Operations** (downloading executables, security risk):
   - `curl <url> | sh`, `wget <url> | bash`
   - `Invoke-WebRequest <url> -OutFile <exe>`
   - Downloading .exe, .msi, .sh, .bat files
   - Reason: "network_download_execute"
-  - If DEBUG=1: `[debug][task-execute-readme] UNSAFE [network]: {{command}}`
+  - (no debug output)
 - **Build/Compile Commands** (handled by other workflow tasks):
   - `msbuild`, `dotnet build`, `dotnet publish`
   - `npm run build`, `npm run start`, `yarn build`
   - `make`, `cmake`, `gradle build`
   - `mvn compile`, `ant build`
   - Reason: "build_command_handled_elsewhere"
-  - If DEBUG=1: `[debug][task-execute-readme] UNSAFE [build]: {{command}}`
+  - (no debug output)
 - **Database Operations**:
   - `DROP`, `DELETE`, `UPDATE`, `TRUNCATE`
   - `mongod`, `mysqld`, database server start commands
   - Reason: "database_operation"
-  - If DEBUG=1: `[debug][task-execute-readme] UNSAFE [database]: {{command}}`
+  - (no debug output)
 - **Ambiguous/Complex Commands**:
   - Commands with shell redirects that modify files: `> file.txt`
   - Pipes to unknown executables: `| unknown-tool`
   - Complex chained commands: `cmd1 && cmd2 && cmd3` (evaluate each separately)
   - Reason: "ambiguous_safety"
-  - If DEBUG=1: `[debug][task-execute-readme] UNSAFE [ambiguous]: {{command}}`
+  - (no debug output)
 
 **Safety Decision Logic:**
 - When in doubt, classify as UNSAFE.
@@ -126,17 +126,14 @@ For EACH command in commands_extracted array, use AI reasoning to determine if i
 **Command Execution (SAFE commands only):**  
 For each SAFE command:
 a. Pre-execution:
-   - If DEBUG=1, print: `[debug][task-execute-readme] executing command [{{safety_category}}]: {{command}}`
-   - Determine appropriate shell: PowerShell (pwsh) for PowerShell syntax, bash/sh for Unix syntax, cmd for Windows batch
+  - Determine appropriate shell: PowerShell (pwsh) for PowerShell syntax, bash/sh for Unix syntax, cmd for Windows batch
 b. Execution:
    - Use `run_in_terminal` tool to execute command in {{repo_directory}}
    - Execute command synchronously (wait for completion)
    - Capture stdout, stderr, and exit code
    - Set timeout: 5 minutes (to prevent hanging on interactive commands)
 c. Post-execution:
-   - If DEBUG=1, print: `[debug][task-execute-readme] command exit_code={{exit_code}}`
-   - If exit_code != 0 and DEBUG=1, print: `[debug][task-execute-readme] command failed, stderr: {{stderr[:200]}}`
-   - Record result in executed_commands array
+  - Record result in executed_commands array
 e. Error Handling:
    - If command times out: record as executed with status="TIMEOUT"
    - If command fails (exit_code != 0): record as executed with status="FAIL" (don't stop, continue with other commands)
@@ -144,7 +141,7 @@ e. Error Handling:
 
 **Skipped Commands (UNSAFE commands):**  
 For each UNSAFE command:
-- If DEBUG=1, print: `[debug][task-execute-readme] skipping command [{{safety_category}}]: {{command}}, reason: {{reason}}`
+  (No debug output.)
 - Record in skipped_commands array with:
   - command: the command that was skipped
   - reason: why it was classified as UNSAFE
@@ -153,7 +150,7 @@ For each UNSAFE command:
 
 ### Step 5 (MANDATORY)
 Structured Output Assembly:
-Generate JSON only (no verification in this step) at `./output/{{repo_name}}_task4_execute-readme.json`. Emit empty `verification_errors` array here; populate in Step 8.
+Generate JSON only (no verification in this step) at `./output/{{repo_name}}_task4_execute-readme.json`.
 
 Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST include:
 - repo_directory
@@ -166,7 +163,7 @@ Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST inc
 - status (SUCCESS|SKIPPED|FAIL)
 - timestamp (ISO 8601 UTC seconds)
 - verification_errors (array, empty if none)
-- debug (optional array when DEBUG=1)
+  (debug array output omitted; no DEBUG mode supported)
 
 ### Step 6 (MANDATORY)
 **Checklist Update & Variable Refresh (INLINE ONLY):**
@@ -185,33 +182,9 @@ Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST inc
 9. If a line lacks an arrow, normalize: `- {{token}} → <value>`.
 10. **Inline Variable Policy:** Never create separate refreshed blocks; modify original lines only.
 11. Do not modify other checklist tasks or repository entries.
-12. If DEBUG=1, print: `[debug][task-execute-readme] checklist updated & summary variables refreshed`.
+12. Do not emit debug output.
 
-### Step 7 (MANDATORY)
-Verification (Post-Refresh):
-Run verification AFTER Step 6 (combined checklist update & variable refresh). Load JSON (Step 5) and current checklist.
-
-Verification checklist:
-1. Checklist file exists at `{{checklist_path}}`.
-2. Variable lines present exactly once for: repo_name, repo_directory, commands_extracted, executed_commands, skipped_commands.
-3. Arrow formatting correct (single arrow, no duplicates).
-4. Task directive `@task-execute-readme` appears exactly once.
-5. JSON required keys present: repo_name, repo_directory, total_commands_scanned, safe_commands_count, unsafe_commands_count, executed_commands, skipped_commands, status, timestamp.
-6. Status-specific rules:
-  - SUCCESS: counts align: safe+unsafe == total_scanned; lengths of executed/skipped arrays match counts.
-  - SKIPPED: executed_commands and skipped_commands arrays empty; total_commands_scanned may be 0.
-7. Command object integrity:
-  - executed: command, status, safety_category present; exit_code present unless status in {TIMEOUT, ERROR}.
-  - skipped: command, reason, safety_category present.
-8. No command string appears in both executed and skipped arrays.
-9. Base variables (repo_name, repo_directory) unchanged from Step 2 values.
-10. Checklist summaries for executed/skipped reflect counts or SKIPPED token.
- 
-
-### Step 8 (MANDATORY)
-**DEBUG Exit Trace:**  
-If DEBUG=1, print:  
-`[debug][task-execute-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} executed={{safe_count}} skipped={{unsafe_count}}`
+### End of Steps
 
 ## Output Contract
 - repo_directory: string (from checklist)

@@ -16,9 +16,9 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 
 ## Instructions (Follow this Step by Step)
 ### Step 1 (MANDATORY)
-DEBUG Entry Trace:
- If environment variable DEBUG=1 (string comparison), print:
-   `[debug][task-build-solution] START solution='{{solution_name}}' path='{{solution_path}}'`
+Entry Context:
+ Print a single line to indicate start:
+    `[task-build-solution] START solution='{{solution_name}}' path='{{solution_path}}'`
 
 ### Step 2 (MANDATORY)
 Input Validation:
@@ -31,7 +31,7 @@ Build Invocation:
    - Command: `msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo`
    - The flag `--maxcpucount` is included for parallel build consistency (matches decision log message).
    - **IMPORTANT**: All parameters starting with `--` or `-` are command arguments to msbuild, NOT file paths.
-   - If DEBUG=1, print: `[debug][task-build-solution] executing: msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo`
+   - Print the exact command line prior to execution for transparency.
    - Assumes packages already restored by @task-restore-solution.
    - Capture full stdout and stderr streams.
 
@@ -80,8 +80,8 @@ Diagnostic Object Construction:
 Structured Output Emission:
    - Include: solution_path, solution_name, success, return_code, stdout_tail, stderr_tail, errors[], warnings[].
    - Maintain JSON Contract regardless of success state.
-   - Writes to stdout for workflow consumption.
-   - If DEBUG=1, print to console: `[debug][task-build-solution] writing JSON output to stdout ({{json_size}} bytes)`
+   - Write JSON to stdout for workflow consumption and print a single informational line:
+     `[task-build-solution] JSON emitted (size={{json_size}} bytes)`
 
  Error Handling:
    - On contract failure (missing/invalid path) emit success=false, return_code=-1, errors=[{"code":"CONTRACT","message":"invalid solution_path"}].
@@ -164,10 +164,10 @@ Validation Focus for Step 9:
  - Failure to update the required single status variable when old_build_count ∈ {0,1,2,3} MUST also be a violation (`variable_missing`).
 
 ### Step 14 (MANDATORY)
-DEBUG Exit Trace: 
-If environment variable DEBUG=1, print:
-    `[debug][task-build-solution] END solution='{{solution_name}}' status={{success}} errors={{error_count}} warnings={{warning_count}}`
-    This line marks task completion and provides quick status visibility for debugging pipeline execution.
+Unconditional Exit Summary:
+ Print exactly one line on completion (always):
+    `[task-build-solution] EXIT success={{success}} errors={{error_count}} warnings={{warning_count}}`
+ This line marks task completion and provides quick status visibility for pipeline execution.
 
 ### Step 15 (MANDATORY)
 Verification (Post-Variable Refresh)
@@ -218,7 +218,6 @@ Scope of Verification:
 Violation Recording:
 - Append each violation as `{ "type": "<code>", "target": "<file|variable|line>", "detail": "<human readable>" }` to `verification_errors`.
 - Recommended codes: file_missing, directive_duplicate, checklist_mark_incorrect, variable_missing, variable_mismatch, arrow_format_error, sln_missing, json_missing_key.
-- If DEBUG=1 emit: `[debug][task-build-solution][verification] FAIL code=<code> target=<target> detail="<description>"` per violation.
 
 Status Adjustment Logic:
 - Start `status = SUCCESS` if success=true else `status = FAIL`.
@@ -266,7 +265,7 @@ Count-Suffixed Artifact Capture & Variable Update:
 3. Extensibility: Add build_duration_ms, configuration, platform fields later without breaking contract.
 4. Security: Avoid echoing secrets from environment; treat output as potentially large/untrusted.
 5. Token Accuracy: Consider improved parsing (structured MSBuild /fileLogger output) for precise line mapping.
-6. **Error Output on Failure**: When the build command fails (non-zero exit code) AND DEBUG=1, print stderr to console: `[debug][task-build-solution] command failed with exit code <code>, stderr: <stderr_content>`
+6. **Error Output on Failure**: When the build command fails (non-zero exit code) print stderr to console: `[task-build-solution] command failed exit_code=<code>` followed by a truncated snippet.
 7. **Command Line Arguments**: MSBuild flags (starting with `--` or `-`) are command arguments, not file paths. Do not request directory access for parameters like `--target:Clean,Build`, `--property:Configuration=Release`, `--maxcpucount`, `--verbosity:quiet`, or `-noLogo`.
 8. **Retry Directive Naming**: Use `@task-build-solution-retry` for retry attempt task lines to avoid uniqueness conflicts with the mandatory directive.
 9. **Artifact Suffix Logic**: The suffix uses PRE-INCREMENT build_count value (old_build_count). After writing suffixed file and updating variable, increment build_count.

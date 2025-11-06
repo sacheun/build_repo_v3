@@ -16,9 +16,9 @@ This tasks performs NuGet package restore for a Visual Studio solution file usin
 
 ## Instructions (Follow this Step by Step)
 ### Step 1 (MANDATORY)
-DEBUG Entry Trace:
-If environment variable DEBUG=1, print
-   `[debug][task-restore-solution] START solution='{{solution_name}}' path='{{solution_path}}'`
+Entry Context:
+Print a single line indicating start:
+   `[task-restore-solution] START checklist='{{solution_checklist}}'`
 
 ### Step 2 (MANDATORY)
 Input & Checklist Validation:
@@ -29,33 +29,24 @@ Input & Checklist Validation:
 5. If solution_path line missing or value blank → status=FAIL; record error code `variable_missing` and abort.
 6. Validate extracted solution_path ends with `.sln` and file exists on disk; if not, status=FAIL (error code `sln_missing`).
 7. Derive `solution_name` from solution_path (basename without extension) ignoring any differing name in checklist filename.
-8. If DEBUG=1, print: `[debug][task-restore-solution] parsed solution_path='{{solution_path}}' solution_name='{{solution_name}}' from checklist='{{solution_checklist}}'`.
+8. Print: `[task-restore-solution] parsed solution_path='{{solution_path}}' solution_name='{{solution_name}}'`
 9. All subsequent steps MUST use the extracted solution_path; do NOT trust any external parameter or alternate source.
 
 ### Step 3 (MANDATORY)
 Primary Restore Attempt: 
    - Command: `msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
-   - **CRITICAL - DO NOT REQUEST FILE ACCESS**: The strings `--restore`, `--property:Configuration=Release`, `--verbosity:quiet`, and `-noLogo` are MSBuild command-line FLAGS, NOT file paths or directories. Do NOT check for file access or directory permissions for these parameters.
-   - **IMPORTANT**: All parameters starting with `--` or `-` are command arguments to the msbuild executable, NOT file system paths
-   - If DEBUG=1, print to console: `[debug][task-restore-solution] executing: msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
-   - **Execute the command synchronously and wait for process completion** before proceeding.
-   - **CRITICAL**: After process completes, capture the exit code (e.g., `$LASTEXITCODE` in PowerShell, `$?` in Bash).
-   - Captures stdout/stderr without throwing exceptions.
-   - If DEBUG=1 and dotnet fallback triggered, print to console: `[debug][task-restore-solution] executing: dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo`
-   - **Execute the dotnet msbuild fallback command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
+   - **CRITICAL - DO NOT REQUEST FILE ACCESS**: The strings `--restore`, `--property:Configuration=Release`, `--verbosity:quiet`, and `-noLogo` are MSBuild command-line FLAGS, NOT file paths or directories.
+   - **IMPORTANT**: All parameters starting with `--` or `-` are command arguments to the msbuild executable, NOT file system paths.
+   - Print the exact command line prior to execution: `[task-restore-solution] executing msbuild restore`.
+   - Execute synchronously and capture exit code.
+   - If msbuild unavailable fall back to: `dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo` and print `[task-restore-solution] executing dotnet msbuild restore`.
 
 ### Step 4 (MANDATORY)
-NuGet Fallback (executed when step 3 MSBuild fails with ANY non-zero exit code): 
-   - **Trigger Condition**: If the exit code from step 2 (msbuild or dotnet msbuild) is non-zero (any failure, not just command-not-found).
-   - **Action**: Invoke `nuget restore "{{solution_path}}"` in the solution's parent directory.
-   - If DEBUG=1, print: `[debug][task-restore-solution] NuGet fallback triggered (msbuild exitCode={exitCode})`
-   - If DEBUG=1, print: `[debug][task-restore-solution] executing: nuget restore "{{solution_path}}"`
-   - **Execute the nuget command synchronously and wait for process completion**, then **capture its exit code** before proceeding.
-     * status: "SUCCESS" if exit code is 0, "FAIL" if non-zero
-   - **Check NuGet exit code**: If NuGet succeeds (return code 0), re-runs the original MSBuild restore command once (with DEBUG command print if enabled), 
-   - **wait for completion and capture exit code**, then aggregates all outputs (NuGet + retry) with labeled sections (=== NuGet Restore Output ===, etc.).
-   - If NuGet fails (non-zero exit code), appends its output but skips MSBuild retry.
-   - If DEBUG=1 and NuGet failed, print to console: `[debug][task-restore-solution] NuGet restore failed with exitCode={nugetExitCode}, skipping MSBuild retry`
+NuGet Fallback (executed when step 3 restore fails with non-zero exit code): 
+   - Invoke: `nuget restore "{{solution_path}}"`
+   - Print: `[task-restore-solution] nuget fallback invoked exit_code={{exitCode}}`
+   - If NuGet succeeds, re-run the msbuild restore once and print `[task-restore-solution] msbuild retry after nuget`.
+   - Aggregate outputs with labeled sections.
 
 ### Step 5 (MANDATORY)
 Success Determination: **Sets success=true only if the final MSBuild exit code is 0** (after NuGet retry if applicable). The success flag is based on the actual exit code, not assumed.
@@ -67,9 +58,8 @@ Output Truncation: Trims stdout and stderr to last 8000 characters each before r
 
 ### Step 7 (MANDATORY)
 Structured Output: 
-   - Returns JSON object with fields: success (boolean), stdout (string, last 8KB), stderr (string, last 8KB), errors (array of strings, max 50), warnings (array of strings, max 50).
-   - Writes to stdout for workflow consumption.
-   - If DEBUG=1, print to console: `[debug][task-restore-solution] writing JSON output to stdout ({{json_size}} bytes)`
+   - Return JSON with: success (boolean), stdout (last 8KB), stderr (last 8KB), errors (≤50), warnings (≤50).
+   - Write to stdout and print one informational line: `[task-restore-solution] JSON emitted size={{json_size}} bytes`.
 
 ### Step 8 (MANDATORY)
 Log to Decision Log:
@@ -157,8 +147,9 @@ Scope of Verification:
 Success Criteria for Step 12: Verification JSON written (either updated original or separate file) reflecting accurate error list and final status.
 
 ### Step 13 (MANDATORY)
-DEBUG Exit Trace: If environment variable DEBUG=1 (string comparison), print:
-   `[debug][task-restore-solution] END solution='{{solution_name}}' status={{success}} final_status={{status}} verification_errors={{verification_errors_count}}`
+Unconditional Exit Summary:
+ Print exactly one line:
+   `[task-restore-solution] EXIT success={{success}} final_status={{status}} verification_errors={{verification_errors_count}}`
 
 ## Implementation Notes:
 1. **Command Execution**: Use synchronous execution (NOT background jobs). In PowerShell: `msbuild ... ; $exitCode = $LASTEXITCODE`. In Bash: `msbuild ... ; exitCode=$?`. Do NOT proceed until the command completes.

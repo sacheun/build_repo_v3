@@ -12,8 +12,6 @@ This task searches for and reads the README documentation file from a repository
 ## Execution Policy
 **STRICT MODE ON**
 - All steps are **MANDATORY**.
-- **Verification (Step 7)** must **always** execute.
-- If Step 7 fails, **re-run Steps 1–7** automatically (up to `max_verification_retries`).
 - Never summarize or skip steps.
 **THIS TASK IS SCRIPTABLE**
 
@@ -39,43 +37,22 @@ README Candidate Search (conditional):
 ### Step 3 (MANDATORY)
 File Discovery:
 - Searches repository root directory using case-insensitive matching; stops on first match found.
-- If DEBUG=1, print: `[debug][task-search-readme] searching for README files (case-insensitive)`
-- On first match, if DEBUG=1, print: `[debug][task-search-readme] found README file: {{matched_filename}}`
 
 ### Step 4 (MANDATORY)
 Content Extraction:
 - If match found, reads entire file content as UTF-8 text with error ignore mode (handles encoding issues gracefully)
-- If DEBUG=1, print: `[debug][task-search-readme] content length: {{content_length}} characters`
-- If no match found, content remains null
-- If DEBUG=1 and no match, print: `[debug][task-search-readme] no README file found in repository root`
 
 ### Step 5 (MANDATORY)
-Structured Output:
-Generate JSON only (no verification in this step) at: `./output/{{repo_name}}_task2_search-readme.json` including required fields below. `verification_errors` is emitted as an array (empty here) and may be populated in Step 7.
+Structured Output JSON:
+Generate JSON at: `output/{{repo_name}}_task2_search-readme.json` including required fields below.
 
-Structured Output JSON (output/{{repo_name}}_task2_search-readme.json) MUST include:
+Structured Output JSON at `(output/{{repo_name}}_task2_search-readme.json)` MUST include:
 - repo_directory
 - repo_name
 - readme_content (string|null)
 - readme_filename (string|null)
 - status (SUCCESS|FAIL)
 - timestamp (ISO 8601 UTC seconds precision)
-- verification_errors (array, empty if none)
-- debug (optional array when DEBUG=1)
-
-#### Example Output
-```json
-{
-  "repo_directory": "/home/user/repos/repo",
-  "repo_name": "repo",
-  "readme_content": "# Project Title
-
-This is the README.",
-  "readme_filename": "README.md",
-  "status": "SUCCESS",
-  "timestamp": "2025-11-02T21:35:48Z"
-}
-```
 
 ### Step 6 (MANDATORY)
 Checklist Update & Variable Refresh (INLINE ONLY – POINTER MODEL):
@@ -94,38 +71,8 @@ Checklist Update & Variable Refresh (INLINE ONLY – POINTER MODEL):
      - `{{readme_filename}}` → NONE
      - `{{readme_content}}` → NONE
 7. Always ensure exactly one `→` per line. Replace only the portion after the arrow; preserve leading `- {{token}}` verbatim.
-8. If the line exists but is missing an arrow or has extra arrows, normalize to the correct single-arrow format.
-9. If the line was inserted blank earlier (Step 2), overwrite its value here according to status.
-10. **Inline Variable Policy:** Single authoritative block; no duplicates; no multi-line content.
-11. If DEBUG=1, after updates print: `[debug][task-search-readme] checklist & pointer variables updated`.
 
-### Step 7 (MANDATORY)
-Verification (Post-Refresh):
-Perform verification AFTER combined checklist update & variable refresh (Step 6). Load current checklist state and JSON (from Step 5) then populate `verification_errors` and adjust `status` if needed.
-
-Verification checklist:
-1. Checklist file exists at `{{checklist_path}}`.
-2. Variable lines present exactly once for (case-sensitive tokens):
-  - `- {{repo_directory}}` (non-empty unless original status FAIL due to missing directory)
-  - `- {{repo_name}}` (non-empty)
-  - `- {{readme_content}}` (present; value may be NONE)
-  - `- {{readme_filename}}` (present; value may be NONE)
-3. Arrow formatting: each variable line uses single `→`.
-4. No duplicate variable lines for repo_directory or repo_name.
-5. Task directive line `@task-search-readme` appears exactly once.
-6. If status=SUCCESS in JSON:
-  - JSON `readme_filename` not null/NONE.
-  - JSON `readme_content` length > 0.
-7. If status=FAIL due to missing repo_directory (detect by empty repo_directory value in checklist and null JSON fields): ensure JSON `readme_filename` and `readme_content` are null.
-8. Checklist variable refresh coherence:
-  - If README found: checklist `readme_filename` matches JSON `readme_filename`.
-  - If README not found: checklist values are NONE.
-9. JSON required keys present: repo_directory, repo_name, readme_content, readme_filename, status, timestamp.
-
-### Step 8 (MANDATORY)
-DEBUG Exit Trace:  
-If DEBUG=1, print:  
-`[debug][task-search-readme] EXIT repo_directory='{{repo_directory}}' status={{status}} readme_found={{readme_filename}}`
+### End of Steps
 
 ## Output Contract
 - repo_directory: string (absolute path to repository root loaded from checklist)
@@ -141,19 +88,4 @@ If DEBUG=1, print:
 3. Prioritization: If multiple README files found, prioritize by extension: .md > .txt > .rst > (no extension)
 4. Content Handling: JSON output stores full README content; checklist stores only a pointer (`output/{{repo_name}}_task2_search-readme.json (field=readme_content)`) not the content itself.
 5. Encoding Tolerance: Use UTF-8 with ignore mode to handle malformed characters gracefully.
-6. Null Safety: Ensure readme_content and readme_filename are explicitly null (not empty string) when no README found.
-7. Script Location: Save generated script to temp-script/ directory with naming pattern: step{N}_repo{M}_task2_search-readme.py (or .ps1/.sh)
-
-## Consistency Checks
-- After updating files (checklist, results CSV, output JSON), verify that the changes were written successfully.
-- If verification fails, log an error and abort.
-
-## Cross-References
-- Always reference the latest values loaded from the checklist (Step 2); do not use stale external parameters.
-- Variables involved in this task:
-  - repo_directory (absolute path loaded from checklist)
-  - repo_name (loaded from checklist variable line)
-  - readme_content (full README text or null)
-  - readme_filename (discovered README filename or null)
-  - timestamp (ISO 8601 time when task completed)
-- When updating checklist variables, ensure pointer format or NONE matches status (never embed or truncate content in checklist).
+6. Script Location: Save generated script to `temp-script/` directory with naming pattern: step{N}_repo{M}_task2_search-readme.py (or .ps1/.sh)

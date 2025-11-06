@@ -44,21 +44,14 @@ DO NOT:
 ** END WARNING **
 
 ## Behavior (Follow this Step by Step)
-0. **DEBUG Entry Trace:**
-   - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
-   - `[debug][task-create-knowledge-base] START solution='{{solution_name}}' error_signature='{{error_signature}}' error_code='{{error_code}}' error_count={{len(errors)}}`
-   - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
+0. **Entry Trace:**
+   Emit a single line:
+   `[task-create-knowledge-base] START solution='{{solution_name}}' error_signature='{{error_signature}}' error_code='{{error_code}}' errors={{len(errors)}}`
 
 1. **Prerequisite Check**: Verify this task should run.
-   - If kb_search_status == FOUND:
-     - DEBUG: Log "[KB-CREATE-DEBUG] KB article already exists, creation skipped"
-     - Return: kb_create_status=SKIPPED, reason="existing KB article found"
-   - If kb_search_status == SKIPPED:
-     - DEBUG: Log "[KB-CREATE-DEBUG] Build succeeded, no KB article needed"
-     - Return: kb_create_status=SKIPPED, reason="build succeeded"
-   - If kb_search_status == NOT_FOUND:
-     - DEBUG: Log "[KB-CREATE-DEBUG] No existing KB found, creating new article"
-     - Proceed to step 2
+    - If kb_search_status == FOUND: return kb_create_status=SKIPPED, reason="existing KB article found"
+    - If kb_search_status == SKIPPED: return kb_create_status=SKIPPED, reason="build succeeded"
+    - If kb_search_status == NOT_FOUND: proceed to step 2
 
 2. **RESEARCH THE ERROR USING MICROSOFT DOCS MCP SERVER**:
    
@@ -204,9 +197,8 @@ DO NOT:
       - Potential side effects or breaking changes
       - Breaking change risk level (LOW | MEDIUM | HIGH)
       - Reversibility of changes (how to undo)
-      - Testing recommendations after applying fix
-      - Specific guidance on when to use this fix
-      - DEBUG: Log "[KB-CREATE-DEBUG] Drafted safety warnings"
+   - Testing recommendations after applying fix
+   - Specific guidance on when to use this fix
 
 4. **GENERATE KB ARTICLE FILE**:
    
@@ -214,8 +206,7 @@ DO NOT:
       - Use error_signature from task-search-kb output
       - Ensure lowercase, alphanumeric + underscore/hyphen only
       - Add .md extension
-      - Example: "nu1008_central_package_management.md", "sf_baseoutputpath_missing.md"
-      - DEBUG: Log "[KB-CREATE-DEBUG] KB filename: {kb_filename}"
+   - Example: "nu1008_central_package_management.md", "sf_baseoutputpath_missing.md"
    
    b. Assemble complete KB article using template structure:
       - Fill template with REAL CONTENT from Microsoft Docs research
@@ -227,18 +218,15 @@ DO NOT:
       - Include detection tokens from task-search-kb
       - Include References section with Microsoft Docs URLs
       - Include Example Solutions Affected with solution_path
-      - **DO NOT use placeholder text** - synthesize actual helpful content
-      - DEBUG: Log "[KB-CREATE-DEBUG] Article content length: {len(kb_article)} chars"
+   - **DO NOT use placeholder text** - synthesize actual helpful content
    
    c. Save to ./knowledge_base_markdown/:
       - Ensure directory exists (create if needed)
       - Use create_file tool to save KB article
-      - Use absolute path: ./knowledge_base_markdown/{kb_filename}
-      - DEBUG: Log "[KB-CREATE-DEBUG] Created KB article: {kb_file_path}"
-      - **USE create_file**: Save the synthesized KB article
+   - Use absolute path: ./knowledge_base_markdown/{kb_filename}
+   - **USE create_file**: Save the synthesized KB article
 
 5. **Output**: Return creation results.
-   - DEBUG: Log "[KB-CREATE-DEBUG] Final status: kb_create_status={status}, kb_file_path={path}"
    - **Log to Decision Log (MANDATORY STEPS):**
      * **MUST LOG MICROSOFT DOCS QUERIES**: Log each MCP server query as a separate entry:
        - For microsoft_docs_search:
@@ -290,10 +278,7 @@ DO NOT:
        - Status:
          * "SUCCESS" if kb_create_status == SUCCESS
          * "SKIPPED" if kb_create_status == SKIPPED
-   - **DEBUG Exit Trace:**
-     * If environment variable DEBUG=1, emit a line to stdout before returning:
-     * `[debug][task-create-knowledge-base] END kb_create_status='{{kb_create_status}}' kb_file_created={{kb_file_created}}`
-     * This helps trace when the task completes and its outcome.
+    - **Exit Trace:** Emit `[task-create-knowledge-base] END kb_create_status='{{kb_create_status}}' kb_file_created={{kb_file_created}}`
 
 Variables available:
 - {{solution_path}} → Absolute path to the .sln file that failed to build
@@ -325,7 +310,7 @@ Implementation Notes:
 3. Always create ./knowledge_base_markdown/ directory if it doesn't exist (use create_directory tool).
 4. Use safe filenames (lowercase, alphanumeric + underscore/hyphen only).
 5. Avoid overwriting existing files; if collision, append timestamp.
-6. If DEBUG=1 or DEBUG environment variable is set, output detailed research and creation process with [KB-CREATE-DEBUG] prefix.
+6. Output minimized (no conditional debug mode).
 7. The KB article must have REAL diagnostic content from Microsoft Docs, not placeholder text.
 8. This task focuses on CREATING new KB articles with authoritative content.
 9. Only run when kb_search_status == NOT_FOUND (checked in step 1).
