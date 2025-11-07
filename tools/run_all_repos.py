@@ -197,12 +197,19 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
     if readiness_fail:
         print(f"[readiness] Still failing after {min(max_passes, pass_index)} pass(es): {readiness_fail}")
 
+    def _has_failed_stage(repo_entry: Dict) -> bool:
+        for attempt in repo_entry.get('attempts', []):
+            for stage in attempt.get('stages', []):
+                if stage.get('stage_status') == 'FAIL':
+                    return True
+        return False
+
     summary = {
         'overall_status': overall_status,
         'mode': mode,
         'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
         'repos_processed': len(repo_results),
-        'repos_failed': [r for r in repo_results if any(s['stage_status']=='FAIL' for s in r['stages'])],
+        'repos_failed': [r for r in repo_results if _has_failed_stage(r)],
         'repos_readiness_pass': readiness_pass,
         'repos_readiness_fail': readiness_fail,
         'details': repo_results,
