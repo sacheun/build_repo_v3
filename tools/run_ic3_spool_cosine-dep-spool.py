@@ -100,49 +100,67 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
 
 def main(argv: List[str]) -> int:
     args = parse_args(argv)
-    # Determine final mode directly from --mode (deprecated --step-by-step removed)
     mode = args.mode
     step_by_step = (mode == 'steps')
-    # Select pipeline globally for run_pipeline
     global PIPELINE
     PIPELINE = PIPELINE_ALL if mode == 'all' else PIPELINE_STEP
-    # Normalize log path (avoid backslashes)
-    log_file = args.log.replace('\\', '/')
-    purge_state_directories(log_file)
+
+    # Normalize base log path (avoid backslashes); we'll derive per-attempt file names
+    base_log_path = args.log.replace('\\', '/')
+    # Purge using base path (original behavior)
+    purge_state_directories(base_log_path)
+
     summary_path = os.path.join(REPO_ROOT, 'output', 'ic3_spool_pipeline_summary.json')
     selected_pipeline = PIPELINE_ALL if mode == 'all' else PIPELINE_STEP
+
     attempt = 1
     max_attempts = 3
     checklist_path = 'tasks/ic3_spool_cosine-dep-spool_repo_checklist.md'
     last_exit_code = None
+    per_attempt_logs: List[str] = []
+
+    # Derive filename pattern: <stem>_attempt<N><ext>
+    base_dir = os.path.dirname(base_log_path) or '.'
+    base_file = os.path.basename(base_log_path)
+    if '.' in base_file:
+        stem, ext = base_file.rsplit('.', 1)
+        ext = '.' + ext
+    else:
+        stem, ext = base_file, '.log'
+
+    os.makedirs(base_dir, exist_ok=True)
+
     while attempt <= max_attempts:
+        attempt_log_file = os.path.join(base_dir, f"{stem}_attempt{attempt}{ext}")
         attempt_summary_path = os.path.join(REPO_ROOT, 'output', f'ic3_spool_pipeline_summary_attempt{attempt}.json')
         print(f"[pipeline] Attempt {attempt}/{max_attempts}")
+        print(f"[log] Writing Copilot execution log to: {attempt_log_file}")
         last_exit_code, _summary = execute_pipeline(
             pipeline=[(p, params) for p, params in selected_pipeline],
-            log_file=log_file,
+            log_file=attempt_log_file,
             continue_on_error=args.continue_on_error,
             step_by_step=step_by_step,
             mode=mode,
             summary_path=attempt_summary_path
         )
-        # Readiness check only if pipeline stages executed (even if failures) to see variable population.
+        per_attempt_logs.append(os.path.abspath(attempt_log_file))
         print(f"[verification] Checking repository readiness (attempt {attempt}) ...")
         ready = check_repo_readiness(os.path.join(REPO_ROOT, checklist_path))
         if ready:
             print(f"[verification] Readiness success after attempt {attempt}.")
             break
-        else:
-            if attempt < max_attempts:
-                print(f"[retry] Readiness failed; rerunning pipeline (next attempt: {attempt+1}/{max_attempts}).")
-            attempt += 1
+        if attempt < max_attempts:
+            print(f"[retry] Readiness failed; rerunning pipeline (next attempt: {attempt+1}/{max_attempts}).")
+        attempt += 1
+
     if attempt > max_attempts and not ready:
         print(f"[verification] Final readiness: FAIL after {max_attempts} attempts.")
-    try:
-        abs_log = os.path.abspath(log_file)
-    except Exception:
-        abs_log = log_file
-    print(f"[log] Detailed execution log available at: {abs_log}")
+
+    print("[log] Attempt log files:")
+    for path in per_attempt_logs:
+        print(f"  - {path}")
+
+    # Return last exit code (or 1 if none captured)
     return last_exit_code if last_exit_code is not None else 1
 
 if __name__ == '__main__':

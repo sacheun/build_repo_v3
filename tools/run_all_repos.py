@@ -117,6 +117,15 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
     print(f'[info] Found {len(repo_checklists)} repository checklist(s).')
 
     sequence = STEP_SEQUENCE if mode == 'steps' else COMBINE_SEQUENCE
+    # Prepare base log stem for per-repo, per-pass logging
+    base_log_dir = os.path.dirname(log_file) or '.'
+    base_log_name = os.path.basename(log_file)
+    if '.' in base_log_name:
+        base_stem, base_ext = base_log_name.rsplit('.', 1)
+        base_ext = '.' + base_ext
+    else:
+        base_stem, base_ext = base_log_name, '.log'
+    os.makedirs(base_log_dir, exist_ok=True)
     overall_status = 'SUCCESS'
     # Global attempt loop: run all repos each pass, verify, and retry failing ones up to 3 passes.
     max_passes = 3
@@ -137,10 +146,12 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
             checklist_path = state['checklist_path']
             per_repo_pipeline = [(prompt, param_fn(checklist_path)) for prompt, param_fn in sequence]
             repo_summary_path = os.path.join(OUTPUT_DIR, f"{repo_name}_pipeline_summary_pass{pass_index}.json")
-            print(f"  [repo:{repo_name}] executing pipeline (pass {pass_index})")
+            # Derive per-repo, per-pass log file
+            repo_log_file = os.path.join(base_log_dir, f"{base_stem}_{repo_name}_pass{pass_index}{base_ext}")
+            print(f"  [repo:{repo_name}] executing pipeline (pass {pass_index}) log={repo_log_file}")
             exit_code, summary = execute_pipeline(
                 pipeline=per_repo_pipeline,
-                log_file=log_file,
+                log_file=repo_log_file,
                 continue_on_error=continue_on_error,
                 step_by_step=(mode == 'steps'),
                 mode=mode,
@@ -154,7 +165,8 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
                 'pass': pass_index,
                 'exit_code': exit_code,
                 'readiness': 'PASS' if ready else 'FAIL',
-                'stages': stages
+                'stages': stages,
+                'log_file': os.path.abspath(repo_log_file)
             })
             if exit_code != 0 and not continue_on_error:
                 overall_status = 'FAIL'
@@ -213,14 +225,13 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
         'repos_readiness_pass': readiness_pass,
         'repos_readiness_fail': readiness_fail,
         'details': repo_results,
+        'log_files': [a['log_file'] for r in repo_results for a in r.get('attempts', [])]
     }
     _write_summary(summary)
     print(f"\nPipeline complete. Overall status: {overall_status}. Summary written to ./output/all_repos_pipeline_summary.json")
-    try:
-        abs_log = os.path.abspath(log_file)
-    except Exception:
-        abs_log = log_file
-    print(f"[log] Detailed execution log available at: {abs_log}")
+    print("[log] Per-repo pass log files:")
+    for lf in summary['log_files']:
+        print(f"  - {lf}")
     return 0 if overall_status == 'SUCCESS' else 1
 
 

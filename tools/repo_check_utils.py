@@ -34,9 +34,9 @@ TASK_NAME_NORMALIZE = {
 VAR_DEF_PATTERN = re.compile(r"^- ([a-zA-Z0-9_]+):.*\(output of @([a-zA-Z0-9\-]+)\)")
 # Extract variables in Repo Variables Available section
 # Match either the unicode right arrow (→) or ASCII -> sequence.
-VAR_LINE_PATTERN = re.compile(r"^- \{([a-zA-Z0-9_]+)\} *(?:→|->) *(.*)$")
-# Repo name line arrow match (unicode or ASCII)
-REPO_NAME_PATTERN = re.compile(r"^- \{repo_name\} *(?:→|->) *(.*)$")
+VAR_LINE_PATTERN = re.compile(r"^- \{(?:\{)?([a-zA-Z0-9_]+)\}(?:\})? *(?:→|->) *(.*)$")
+# Repo name line arrow match (unicode or ASCII), accept single or double braces
+REPO_NAME_PATTERN = re.compile(r"^- \{(?:\{)?repo_name\}(?:\})? *(?:→|->) *(.*)$")
 
 SECTION_HEADER_PATTERN = re.compile(r"^## ")
 
@@ -57,7 +57,7 @@ def _extract_section(lines: List[str], header_prefix: str) -> List[str]:
 
 def _get_repo_name(lines: List[str]) -> str:
     for line in lines:
-        if line.startswith("- {repo_name}"):
+        if line.startswith("- {repo_name}") or line.startswith("- {{repo_name}}"):  # accept single or double brace form
             m = REPO_NAME_PATTERN.match(line)
             if m:
                 return m.group(1).strip() or "<unknown>"
