@@ -109,23 +109,18 @@ Generate Individual Repository Checklist Files:
        - [ ] [MANDATORY] [SCRIPTABLE] Find all solution files in repository @task-find-solutions (2)
        - [ ] [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files (no inline sections) @generate-solution-task-checklists (3)
       - [ ] [MANDATORY] [SCRIPTABLE] Search for README file in repository @task-search-readme (4)
-       - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
-       - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
+       - [ ] [MANDATORY] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme (5)
+       - [ ] [MANDATORY] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme (6)
 
 
        ## For Agents Resuming Work
        **Next Action:**
        1. Check if all [MANDATORY] tasks are completed
-       2. If YES and {{readme_content}} is not blank and not "NONE", execute @task-scan-readme
-       3. If {{commands_extracted}} is not blank and not "NONE", execute @task-execute-readme
-       4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
-
-       **How to Execute:** Invoke the corresponding task prompt.
+       2. Find the next tasks which is not marked with [x]
+       3. **How to Execute:** Invoke the corresponding task prompt.
 
        **Quick Reference:**
-       - [MANDATORY] tasks must be completed in numbered order (1 → 2 → 3 → 4)
-       - [CONDITIONAL] @task-scan-readme runs when {{readme_content}} not blank and not "NONE"
-       - [CONDITIONAL] @task-execute-readme runs when {{commands_extracted}} not blank and not "NONE"
+       - [MANDATORY] tasks must be completed in numbered order (1 → 2 → 3 → 4 → 5 → 6)
        - [SCRIPTABLE] tasks: clone, search-readme, find-solutions, generate-solution-task-checklists
        - [NON-SCRIPTABLE] tasks: scan-readme, execute-readme
        - Mark completed tasks with [x]
@@ -155,9 +150,7 @@ Generate Individual Repository Checklist Files:
    - executed_commands: Array of commands that were executed (output of @task-execute-readme).
    - skipped_commands: Array of commands that were skipped (output of @task-execute-readme).
    - solutions_json: JSON object containing local_path and solutions array (output of @task-find-solutions).
-   - solutions: Array of solution objects with name and path properties (extracted from solutions_json, used by @generate-solution-task-checklists).
-
-       ```
+   - solutions: Array of solution objects with name and path properties (extracted from solutions_json, output of @task-find-solutions).
     - Do NOT include any secondary or alternative template examples. The above block is authoritative.
     - Post-write validation (Mandatory):
           1. Count occurrences of `# Task Checklist:` → MUST equal 1.
@@ -179,8 +172,6 @@ Populate Base Repo Variables (repo_url & repo_name):
    - Leave all other variable values blank (i.e., keep trailing arrow with nothing after) – they will be filled by later tasks.
    - Extraction logic for repo_name (deterministic):
       * Azure DevOps (URL contains `/_git/`): final segment after last `/` (strip `.git`).
-      * GitHub: last path component (strip `.git`).
-      * Fallback: last non-empty URL segment stripped of `.git`.
    - Pre-normalize URL: trim whitespace, strip trailing slashes, preserve case.
    - Absolutely forbid creating duplicate variable lines or re-emitting the variables heading.
    - Validation (per checklist): EXACTLY ONE occurrence of each variable line. Any duplicate → status=FAIL.

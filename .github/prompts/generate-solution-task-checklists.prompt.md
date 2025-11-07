@@ -28,10 +28,9 @@ Checklist & Variable Extraction (source of truth)
        - `- {{repo_directory}} →` (must not be blank)
        - `- {{solutions_json}} →` (must not be blank)
        - `- {{solutions}} →` (may be blank prior to generation)
-   • If any mandatory variable line missing or blank (except `solutions`) set status=FAIL and write output JSON immediately.
+   • If any mandatory variable line missing or blank (except `solutions`) set status=FAIL and go to step 4.
    • Load JSON from the `solutions_json` path (if status still SUCCESS); expect key `solutions` (array of absolute .sln paths). On failure (file missing / malformed / key absent) set status=FAIL.
    • Derive internal list of solution objects: `{name: <filename_without_ext>, path: <absolute_path>}`.
-   • Print one informational line: `[generate-solution-task-checklists] loaded repo_name='{{repo_name}}' solutions_count={{count}}`.
    • All subsequent steps MUST rely on these extracted values (do NOT parse other sections or mutate base variables here).
 
 ### Step 2 (MANDATORY)
@@ -41,7 +40,6 @@ Create One Checklist File Per Solution
    • Sanitize solution_name for filename (replace spaces/special chars with underscores)
    • Overwrite if it already exists  
    • Each solution gets its own dedicated checklist file
-   • (Optional) Print: `[generate-solution-task-checklists] create {{solution_name}}`.
 
 ### Step 3 (MANDATORY)
 Write Solution Checklist File (Header + Content)
@@ -124,7 +122,7 @@ Write Solution Checklist File (Header + Content)
 Repo Checklist Update:
    - Open `tasks/{{repo_name}}_repo_checklist.md`
    - Set `[x]` only on the `@generate-repo-task-checklists` entry for the current repository markdown `tasks/{{repo_name}}_repo_checklist.md`
-  - Do not modify other checklist items or other repositories' files
+  - Do not modify other checklist item
 
 ### Step 5 (MANDATORY) 
 Structured Output JSON:
