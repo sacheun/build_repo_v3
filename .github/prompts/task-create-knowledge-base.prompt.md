@@ -63,7 +63,6 @@ DO NOT:
    - Query for related concepts (e.g., "Central Package Management", "Service Fabric", ".NET build errors")
    - Use AI reasoning to formulate effective search queries
    - **PRINT TO CONSOLE**: `[KB-CREATE] Starting Microsoft Docs MCP server research for errors: {errors}`
-   - DEBUG: Log "[KB-CREATE-DEBUG] Querying Microsoft Docs for errors: {errors}, warnings: {warnings}"
    - **MUST LOG TO DECISION LOG**: This step is mandatory and will be logged
    
    Steps:
@@ -76,7 +75,6 @@ DO NOT:
         * "NU1008 central package management NuGet" (from errors[] array)
         * "MSB3644 reference assembly mismatch"
         * "Service Fabric sfproj Platform configuration"
-      - DEBUG: Log "[KB-CREATE-DEBUG] Formulated search query: {search_query}"
    
    b. **Use mcp_microsoftdocs_microsoft_docs_search** to find relevant documentation:
       ```
@@ -85,10 +83,8 @@ DO NOT:
         query: "[error_code] [error_type] [key_technology]"
       ```
       - **PRINT TO CONSOLE**: `[KB-CREATE] Querying Microsoft Docs MCP server for: {search_query}`
-      - DEBUG: Log "[KB-CREATE-DEBUG] Microsoft Docs search query: {search_query}"
       - **EXECUTE QUERY**: Call mcp_microsoftdocs_microsoft_docs_search tool
       - **PRINT TO CONSOLE**: `[KB-CREATE] Microsoft Docs returned {num_results} documentation results`
-      - DEBUG: Log "[KB-CREATE-DEBUG] Found {num_results} documentation results"
       - **USE AI**: Analyze search results to identify most relevant articles
       - Extract URLs for reference section
    
@@ -104,10 +100,8 @@ DO NOT:
       - For MSBuild: query="MSBuild property configuration", language="xml"
       - For C# errors: query="namespace resolution", language="csharp"
       - **PRINT TO CONSOLE**: `[KB-CREATE] Querying Microsoft Docs code samples for: {code_query} (language: {language})`
-      - DEBUG: Log "[KB-CREATE-DEBUG] Code sample search query: {code_query}"
       - **EXECUTE QUERY**: Call mcp_microsoftdocs_microsoft_code_sample_search tool
       - **PRINT TO CONSOLE**: `[KB-CREATE] Microsoft Docs returned {num_samples} code samples`
-      - DEBUG: Log "[KB-CREATE-DEBUG] Found {num_samples} code samples"
       - **USE AI**: Extract relevant code snippets for fix examples
    
    d. **If search results are insufficient, use mcp_microsoftdocs_microsoft_docs_fetch**:
@@ -119,7 +113,6 @@ DO NOT:
         url: "[microsoft_docs_url_from_search]"
       ```
       - **PRINT TO CONSOLE**: `[KB-CREATE] Fetching full Microsoft Docs article from: {doc_url}`
-      - DEBUG: Log "[KB-CREATE-DEBUG] Fetching full documentation from: {doc_url}"
       - **EXECUTE FETCH**: Call mcp_microsoftdocs_microsoft_docs_fetch tool
       - **PRINT TO CONSOLE**: `[KB-CREATE] Successfully fetched full documentation (length: {content_length} chars)`
       - **USE AI**: Read and comprehend full documentation for deeper understanding
@@ -131,7 +124,6 @@ DO NOT:
       - Identify prerequisites and version requirements
       - Note any breaking changes or compatibility concerns
       - Synthesize the information into actionable fix steps
-      - DEBUG: Log "[KB-CREATE-DEBUG] Analyzed Microsoft Docs, identified fix approach: {fix_approach}"
 
 3. **SYNTHESIZE FIX INSTRUCTIONS USING MICROSOFT DOCS RESEARCH**:
    
@@ -147,14 +139,12 @@ DO NOT:
       - 1-2 sentence summary of what causes this build failure
       - Based on root cause explanation from Microsoft Docs
       - Use clear, non-technical language when possible
-      - DEBUG: Log "[KB-CREATE-DEBUG] Issue description: {issue_description[:100]}..."
    
    b. **Draft Diagnostic Hints** based on Microsoft Docs understanding:
       - How to identify this error in build output
       - What configuration/files to check
       - Common scenarios where this error occurs
       - Specific patterns to look for in error messages
-      - DEBUG: Log "[KB-CREATE-DEBUG] Drafted {len(diagnostic_hints)} diagnostic hints"
    
    c. **Draft Fix Instructions** from Microsoft Docs research:
       
@@ -163,26 +153,22 @@ DO NOT:
       - Step-by-step instructions with specific commands
       - Code examples from Microsoft code samples
       - Expected outcome after applying fix
-      - DEBUG: Log "[KB-CREATE-DEBUG] Drafted recommended fix option"
       
       **Option 2: Alternative Approach** (if applicable):
       - Alternative approach when recommended fix is not suitable
       - Use cases for when to use this approach
       - Step-by-step instructions
-      - DEBUG: Log "[KB-CREATE-DEBUG] Drafted alternative fix option"
       
       **Option 3: Workaround** (if fix is complex or breaking):
       - Temporary workaround solution
       - Warning about limitations
       - When to use workaround vs full fix
-      - DEBUG: Log "[KB-CREATE-DEBUG] Drafted workaround option"
    
    d. **Draft Root Cause Section** from Microsoft Docs explanation:
       - Why this error occurs (from official docs)
       - Technical details about the underlying issue
       - Related technologies or dependencies
       - Version or framework information
-      - DEBUG: Log "[KB-CREATE-DEBUG] Drafted root cause section (length: {len(root_cause)} chars)"
    
    e. **Draft Notes Section** with contextual information:
       - When/why this error occurs (from Microsoft Docs explanation)
@@ -190,7 +176,6 @@ DO NOT:
       - Breaking change warnings
       - Related features or technologies
       - Common patterns that trigger this error
-      - DEBUG: Log "[KB-CREATE-DEBUG] Drafted notes section (length: {len(notes)} chars)"
    
    f. **Draft Safety Section** based on fix impact:
       - What files/configurations will be modified by the fix

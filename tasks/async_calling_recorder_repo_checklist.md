@@ -1,6 +1,6 @@
 # Task Checklist: async_calling_recorder
 Repository: https://skype.visualstudio.com/SCC/_git/async_calling_recorder
-Generated: 2025-11-07T02:33:19.592Z
+Generated: 2025-11-07T04:31:47Z
 
 ## Repo Tasks (Sequential Pipeline - Complete in Order)
 - [ ] [MANDATORY] [SCRIPTABLE] Clone repository to local directory @task-clone-repo (1)
@@ -10,37 +10,35 @@ Generated: 2025-11-07T02:33:19.592Z
 - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
 - [ ] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
 
-
 ## For Agents Resuming Work
 **Next Action:**
 1. Check if all [MANDATORY] tasks are completed
-2. If YES and {{readme_content}} is not blank and not "NONE", execute @task-scan-readme
-3. If {{commands_extracted}} is not blank and not "NONE", execute @task-execute-readme
+2. If YES and {readme_content} is not blank and not "NONE", execute @task-scan-readme
+3. If {commands_extracted} is not blank and not "NONE", execute @task-execute-readme
 4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
 
 **How to Execute:** Invoke the corresponding task prompt.
 
 **Quick Reference:**
 - [MANDATORY] tasks must be completed in numbered order (1 → 2 → 3 → 4)
-- [CONDITIONAL] @task-scan-readme runs when {{readme_content}} not blank and not "NONE"
-- [CONDITIONAL] @task-execute-readme runs when {{commands_extracted}} not blank and not "NONE"
+- [CONDITIONAL] @task-scan-readme runs when {readme_content} not blank and not "NONE"
+- [CONDITIONAL] @task-execute-readme runs when {commands_extracted} not blank and not "NONE"
 - [SCRIPTABLE] tasks: clone, search-readme, find-solutions, generate-solution-task-checklists
 - [NON-SCRIPTABLE] tasks: scan-readme, execute-readme
 - Mark completed tasks with [x]
 
 ## Repo Variables Available
-(Single authoritative variable block. EXACTLY ONE LINE PER TOKEN. No duplicate descriptive lines permitted. Every line MUST use arrow format even if value blank.)
-- {{repo_url}} → https://skype.visualstudio.com/SCC/_git/async_calling_recorder
-- {{repo_name}} → async_calling_recorder
-- {{solutions_json}} →
-- {{solutions}} →
-- {{clone_path}} →
-- {{repo_directory}} →
-- {{readme_content}} →
-- {{readme_filename}} →
-- {{commands_extracted}} →
-- {{executed_commands}} →
-- {{skipped_commands}} →
+- {repo_url} → https://skype.visualstudio.com/SCC/_git/async_calling_recorder
+- {repo_name} → async_calling_recorder
+- {solutions_json} →
+- {solutions} →
+- {clone_path} →
+- {repo_directory} →
+- {readme_content} →
+- {readme_filename} →
+- {commands_extracted} →
+- {executed_commands} →
+- {skipped_commands} →
 
 ## Variable Definitions (Reference Only – DO NOT PARSE FOR VALUES)
 - repo_url: Original repository URL provided to the workflow.

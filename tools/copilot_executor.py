@@ -8,7 +8,7 @@ All command output is logged to a specified log file for debugging and audit pur
 Usage:
     from copilot_executor import CopilotExecutor
     
-    executor = CopilotExecutor(log_file='./my_log.log', debug=True)
+    executor = CopilotExecutor(log_file='./my_log.log')
     exit_code, stdout, stderr = executor.execute_prompt(
         prompt_name='task-clone-repo',
         params={'repo_url': 'https://github.com/...', 'clone_dir': './repos'}
@@ -224,7 +224,7 @@ if __name__ == '__main__':
     # Auto-inject model flag for raw command usage if invoking copilot
     if command.startswith("copilot ") and "--model" not in command:
         command += f" --model {MODEL}"
-    executor = CopilotExecutor(debug=True)
+    executor = CopilotExecutor()
     exit_code, stdout, stderr = executor.execute_command(command)
     
     print(f"\nExit Code: {exit_code}")

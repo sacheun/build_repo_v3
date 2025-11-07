@@ -188,7 +188,6 @@ Structured Output JSON (output/{{repo_name}}_task3_scan-readme.json) MUST includ
 - total_commands
 - status (SUCCESS|NONE|SKIPPED|FAIL)
 - timestamp (ISO 8601 UTC seconds)
-- debug (optional array when DEBUG=1)
 
 ### Step 10 (MANDATORY)
 **Repo Checklist Update & Variable Refresh (Single Operation):**

@@ -156,6 +156,5 @@ Write JSON: `output/{repo_name}_task5_generate-solution-checklists.json` with ke
 3. **Variables Section Format**: Combine the static template with any additional variables found in execute-solution-task.prompt.md to ensure complete compatibility
 4. **Contract Compliance**: Always save JSON output file with all fields regardless of success/failure
 5. **Script Location**: Save generated script to `temp-script/` directory with naming pattern: generate_solution_checklists.py (or .ps1/.sh)
-6. **Environment**: Set DEBUG=1 environment variable at the start of the script if debug output is desired
-7. **One File Per Solution**: Each solution gets its own dedicated checklist file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`
-8. **Filename Sanitization**: Replace spaces and special characters in solution_name with underscores for valid filenames
+6. **One File Per Solution**: Each solution gets its own dedicated checklist file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`
+7. **Filename Sanitization**: Replace spaces and special characters in solution_name with underscores for valid filenames

@@ -154,8 +154,4 @@ Unconditional Exit Summary:
 ## Implementation Notes:
 1. **Command Execution**: Use synchronous execution (NOT background jobs). In PowerShell: `msbuild ... ; $exitCode = $LASTEXITCODE`. In Bash: `msbuild ... ; exitCode=$?`. Do NOT proceed until the command completes.
 2. **Exit Code Checking**: Immediately after each command completes, check the exit code to determine success/failure. Store this value for use in step 4 (Success Determination).
-3. **Error Output on Failure**: When a command fails (non-zero exit code) AND DEBUG=1, print stderr to console: `[debug][task-restore-solution] command failed with exit code <code>, stderr: <stderr_content>`
-4. Output Logging: In step 7, before writing JSON to stdout, emit: `[debug][task-restore-solution] writing JSON output to stdout (<size> bytes)`
-5. Exit Placement: Emit immediately after step 8 (logging), before returning final output.
-6. Idempotency: Two debug lines per task invocation (START + END) plus one per command executed (variable count based on fallback path) plus one for JSON output.
-7. **Command Line Arguments**: MSBuild flags (starting with `--` or `-`) are command arguments, not file paths. Do not request directory access for parameters like `--restore`, `--property:Configuration=Release`, `--verbosity:quiet`, or `-noLogo`.
+3. **Command Line Arguments**: MSBuild flags (starting with `--` or `-`) are command arguments, not file paths. Do not request directory access for parameters like `--restore`, `--property:Configuration=Release`, `--verbosity:quiet`, or `-noLogo`.
