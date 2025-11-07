@@ -18,36 +18,48 @@ This task discovers all Visual Studio solution files (`.sln`) within a repositor
 ## Instructions (Follow this Step by Step)
 
 ### Step 1 (MANDATORY)
-Checklist Load & Variable Extraction:
+Checklist Load, Variable Extraction & Input Validation (Combined):
 - Open the file at `{{checklist_path}}`.
 - Extract (value after `→`) from lines:
   - `- {{repo_name}}`
   - `- {{repo_directory}}`
-  - Confirm presence of tokens `- {{solutions_json}}` and `- {{solutions}}` (values may be placeholders initially).
-- If any required line missing or value blank for repo_name/repo_directory, set `status=FAIL` and proceed to structured output.
+- Confirm presence of tokens (values may be placeholders initially):
+  - `- {{solutions_json}}`
+  - `- {{solutions}}`
+- Validate immediately:
+  - If any required line missing OR `repo_name`/`repo_directory` value blank → set `status=FAIL` and proceed directly to Step 5 (skip discovery and path collection).
+  - If `repo_directory` does not exist or inaccessible → set `status=FAIL` and proceed directly to Step 5.
 - Base variables (`repo_name`, `repo_directory`) are immutable; do NOT modify them.
+- Rationale: Combining removes redundant early failure branching and centralizes preconditions.
 
 ### Step 2 (MANDATORY)
-Input Validation:
-- Verify that `repo_directory` exists and is accessible.
-  - If directory does not exist, set `status=FAIL`.
-  - If status=FAIL here, skip Steps 4–7 and go to Structured Output.
-
-### Step 3 (MANDATORY)
 Recursive Solution Discovery:
 - Search all subdirectories recursively for files with `.sln` extension.
   - Use recursive glob pattern: `**/*.sln` (or equivalent for the language).
   - Convert each discovered path to absolute path string.
 
-### Step 4 (MANDATORY)
+### Step 3 (MANDATORY)
 Path Collection:
 - Build array of absolute paths to all discovered `.sln` files.
   - Order may vary by filesystem traversal; no guaranteed sorting.
 
+### Step 4 (MANDATORY)
+Checklist Update & Variable Refresh (INLINE ONLY):
+1. Open `{{checklist_path}}`.
+2. Set `[x]` only on the `@task-find-solutions` entry if status=SUCCESS. Leave `[ ]` on FAIL.
+3. Under `## Repo Variables Available` locate lines beginning with:
+  * `- {{solutions_json}}`
+  * `- {{solutions}}`
+4. Populate ONLY the values for:
+  * `- {{solutions_json}}` → `output/{{repo_name}}_task5_find-solutions.json` (path to structured output file)
+  * `- {{solutions}}` → `<count> solutions: Name1; Name2; Name3 ...` (list up to 5 solution file base names, then `...` if more; if zero, `0 solutions`)
+5. On FAIL status: set both values to `FAIL` (do not mark checklist task).
+6. Always ensure exactly one `→` per line.
+7. Do not modify any other checklist variables.
 
 ### Step 5 (MANDATORY)
 Structured Output JSON:
-Generate JSON only (no verification here) at `output/{{repo_name}}_task5_find-solutions.json`
+Generate JSON only at `output/{{repo_name}}_task5_find-solutions.json`.
 
 Structured Output JSON at `(output/{{repo_name}}_task5_find-solutions.json)` MUST include:
 - local_path
@@ -56,21 +68,7 @@ Structured Output JSON at `(output/{{repo_name}}_task5_find-solutions.json)` MUS
 - solution_count
 - status (SUCCESS|FAIL)
 - timestamp (ISO 8601 UTC seconds)
-- verification_errors (array, empty if none)
-  (debug array output omitted; no DEBUG mode supported)
 
-### Step 6 (MANDATORY)
-Checklist Update & Variable Refresh (INLINE ONLY):
-1. Open `{{checklist_path}}`.
-2. Set `[x]` only on the `@task-find-solutions` entry if status=SUCCESS. Leave `[ ]` on FAIL.
-3. Locate lines beginning with:
-   * `- {{solutions_json}}`
-   * `- {{solutions}}`
-4. Replace ONLY text after `→` as follows:
-   * `{{solutions_json}}` → `output/{{repo_name}}_task5_find-solutions.json`
-   * `{{solutions}}` → `<count> solutions: Name1; Name2; Name3 ...` (list up to 5 names, then `...` if more). If zero: `0 solutions`.
-5. If FAIL status: set both to `FAIL` (do not mark checklist).
-6. Always ensure exactly one `→` per line. 
 
 ### End of Steps
 

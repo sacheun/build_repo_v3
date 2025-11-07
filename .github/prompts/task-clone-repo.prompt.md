@@ -45,8 +45,20 @@ If target directory already exists (REFRESH):
   - Any non-zero exit sets clone_status=FAIL.
 
 ### Step 4 (MANDATORY)
+Checklist Update & Variable Refresh (INLINE ONLY):
+1. Open checklist file at `{{checklist_path}}`.
+2. Mark `[x]` ONLY on the `@task-clone-repo` entry (do not alter other task lines) if clone_status=SUCCESS.
+3. Under `## Repo Variables Available` populate ONLY the values for:
+   * `- {{clone_path}} → {clone_path}` (replace `{clone_path}` placeholder with the exact exact normalized path if not already populated)
+   * `- {{repo_directory}} → {repo_directory}` (replace `{repo_directory}` placeholder with the exact normalized path if not already populated)
+4. Preserve arrow format exactly: `- {{token}} → value` (single space before and after arrow). If value intentionally blank leave nothing after arrow.
+5. Make changes inline—do NOT add duplicate variable lines or new sections.
+6. On clone_status=FAIL, still ensure repo_url and repo_name lines are populated (they are prerequisites); leave all other variable values blank.
+7. Always ensure exactly one `→` per variable line.
+
+### Step 5 (MANDATORY)
 Structured Output:
-Generate a JSON file only (no verification logic in this step) at: `output/{{repo_name}}_task1_clone-repo.json`.
+Generate a JSON file at: `output/{{repo_name}}_task1_clone-repo.json`.
 
 Required JSON fields (emit all fields every run):
 1. repo_url
@@ -58,21 +70,6 @@ Required JSON fields (emit all fields every run):
 7. status (SUCCESS|FAIL) (mirror clone_status)
 8. timestamp (ISO 8601 UTC, truncated to whole seconds)
 9. git_output (aggregated stdout + stderr; may be truncated if extremely large)
-
-### Step 5 (MANDATORY)
-Checklist Update & Variable Refresh (INLINE ONLY):
-1. Open checklist file at `{{checklist_path}}`.
-2. Mark `[x]` ONLY on the `@task-clone-repo` entry (do not alter other task lines).
-3. Under `## Repo Variables Available` update ONLY:
-  * `- {{clone_path}}` → set to the runtime `clone_path` argument (absolute or normalized path you are using for clones)
-  * `- {{repo_directory}}` → set to `{{clone_path}}/{{repo_name}}`
-4. Do NOT modify:
-  * `- {{repo_url}}`
-  * `- {{repo_name}}`
-5. Preserve arrow format exactly: `- {{token}} → value` (single space before and after arrow, value may be blank only if operation failed and field legitimately unknown).
-6. Make changes inline—do NOT add duplicate variable lines or new sections.
-7. If clone failed (clone_status=FAIL), still update `- {{clone_path}}` (echo argument) but leave `- {{repo_directory}}` blank if directory absent.
-8. Always ensure exactly one `→` per line. 
 
 ### End of Steps
 

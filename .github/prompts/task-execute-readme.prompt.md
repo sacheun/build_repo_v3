@@ -20,29 +20,29 @@ The AI agent must use reasoning to determine command safety and execute safe com
 ## Instructions (Follow this Step by Step)
 
 ### Step 1 (MANDATORY)
-**Checklist Load & Variable Extraction:**
-- Open the file at `{{checklist_path}}`.
-- Extract values (after `→`) for:
+**Checklist Load, Variable Extraction & Prerequisite Verification:**
+1. Open the file at `{{checklist_path}}`.
+2. Extract values (text after a single `→`) for:
   - `- {{repo_name}}`
   - `- {{repo_directory}}`
   - `- {{commands_extracted}}` (comma-separated commands or status token)
-  - Confirm presence of `- {{executed_commands}}` and `- {{skipped_commands}}` lines (values may be placeholders).
-- If any required line missing or value empty where required, set `status=FAIL` and proceed to structured output.
-- Interpret `{{commands_extracted}}` value:
-  - If value in {NONE, SKIPPED, FAIL, ""}: set `status=SKIPPED` and no execution will occur.
-  - Else split by comma into raw_commands list; trim whitespace per item.
-  (No debug output.)
-- Base variables (`repo_name`, `repo_directory`) are immutable in this task.
+  - Confirm presence of lines for `- {{executed_commands}}` and `- {{skipped_commands}}` (values may be placeholders).
+3. Validation rules:
+  - If any required line missing OR `repo_name`/`repo_directory` empty: `status=FAIL` → jump to Structured Output (skip remaining steps).
+  - Validate `repo_directory` exists (may use list_dir). If not: `status=FAIL`.
+4. Interpret `{{commands_extracted}}`:
+  - If value in {NONE, SKIPPED, FAIL, ""}: set `status=SKIPPED` (no classification/execution later).
+  - Else split by comma to build `raw_commands` array; trim whitespace for each.
+5. Base variables (`repo_name`, `repo_directory`) are immutable in this task.
+6. Outcomes:
+  - On FAIL: proceed directly to Step 5 (Structured Output) after checklist update logic (only marking FAIL) is applied.
+  - On SKIPPED: still perform checklist update (mark as SKIPPED) then structured output.
 
 ### Step 2 (MANDATORY)
-**Prerequisites & Checklist Verification:**
-- If status already SKIPPED or FAIL from Step 2, bypass classification and execution.
-- Validate repo_directory exists (optional list_dir). If missing, set status=FAIL.
-  (No debug output.)
-
-### Step 3 (MANDATORY)
 **Structural Reasoning – Safety Classification:**  
-For EACH command in commands_extracted array, use AI reasoning to determine if it is SAFE or UNSAFE.
+If `status` from Step 1 is SKIPPED or FAIL, bypass this step (no classification performed).
+
+For EACH command in `raw_commands`, use AI reasoning to determine if it is SAFE or UNSAFE.
 
 **SAFE Commands** (non-destructive, standard setup, low risk):
 - **Package Manager Installs** (read-only or controlled installation):
@@ -122,7 +122,7 @@ For EACH command in commands_extracted array, use AI reasoning to determine if i
 - Check for command flags that change behavior (e.g., `rm -rf` vs `ls -l`).
 - If command does multiple things (chained with && or ;), evaluate each part.
 
-### Step 4 (MANDATORY)
+### Step 3 (MANDATORY)
 **Command Execution (SAFE commands only):**  
 For each SAFE command:
 a. Pre-execution:
@@ -148,9 +148,27 @@ For each UNSAFE command:
   - category: safety category (destructive, system_mod, network, build, database, ambiguous)
   - source_section: from task-scan-readme output
 
+### Step 4 (MANDATORY)
+**Checklist Update & Variable Refresh (INLINE ONLY):**
+1. Open `tasks/{{repo_name}}_repo_checklist.md`.
+2. Set `[x]` only on the `@task-execute-readme` entry if status in {SUCCESS, SKIPPED}. Leave `[ ]` on FAIL.
+3. Locate lines beginning with:
+  * `- {{executed_commands}}`
+  * `- {{skipped_commands}}`
+4. Replace ONLY the text after `→` with summary values:
+  * `{{executed_commands}}` → `<count> executed: cmd1; cmd2; cmd3 ...` (list up to 5 commands, then `...` if more)
+  * `{{skipped_commands}}` → `<count> skipped: cmdA; cmdB ...` (same truncation rule)
+5. If no executed commands: `0 executed` (no trailing colon list).
+6. If no skipped commands: `0 skipped`.
+7. On SKIPPED status (no execution attempted): set both to `SKIPPED`.
+8. On FAIL: retain existing values but append ` (FAIL)` unless already marked.
+9. Always ensure exactly one `→` per line.
+10. **Inline Variable Policy:** Never create separate refreshed blocks; modify original lines only.
+11. Do not modify other checklist tasks or repository entries.
+
 ### Step 5 (MANDATORY)
 Structured Output Assembly:
-Generate JSON only (no verification in this step) at `./output/{{repo_name}}_task4_execute-readme.json`.
+Generate JSON  at `./output/{{repo_name}}_task4_execute-readme.json`.
 
 Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST include:
 - repo_directory
@@ -162,26 +180,6 @@ Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST inc
 - skipped_commands (array)
 - status (SUCCESS|SKIPPED|FAIL)
 - timestamp (ISO 8601 UTC seconds)
-- verification_errors (array, empty if none)
-  (debug array output omitted; no DEBUG mode supported)
-
-### Step 6 (MANDATORY)
-**Checklist Update & Variable Refresh (INLINE ONLY):**
-1. Open `tasks/{{repo_name}}_repo_checklist.md`.
-2. Set `[x]` only on the `@task-execute-readme` entry if status in {SUCCESS, SKIPPED}. Leave `[ ]` on FAIL.
-3. Locate lines beginning with:
-   * `- {{executed_commands}}`
-   * `- {{skipped_commands}}`
-4. Replace ONLY the text after `→` with summary values:
-   * `{{executed_commands}}` → `<count> executed: cmd1; cmd2; cmd3 ...` (list up to 5 commands, then `...` if more)
-   * `{{skipped_commands}}` → `<count> skipped: cmdA; cmdB ...` (same truncation rule)
-5. If no executed commands: `0 executed` (no trailing colon list).
-6. If no skipped commands: `0 skipped`.
-7. On SKIPPED status (no execution attempted): set both to `SKIPPED`.
-8. On FAIL: retain existing values but append ` (FAIL)` unless already marked.
-9. Always ensure exactly one `→` per line.
-10. **Inline Variable Policy:** Never create separate refreshed blocks; modify original lines only.
-11. Do not modify other checklist tasks or repository entries.
 
 ### End of Steps
 

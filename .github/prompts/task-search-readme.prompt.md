@@ -19,28 +19,39 @@ This task searches for and reads the README documentation file from a repository
 
 ### Step 1 (MANDATORY)
 Load Variables From Checklist:
-1. Resolve `checklist_path`; ensure file exists. If missing, set status=FAIL, emit JSON immediately, and skip remaining steps.
+1. Resolve `checklist_path`; ensure file exists. If missing, set status=FAIL, and abort.immediately, and skip remaining steps.
 2. Open the checklist file; locate the `## Repo Variables Available` section.
 3. Parse variable lines beginning with:
    * `- {{repo_directory}}`
    * `- {{repo_name}}`
 4. Extract arrow (`→`) values (trim whitespace). These become authoritative `repo_directory` and `repo_name` for all subsequent steps.
-5. If `repo_directory` value is blank, set preliminary status=FAIL (cannot attempt README search) but STILL continue with variable normalization (Steps 6–8) so the checklist stays consistent.
+5. If `repo_directory` value is blank, set preliminary status=FAIL (cannot attempt README search) but STILL continue with update the repo checkpoint file (Steps 4) so the checklist stays consistent.
 
 ### Step 2 (MANDATORY)
-README Candidate Search (conditional):
-- If Step 2 produced status=FAIL due to missing repo_directory value: skip search, proceed with empty results (readme_filename/readme_content later set to NONE).
-- Otherwise perform case-insensitive search in the authoritative repo_directory for README files.
-  - Patterns: README.md, README.txt, README.rst, README (case-insensitive)
-  - Priority order: .md > .txt > .rst > (no extension)
+README Candidate Search & File Discovery (Combined):
+1. Perform a single case-insensitive scan in the authoritative `repo_directory` for README candidates.
+2. Candidate filename patterns (case-insensitive): README.md, README.txt, README.rst, README (no extension).
+3. Apply priority ordering when multiple matches present: .md > .txt > .rst > (no extension).
+4. Select ONLY the highest-priority match; ignore the rest.
+5. Do not recurse into subdirectories (root-level only).
+6. If no candidate found, proceed (status will become FAIL in Step 5 output assembly logic).
+Rationale: Former Steps 2 and 3 both described discovery; merging removes redundant sequencing and clarifies single responsibility.
 
 ### Step 3 (MANDATORY)
-File Discovery:
-- Searches repository root directory using case-insensitive matching; stops on first match found.
+Content Extraction:
+- If match found, read entire file content as UTF-8 text with error ignore mode (handles encoding issues gracefully).
 
 ### Step 4 (MANDATORY)
-Content Extraction:
-- If match found, reads entire file content as UTF-8 text with error ignore mode (handles encoding issues gracefully)
+Checklist Update & Variable Refresh (INLINE ONLY – POINTER MODEL):
+1. Open `{{checklist_path}}`.
+2. Mark the `@task-search-readme` task with `[x]` ONLY if README was found (final status=SUCCESS). Leave as `[ ]` on failure.
+3. Under `## Repo Variables Available` populate ONLY:
+   * `- {{readme_content}} → {readme_content}` (replace `{readme_content}` placeholder with  `output/{{repo_name}}_task2_search-readme.json (field=readme_content)`)
+   * `- {{readme_filename}} → {readme_filename}` (replace `{readme_filename}` placeholder with  `<actual filename>` (e.g. `README.md`))
+   POINTER STORAGE POLICY (combined): This step does NOT set `{{readme_filename}}` or `{{readme_content}}`; those remain blank until a later operation or remain NONE on failure. Do NOT populate other variables.
+4. NEVER move variable lines outside the block or create a second block.
+5. Do NOT modify other variable lines (`{{repo_directory}}`, `{{readme_content}}`, `{{readme_filename}}`, `{{commands_extracted}}`, `{{executed_commands}}`, `{{skipped_commands}}`, `{{solutions_json}}`, `{{solutions}}`). Leave their values unchanged.
+6. Always ensure exactly one `→` per line. Replace only the portion after the arrow; preserve leading `- {{token}}` verbatim.
 
 ### Step 5 (MANDATORY)
 Structured Output JSON:
@@ -53,24 +64,6 @@ Structured Output JSON at `(output/{{repo_name}}_task2_search-readme.json)` MUST
 - readme_filename (string|null)
 - status (SUCCESS|FAIL)
 - timestamp (ISO 8601 UTC seconds precision)
-
-### Step 6 (MANDATORY)
-Checklist Update & Variable Refresh (INLINE ONLY – POINTER MODEL):
-1. Open `{{checklist_path}}`.
-2. Mark the `@task-search-readme` task with `[x]` ONLY if final status after verification will be SUCCESS. Leave as `[ ]` on failure.
-3. Within the SAME `## Repo Variables Available` block, update ONLY:
-   * `- {{readme_content}}`
-   * `- {{readme_filename}}`
-4. NEVER move them outside the block or create a second block.
-5. Do NOT modify `- {{repo_directory}}` or `- {{repo_name}}`.
-6. POINTER STORAGE POLICY (no embedded README text):
-   * On SUCCESS (README found):
-     - `{{readme_filename}}` → `<actual filename>` (e.g. `README.md`)
-     - `{{readme_content}}` → `output/{{repo_name}}_task2_search-readme.json (field=readme_content)`
-   * On FAIL (not found or repo_directory blank):
-     - `{{readme_filename}}` → NONE
-     - `{{readme_content}}` → NONE
-7. Always ensure exactly one `→` per line. Replace only the portion after the arrow; preserve leading `- {{token}}` verbatim.
 
 ### End of Steps
 

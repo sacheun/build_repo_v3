@@ -33,25 +33,21 @@ The AI agent must analyze the README content intelligently to understand context
 - NEVER modify `repo_name`, `repo_directory`, `repo_url`, or `readme_content_path` in this task.
 
 ### Step 2 (MANDATORY)
-**README Load:**
-- Use `read_file` to load the JSON at `readme_content_path` (extracted in Step 2).
+**README Load & Prerequisites Check (Combined):**
+- Use `read_file` to load the JSON at `readme_content_path` (extracted in Step 1).
 - Parse and extract `readme_content` and `readme_filename` fields.
-- If file missing or unreadable, set `status=SKIPPED` (if produced by previous task but now absent) or `status=FAIL` (unexpected error) and proceed to output.
+- If file missing or unreadable:
+   - If the file was expected from a prior task but now absent, set `status=SKIPPED` and proceed directly to structured output (no further steps).
+   - If unexpected error, set `status=FAIL` and proceed directly to structured output.
+- If `readme_content` is null or empty, set `status=SKIPPED` and proceed directly to structured output.
+- If README content is present, continue.
 
+**Pre-flight Checklist Verification:**
+- Open `tasks/{{repo_name}}_repo_checklist.md`.
+- Verify the `## Repo Variables Available` section still contains the untouched templated token line: `- {{commands_extracted}}` (allowing an empty value after the arrow or no arrow yet).
+- If the line is missing or altered, restore it exactly as `- {{commands_extracted}} →` before continuing.
 
 ### Step 3 (MANDATORY)
-**Prerequisites Check:**  
-- If README was not found in task-search-readme (`readme_content` is null or empty), skip analysis.
-- Set status=SKIPPED and proceed to output.
-- If README found, proceed with analysis.
-
-**Pre-flight Checklist Verification:**  
-- Open `tasks/{{repo_name}}_repo_checklist.md`
-- Confirm the `## Repo Variables Available` section contains the templated tokens below before making any changes:
-  - `{{commands_extracted}}`
-- If any token is missing or altered, restore it prior to continuing.
-
-### Step 4 (MANDATORY)
 **Structural Reasoning – Section Identification:**  
 - **YOU MUST ACTUALLY READ THE README CONTENT LOADED IN STEP 2**
 - Analyze the actual text of the README using AI reasoning capabilities.
@@ -70,7 +66,7 @@ The AI agent must analyze the README content intelligently to understand context
 - Consider context: sections near the beginning of README are more likely to be setup instructions.
 - Ignore sections like "Contributing", "License", "FAQ", "Troubleshooting" unless they explicitly mention setup.
 
-### Step 5 (MANDATORY)
+### Step 4 (MANDATORY)
 **Follow Referenced Markdown Files:**  
 - **CRITICAL REQUIREMENT:** If README references other .md files, you MUST ALWAYS follow them.
 - Use AI reasoning to identify ALL references to other markdown files:
@@ -124,7 +120,7 @@ Example behavior for README with only external references:
 - CORRECT: Read getting_started.md, extract commands from it, report commands in output
 - INCORRECT: Report "README contains only links" and stop without reading getting_started.md
 
-### Step 6 (MANDATORY)
+### Step 5 (MANDATORY)
 **Structural Reasoning – Command Extraction:**  
 - **YOU MUST ANALYZE THE ACTUAL README CONTENT, NOT JUST CREATE EMPTY OUTPUT**
 - Within identified setup sections, use structural reasoning to extract commands:
@@ -153,7 +149,7 @@ Example behavior for README with only external references:
        - Rationale: cloning is a one-time repository fetch, not an environment setup operation.
        - If such commands appear, ignore them (do not count toward total_commands) and do not list them in the checklist summary.
 
-### Step 7 (MANDATORY)
+### Step 6 (MANDATORY)
 **Command Categorization:**  
 For each extracted command, use structural reasoning to categorize by purpose:
 - **package_install**: npm install, pip install, dotnet restore, nuget restore, yarn install
@@ -165,7 +161,7 @@ For each extracted command, use structural reasoning to categorize by purpose:
 - **other**: anything else that looks like a setup command
 
 
-### Step 8 (MANDATORY)
+### Step 7 (MANDATORY)
 **Command Cleaning:**  
 Remove shell prompts: $, >, C:\>, PS>, #
 Remove line continuations: backslash (\) or caret (^)
@@ -173,6 +169,19 @@ Remove comments: truncate at first occurrence of one of: # // REM
 Trim whitespace
 Handle multi-line commands (join with proper syntax)
  Apply exclusion filters (MANDATORY): discard any cleaned command whose original form began with or contains a repository clone invocation (e.g. starts with `git clone`, `gh repo clone`). These MUST NOT appear in the final JSON.
+
+### Step 8 (MANDATORY)
+**Repo Checklist Update & Variable Refresh (Single Operation):**
+- Open `tasks/{{repo_name}}_repo_checklist.md` (at `{{checklist_path}}`).
+- Set `[x]` only on the `@task-scan-readme` entry for the current repository (do not alter any other task markers).
+- Under `## Repo Variables Available` populate ONLY the values for:
+   * `- {{commands_extracted}} → {commands_extracted}` replace `{commands_extracted}`
+      * If one or more commands extracted (status=SUCCESS): comma-separated list of up to the first 10 command strings (truncate with `...` if more).
+      * If no commands and README existed (status=NONE): `NONE`
+      * If README missing/unreadable (status=SKIPPED): `SKIPPED`
+- If the line lacks an arrow, append one then the value: `- {{commands_extracted}} → <value>`.
+- Preserve the exact prefix `- {{commands_extracted}}` (no casing or spacing changes).
+- Do not modify base variables (`repo_name`, `repo_directory`, `readme_content_path`).
 
 ### Step 9 (MANDATORY)
 Structured Output Assembly:
@@ -188,21 +197,6 @@ Structured Output JSON (output/{{repo_name}}_task3_scan-readme.json) MUST includ
 - total_commands
 - status (SUCCESS|NONE|SKIPPED|FAIL)
 - timestamp (ISO 8601 UTC seconds)
-
-### Step 10 (MANDATORY)
-**Repo Checklist Update & Variable Refresh (Single Operation):**
-- Open `tasks/{{repo_name}}_repo_checklist.md` (at `{{checklist_path}}`).
-- Set `[x]` only on the `@task-scan-readme` entry for the current repository (do not alter any other task markers).
-- Locate the existing variable line beginning with `- {{commands_extracted}}`.
-   - If missing, restore the token exactly as: `- {{commands_extracted}} →` before assigning a value.
-- Replace ONLY the text after `→` with:
-   * If one or more commands extracted (status=SUCCESS): comma-separated list of up to the first 10 command strings (truncate with `...` if more).
-   * If no commands and README existed (status=NONE): `NONE`
-   * If README missing/unreadable (status=SKIPPED): `SKIPPED`
-   * If status=FAIL: `FAIL`
-- If the line lacks an arrow, append one then the value: `- {{commands_extracted}} → <value>`.
-- Preserve the exact prefix `- {{commands_extracted}}` (no casing or spacing changes).
-- Do not modify base variables (`repo_name`, `repo_directory`, `readme_content_path`).
 
 ### End of Steps
 
