@@ -134,10 +134,10 @@ Generate Individual Repository Checklist Files:
    (Single authoritative variable block. EXACTLY ONE LINE PER TOKEN. No duplicate descriptive lines permitted. Every line MUST use arrow format even if value blank.)
    - {{repo_url}} → {repo_url}
    - {{repo_name}} → {repo_name}
-   - {{solutions_json}} →
-   - {{solutions}} →
    - {{clone_path}} →
    - {{repo_directory}} →
+   - {{solutions_json}} →
+   - {{solutions}} →
    - {{readme_content}} →
    - {{readme_filename}} →
    - {{commands_extracted}} →
