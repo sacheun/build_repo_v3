@@ -45,6 +45,7 @@ if TOOLS_DIR not in sys.path:
 try:
     from copilot_executor import CopilotExecutor
     from pipeline_core import execute_pipeline
+    from repo_check_utils import check_repo_readiness
 except ImportError:
     print('[fatal] Unable to import copilot_executor from tools directory.', file=sys.stderr)
     sys.exit(1)
@@ -116,35 +117,85 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
     print(f'[info] Found {len(repo_checklists)} repository checklist(s).')
 
     sequence = STEP_SEQUENCE if mode == 'steps' else COMBINE_SEQUENCE
-    repo_results: List[Dict] = []
     overall_status = 'SUCCESS'
+    # Global attempt loop: run all repos each pass, verify, and retry failing ones up to 3 passes.
+    max_passes = 3
+    pass_index = 1
+    repo_state: Dict[str, Dict] = {os.path.basename(p).replace('_repo_checklist.md',''): {
+        'checklist_path': p,
+        'attempts': [],
+        'final_readiness': 'PENDING'
+    } for p in repo_checklists}
 
-    for r_index, checklist_path in enumerate(repo_checklists, start=1):
-        repo_name = os.path.basename(checklist_path).replace('_repo_checklist.md','')
-        print(f"\n[repo {r_index}/{len(repo_checklists)}] Processing {repo_name}")
-        per_repo_pipeline = [(prompt, param_fn(checklist_path)) for prompt, param_fn in sequence]
-        # Reuse shared execution utility; write individual repo summary to a temp location for trace if needed
-        repo_summary_path = os.path.join(OUTPUT_DIR, f"{repo_name}_pipeline_summary.json")
-        exit_code, summary = execute_pipeline(
-            pipeline=per_repo_pipeline,
-            log_file=log_file,
-            continue_on_error=continue_on_error,
-            step_by_step=(mode == 'steps'),
-            mode=mode,
-            summary_path=repo_summary_path
-        )
-        stages = summary.get('pipeline', [])
-        if exit_code != 0:
-            overall_status = 'FAIL'
-            if not continue_on_error:
-                print('  [abort] Stopping further processing due to failure.')
-        repo_results.append({
-            'repo_name': repo_name,
-            'checklist_path': checklist_path,
-            'stages': stages,
-        })
-        if overall_status == 'FAIL' and not continue_on_error:
+    while pass_index <= max_passes:
+        print(f"\n[global-pass {pass_index}/{max_passes}] Starting pipeline pass across repositories")
+        any_pending = False
+        for repo_name, state in repo_state.items():
+            if state['final_readiness'] == 'PASS':
+                continue  # Skip already passing repos
+            any_pending = True
+            checklist_path = state['checklist_path']
+            per_repo_pipeline = [(prompt, param_fn(checklist_path)) for prompt, param_fn in sequence]
+            repo_summary_path = os.path.join(OUTPUT_DIR, f"{repo_name}_pipeline_summary_pass{pass_index}.json")
+            print(f"  [repo:{repo_name}] executing pipeline (pass {pass_index})")
+            exit_code, summary = execute_pipeline(
+                pipeline=per_repo_pipeline,
+                log_file=log_file,
+                continue_on_error=continue_on_error,
+                step_by_step=(mode == 'steps'),
+                mode=mode,
+                summary_path=repo_summary_path
+            )
+            stages = summary.get('pipeline', [])
+            full_checklist_path = os.path.join(REPO_ROOT, checklist_path.replace('/', os.sep)) if not checklist_path.startswith(REPO_ROOT) else checklist_path
+            print(f"    [repo:{repo_name}] readiness verification ...")
+            ready = check_repo_readiness(full_checklist_path)
+            state['attempts'].append({
+                'pass': pass_index,
+                'exit_code': exit_code,
+                'readiness': 'PASS' if ready else 'FAIL',
+                'stages': stages
+            })
+            if exit_code != 0 and not continue_on_error:
+                overall_status = 'FAIL'
+                print(f"    [repo:{repo_name}] aborting global passes due to failure and continue-on-error disabled.")
+                # Mark as failed readiness to surface
+                state['final_readiness'] = 'FAIL'
+                any_pending = False  # Force loop exit
+                break
+            if ready:
+                state['final_readiness'] = 'PASS'
+                print(f"    [repo:{repo_name}] readiness PASS.")
+            else:
+                state['final_readiness'] = 'FAIL' if pass_index == max_passes else 'PENDING'
+                print(f"    [repo:{repo_name}] readiness FAIL (will retry if passes remain).")
+        if not any_pending:
             break
+        # If all repos passed early, break
+        if all(s['final_readiness'] == 'PASS' for s in repo_state.values()):
+            print("[global-pass] All repositories passed readiness early; stopping further passes.")
+            break
+        pass_index += 1
+
+    repo_results: List[Dict] = []
+    for name, state in repo_state.items():
+        repo_results.append({
+            'repo_name': name,
+            'checklist_path': state['checklist_path'],
+            'attempts': state['attempts'],
+            'final_readiness': state['final_readiness']
+        })
+
+    if any(r['final_readiness'] != 'PASS' for r in repo_results):
+        overall_status = 'FAIL'
+
+    # Final readiness verification across all processed repositories
+    readiness_pass = sum(1 for r in repo_results if r['final_readiness'] == 'PASS')
+    readiness_fail = [r['repo_name'] for r in repo_results if r['final_readiness'] != 'PASS']
+
+    print(f"\n[readiness] {readiness_pass}/{len(repo_results)} repository checklists passed mandatory variable/task readiness after global passes.")
+    if readiness_fail:
+        print(f"[readiness] Still failing after {min(max_passes, pass_index)} pass(es): {readiness_fail}")
 
     summary = {
         'overall_status': overall_status,
@@ -152,6 +203,8 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
         'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
         'repos_processed': len(repo_results),
         'repos_failed': [r for r in repo_results if any(s['stage_status']=='FAIL' for s in r['stages'])],
+        'repos_readiness_pass': readiness_pass,
+        'repos_readiness_fail': readiness_fail,
         'details': repo_results,
     }
     _write_summary(summary)
