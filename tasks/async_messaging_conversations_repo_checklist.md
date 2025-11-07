@@ -7,8 +7,8 @@ Generated: 2025-11-07T16:47:29Z
 - [x] [MANDATORY] [SCRIPTABLE] Find all solution files in repository @task-find-solutions (2)
 - [x] [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files (no inline sections) @generate-solution-task-checklists (3)
 - [x] [MANDATORY] [SCRIPTABLE] Search for README file in repository @task-search-readme (4)
-- [ ] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
-- [ ] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
+- [x] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
+- [x] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
 
 
 ## For Agents Resuming Work
@@ -38,9 +38,9 @@ Generated: 2025-11-07T16:47:29Z
 - {solutions} →
 - {readme_content} → Overview present (truncated)
 - {readme_filename} → README.md
-- {commands_extracted} →
-- {executed_commands} →
-- {skipped_commands} →
+- {commands_extracted} → unzip FCMTest.zip; open in Android Studio; enable USB debugging; run app; capture push token; set LEGACY_FCM_API_KEY,PUSHTOKEN,JWT_SECRET in FCMConfig
+- {executed_commands} → NONE
+- {skipped_commands} → unzip FCMTest.zip (missing); open in Android Studio (manual); enable USB debugging (manual); run app (manual); capture push token (manual); set LEGACY_FCM_API_KEY,PUSHTOKEN,JWT_SECRET (secrets)
 
 ## Variable Definitions (Reference Only – DO NOT PARSE FOR VALUES)
 - repo_url: Original repository URL provided to the workflow.
