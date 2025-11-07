@@ -75,12 +75,12 @@ Checklist Update & Variable Refresh (INLINE ONLY – POINTER MODEL):
 ### End of Steps
 
 ## Output Contract
-- repo_directory: string (absolute path to repository root loaded from checklist)
-- repo_name: string (repository name loaded from checklist)
-- readme_content: string | null (full content of README file, null if not found or repo_directory missing)
-- readme_filename: string | null (name of matched README file, null if not found or repo_directory missing)
-- status: SUCCESS | FAIL (SUCCESS if README found and read, FAIL if not found or repo_directory missing)
-- timestamp: string (ISO 8601 datetime when task completed)
+- `repo_directory`: string (absolute path to repository root loaded from checklist)
+- `repo_name`: string (repository name loaded from checklist)
+- `readme_content`: string | null (full content of README file, null if not found or `repo_directory` missing)
+- `readme_filename`: string | null (name of matched README file, null if not found or `repo_directory` missing)
+- `status`: SUCCESS | FAIL (SUCCESS if README found and read, FAIL if not found or `repo_directory` missing)
+- `timestamp`: string (ISO 8601 datetime when task completed)
 
 ## Implementation Notes
 1. **THIS IS SCRIPTABLE**: Generate a Python script to execute this task
@@ -88,4 +88,4 @@ Checklist Update & Variable Refresh (INLINE ONLY – POINTER MODEL):
 3. Prioritization: If multiple README files found, prioritize by extension: .md > .txt > .rst > (no extension)
 4. Content Handling: JSON output stores full README content; checklist stores only a pointer (`output/{{repo_name}}_task2_search-readme.json (field=readme_content)`) not the content itself.
 5. Encoding Tolerance: Use UTF-8 with ignore mode to handle malformed characters gracefully.
-6. Script Location: Save generated script to `temp-script/` directory with naming pattern: step{N}_repo{M}_task2_search-readme.py (or .ps1/.sh)
+6. Script Location: Save generated script to `temp-script/` directory with naming pattern: `step{N}_repo{M}_task2_search-readme.py` (or .ps1/.sh)

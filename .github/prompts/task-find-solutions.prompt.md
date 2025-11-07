@@ -70,11 +70,8 @@ Checklist Update & Variable Refresh (INLINE ONLY):
    * `{{solutions_json}}` → `output/{{repo_name}}_task5_find-solutions.json`
    * `{{solutions}}` → `<count> solutions: Name1; Name2; Name3 ...` (list up to 5 names, then `...` if more). If zero: `0 solutions`.
 5. If FAIL status: set both to `FAIL` (do not mark checklist).
-6. If a line lacks an arrow, normalize: `- {{token}} → <value>`.
-7. **Inline Variable Policy:** Do not add new sections; update existing lines only; never duplicate variable lines.
+6. Always ensure exactly one `→` per line. 
 
-
- 
 ### End of Steps
 
 ## Output Contract

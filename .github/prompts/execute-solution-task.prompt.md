@@ -9,6 +9,11 @@ This prompt finds all unmarked tasks from a repository checklist markdown file a
 It processes all uncompleted tasks in the specified checklist until all are complete or an error occurs.
 
 ## Execution Policy
+**⚠️ CRITICAL – THIS TASK IS NON-SCRIPTABLE ⚠️**  
+This task MUST be performed using **direct tool calls** and **structural reasoning**:
+*STRICT MODE ON**
+- All steps are **MANDATORY**.
+
 **CRITICAL REQUIREMENT:** After completing a task, you must update the designated repository markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
 
 **CRITICAL - SEQUENTIAL EXECUTION:**
@@ -30,16 +35,9 @@ It processes all uncompleted tasks in the specified checklist until all are comp
 Required parameter:
    solution_checklist = <required> (path to a single solution checklist markdown file, e.g., `./tasks/ic3_spool_cosine-dep-spool_SDKTestApp_solution_checklist.md`)
 
-Initialization:
-1. Verify the `solution_checklist` file exists; if missing → execution_status="FAIL".
-2. **[MANDATORY] Initialize solution_result.csv tracking file:**
-    - Check if file `results/solution_result.csv` exists
-    - If it does NOT exist, create it with the following header row using comma (`,`) as the separator:
-       ```
-       repo,solution,task name,status
-       ```
+Verify the `solution_checklist` file exists; if missing → execution_status="FAIL".
 
-### Step 1: Read Task Checklist and Find Next Unmarked Task (MANDATORY)
+### Step 1: Read Solution Task Checklist and Find Next Unmarked Task (MANDATORY)
 1. Read the solution checklist file specified by solution_checklist parameter
 2. Parse the "## Tasks (Sequential Pipeline - Complete in Order)" section
 3. Find the FIRST task with `- [ ]` (unmarked/uncompleted)
@@ -112,20 +110,16 @@ Step 2.1 actions:
    - If condition TRUE → proceed to Step 2.2.
 
 #### 2.2 Task Invocation Sequence
-1. Log the execution attempt using @task-update-decision-log:
-   - Invoke: @task-update-decision-log timestamp={current_timestamp} repo_name={repo_name} task={task_name} message="Starting task execution" status="IN_PROGRESS"
-   - This appends a row to results/decision-log.csv with execution start details
+1. Invoke the task prompt with required parameters (e.g., @task-restore-solution)
 
-2. Invoke the task prompt with required parameters (e.g., @task-clone-repo)
+2. Capture task output (status, result data)
 
-3. Capture task output (status, result data)
-
-4. **If task execution fails:**
+3. **If task execution fails:**
    - Log failure using @task-update-decision-log with status: FAIL and error message
    - Stop processing remaining tasks in the checklist
    - Return execution_status: FAIL with error details
 
-5. **If task execution is blocked:**
+4. **If task execution is blocked:**
    - Log blocked status using @task-update-decision-log with blocking reason
    - Stop processing remaining tasks in the checklist
    - Return execution_status: BLOCKED with blocking reason
@@ -143,24 +137,36 @@ Step 2.1 actions:
 
 Return execution summary after all tasks are processed or execution stops.
 
+### End of Steps
+
 Variables available:
 - {{solution_checklist}} → Path to solution checklist markdown file (from solution_checklist= parameter - required)
 
-Output Contract:
-- execution_status: "ALL_TASKS_COMPLETE" | "FAIL" | "BLOCKED"
-- tasks_executed: array of objects
-  - repo_name: string
-  - task_name: string
-  - execution_time: timestamp
-  - task_status: "SUCCESS" | "FAIL" | "BLOCKED" | "SKIPPED"
-  - result_data: object (task-specific output)
-- total_tasks_executed: integer (count of tasks processed in this run)
-- blocking_reason: string | null (if execution_status == BLOCKED)
-- error_message: string | null (if execution_status == FAIL)
-- failed_task: string | null (task name that failed)
-- status: SUCCESS | FAIL
+## Output Contract (JSON object returned):
+- execution_status: "ALL_TASKS_COMPLETE" | "FAIL" | "BLOCKED" (overall run outcome)
+- status: "SUCCESS" | "FAIL" (contract emission status; FAIL only if serialization/validation failed independent of task outcomes)
+- solution_name: string (derived from checklist header)
+- solution_checklist_path: string (absolute or workspace-relative path used for processing)
+- timestamp: string (ISO 8601 UTC time when summary emitted)
+- tasks_total: integer (total tasks discovered in the checklist section at start of run)
+- total_tasks_executed: integer (number of tasks processed during this invocation; equals length of tasks_executed)
+- tasks_success: integer (count of tasks_executed entries with task_status=="SUCCESS")
+- tasks_failed: integer (count with task_status=="FAIL")
+- tasks_blocked: integer (count with task_status=="BLOCKED")
+- tasks_skipped: integer (count with task_status=="SKIPPED")
+- failed_task: string | null (task_name of first failed task, else null)
+- blocking_reason: string | null (present only when execution_status=="BLOCKED")
+- error_message: string | null (high-level failure description when execution_status=="FAIL")
+- mode: "SEQUENTIAL" (static identifier for execution model)
+- verification_errors: array of strings (empty if contract passes internal consistency checks)
+- tasks_executed: array<object> (ordered by execution) where each object contains:
+   - solution_name: string
+   - task_name: string
+   - execution_time: string (ISO 8601 timestamp per task completion)
+   - task_status: "SUCCESS" | "FAIL" | "BLOCKED" | "SKIPPED"
+   - result_data: object (task-specific output payload; MUST omit large raw file contents, include artifact paths instead)
 
-Implementation Notes:
+## Implementation Notes:
 1. **Sequential Task Execution**: This prompt executes ALL unmarked tasks sequentially in one run
 2. **Continuous Processing**: After completing each task, automatically finds and executes the next unmarked task
 3. **Idempotent Execution**: Can be interrupted and re-run - will resume from first uncompleted task
@@ -173,40 +179,3 @@ Implementation Notes:
 10. **Loop Execution**: Continues processing until all tasks complete, a failure occurs, or blocking detected
 11. **Programming Language**: All code generated should be written in Python
 12. **Temporary Scripts Directory**: Scripts should be saved to ./temp-script directory
-
-**Error Recovery:**
-If the executor is interrupted (Ctrl+C, crash, etc.):
-1. All completed tasks are marked [x] in checklists
-2. All task variables are saved for completed tasks
-3. Re-running @execute-task will resume from the first uncompleted task
-4. No work is lost - resumes exactly where it stopped
-
-This prompt enables fully autonomous, resumable task execution with complete traceability and checkpoint recovery.
-## Error Handling
-- Missing required parameter repo_checklist or clone: Immediately return execution_status="FAIL" with error_message.
-- Checklist file not found: execution_status="FAIL"; do not create or modify files.
-- Unable to parse "## Repo Tasks" section: execution_status="FAIL" with parsing error details.
-- Dependency variable missing (e.g., repo_directory for @task-search-readme): Mark task BLOCKED; execution_status="BLOCKED"; blocking_reason explains prerequisite.
-- JSON output referenced but unreadable: Treat variable as missing and apply BLOCKED logic.
-- Decision log write failure: Retry once; if still failing continue but include warning in error_message field for that task.
-- Unexpected exception: Catch, log failed_task and error_message; execution_status="FAIL".
-
-## Consistency Checks
-- tasks_executed length MUST equal total_tasks_executed.
-- Each tasks_executed entry must have task_status in {SUCCESS, FAIL, BLOCKED, SKIPPED}.
-- If execution_status == ALL_TASKS_COMPLETE then no entry task_status == FAIL or BLOCKED.
-- If execution_status == BLOCKED then blocking_reason is non-empty and exactly one task_status == BLOCKED.
-- If execution_status == FAIL then failed_task is non-empty and at least one task_status == FAIL.
-- When a CONDITIONAL task is skipped, checklist line updated to "[x] SKIPPED".
-
-## Cross-References
-- {{repo_checklist}} → Path to the repository checklist being processed.
-- {{clone_path}} → Root directory for cloned repositories.
-- {{tasks_dir}} / {{output_dir}} / {{results_dir}} → Standard workspace directories for state and artifacts.
-- {{execution_status}} → Final status summarizing run outcome.
-- {{tasks_executed}} → Detailed per-task execution records.
-- {{total_tasks_executed}} → Count of tasks processed in this invocation.
-- {{failed_task}} → Name of the task that failed (if any).
-- {{blocking_reason}} → Dependency or condition that prevented a task from executing.
-- {{error_message}} → Error detail for FAIL scenarios.
-

@@ -64,23 +64,19 @@ Step 2.1 actions:
        - Log decision entry status="SKIPPED" with reason (include evaluated variable name and its value).
        - Append tasks_executed entry task_status="SKIPPED".
        - Return to Step 1 for next unmarked task.
-    - If condition TRUE → proceed to Step 2.2 (log the variable values that satisfied the condition if DEBUG=1).
+   - If condition TRUE → proceed to Step 2.2.
 
 #### 2.2 Task Invocation Sequence
-1. Log the execution attempt using @task-update-decision-log:
-   - Invoke: @task-update-decision-log timestamp={current_timestamp} repo_name={repo_name} task={task_name} message="Starting task execution" status="IN_PROGRESS"
-   - This appends a row to results/decision-log.csv with execution start details
+1. Invoke the task prompt with required parameters (e.g., @task-clone-repo)
 
-2. Invoke the task prompt with required parameters (e.g., @task-clone-repo)
+2. Capture task output (status, result data)
 
-3. Capture task output (status, result data)
-
-4. **If task execution fails:**
+3. **If task execution fails:**
    - Log failure using @task-update-decision-log with status: FAIL and error message
    - Stop processing remaining tasks in the checklist
    - Return execution_status: FAIL with error details
 
-5. **If task execution is blocked:**
+4. **If task execution is blocked:**
    - Log blocked status using @task-update-decision-log with blocking reason
    - Stop processing remaining tasks in the checklist
    - Return execution_status: BLOCKED with blocking reason
@@ -98,28 +94,40 @@ Step 2.1 actions:
 
 Return execution summary after all tasks are processed or execution stops.
 
+### End of Steps
+
 Variables available:
 - {{tasks_dir}} → Directory where checklists are saved (./tasks)
 - {{output_dir}} → Directory where task outputs are saved (./output)
-- {{results_dir}} → Directory where results and logs are saved (./results)
 - {{clone_path}} → Root folder for cloned repositories (from clone= parameter - required)
 - {{repo_checklist}} → Path to repository checklist markdown file (from repo_checklist= parameter - required)
 
-Output Contract:
-- execution_status: "ALL_TASKS_COMPLETE" | "FAIL" | "BLOCKED"
-- tasks_executed: array of objects
-  - repo_name: string
-  - task_name: string
-  - execution_time: timestamp
-  - task_status: "SUCCESS" | "FAIL" | "BLOCKED" | "SKIPPED"
-  - result_data: object (task-specific output)
-- total_tasks_executed: integer (count of tasks processed in this run)
-- blocking_reason: string | null (if execution_status == BLOCKED)
-- error_message: string | null (if execution_status == FAIL)
-- failed_task: string | null (task name that failed)
-- status: SUCCESS | FAIL
 
-Implementation Notes:
+## Output Contract (JSON object returned):
+- execution_status: "ALL_TASKS_COMPLETE" | "FAIL" | "BLOCKED" (overall run outcome)
+- status: "SUCCESS" | "FAIL" (contract emission status; FAIL only if serialization/validation failed independent of task outcomes)
+- repository_name: string (derived from checklist header)
+- repo_checklist_path: string (absolute or workspace-relative path used for processing)
+- timestamp: string (ISO 8601 UTC time when summary emitted)
+- tasks_total: integer (total tasks discovered in the checklist section at start of run)
+- total_tasks_executed: integer (number of tasks processed during this invocation; equals length of tasks_executed)
+- tasks_success: integer (count of tasks_executed entries with task_status=="SUCCESS")
+- tasks_failed: integer (count with task_status=="FAIL")
+- tasks_blocked: integer (count with task_status=="BLOCKED")
+- tasks_skipped: integer (count with task_status=="SKIPPED")
+- failed_task: string | null (task_name of first failed task, else null)
+- blocking_reason: string | null (present only when execution_status=="BLOCKED")
+- error_message: string | null (high-level failure description when execution_status=="FAIL")
+- mode: "SEQUENTIAL" (static identifier for execution model)
+- verification_errors: array of strings (empty if contract passes internal consistency checks)
+- tasks_executed: array<object> (ordered by execution) where each object contains:
+   - repo_name: string
+   - task_name: string
+   - execution_time: string (ISO 8601 timestamp per task completion)
+   - task_status: "SUCCESS" | "FAIL" | "BLOCKED" | "SKIPPED"
+   - result_data: object (task-specific output payload; MUST omit large raw file contents, include artifact paths instead)
+
+## Implementation Notes:
 1. **Sequential Task Execution**: This prompt executes ALL unmarked tasks sequentially in one run
 2. **Continuous Processing**: After completing each task, automatically finds and executes the next unmarked task
 3. **Idempotent Execution**: Can be interrupted and re-run - will resume from first uncompleted task
@@ -132,10 +140,3 @@ Implementation Notes:
 10. **Loop Execution**: Continues processing until all tasks complete, a failure occurs, or blocking detected
 11. **Programming Language**: All code generated should be written in Python
 12. **Temporary Scripts Directory**: Scripts should be saved to ./temp-script directory
-
-**Error Recovery:**
-If the executor is interrupted (Ctrl+C, crash, etc.):
-1. All completed tasks are marked [x] in checklists
-2. All task variables are saved for completed tasks
-3. Re-running @execute-task will resume from the first uncompleted task
-4. No work is lost - resumes exactly where it stopped

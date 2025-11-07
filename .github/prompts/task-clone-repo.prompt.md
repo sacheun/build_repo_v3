@@ -72,26 +72,27 @@ Checklist Update & Variable Refresh (INLINE ONLY):
 5. Preserve arrow format exactly: `- {{token}} → value` (single space before and after arrow, value may be blank only if operation failed and field legitimately unknown).
 6. Make changes inline—do NOT add duplicate variable lines or new sections.
 7. If clone failed (clone_status=FAIL), still update `- {{clone_path}}` (echo argument) but leave `- {{repo_directory}}` blank if directory absent.
+8. Always ensure exactly one `→` per line. 
 
 ### End of Steps
 
 ## Output Contract
-- repo_url: string (repository URL extracted from checklist file)
-- clone_path: string (base directory for clones, echoed from input)
-- repo_name: string (repository name loaded from `- {{repo_name}}` variable line; filename used only for consistency check)
-- repo_directory: string (absolute path to cloned repository: {{clone_path}}/{{repo_name}})
-- operation: CLONE / REFRESH (indicates new clone vs existing reset/pull)
-- clone_status: SUCCESS / FAIL (SUCCESS if git operation completed with exit code 0)
-- status: SUCCESS / FAIL (same as clone_status for consistency)
-- timestamp: string (ISO 8601 datetime when task completed)
-- git_output: string (captured stdout/stderr from git commands)
+- `repo_url`: string (repository URL extracted from checklist file)
+- `clone_path`: string (base directory for clones, echoed from input)
+- `repo_name`: string (repository name loaded from `- {{repo_name}}` variable line; filename used only for consistency check)
+- `repo_directory`: string (absolute path to cloned repository: {{clone_path}}/{{repo_name}})
+- `operation`: CLONE / REFRESH (indicates new clone vs existing reset/pull)
+- `clone_status`: SUCCESS / FAIL (SUCCESS if git operation completed with exit code 0)
+- `status`: SUCCESS / FAIL (same as clone_status for consistency)
+- `timestamp`: string (ISO 8601 datetime when task completed)
+- `git_output`: string (captured stdout/stderr from git commands)
 
 ## Implementation Notes
 1. **THIS IS SCRIPTABLE**: Generate a Python script to execute this task
 2. Idempotency: If the directory exists, perform refresh sequence (reset/clean/pull) instead of recloning.
 3. Error Handling: Any non-zero exit code from git commands sets clone_status=FAIL; do not mark progress checkbox.
 4. Contract Compliance: Always save JSON output file with all fields regardless of success/failure.
-5. Progress Update: Only set [x] in repo-progress for task-clone-repo on SUCCESS.
-6. Script Location: Save generated script to `temp-script/` directory with naming pattern: step{N}_repo{M}_task1_clone-repo.py
+5. Progress Update: Only set `[x]` in repo-progress for task-clone-repo on SUCCESS.
+6. Script Location: Save generated script to `temp-script/` directory with naming pattern: `step{N}_repo{M}_task1_clone-repo.py`
 
 

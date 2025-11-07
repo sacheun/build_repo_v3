@@ -51,31 +51,31 @@ For EACH command in commands_extracted array, use AI reasoning to determine if i
   - `dotnet restore`, `nuget restore`
   - `composer install`, `bundle install`
   - `go get`, `cargo build`
-  - (no debug output)
+
 - **Version Checks** (read-only, informational):
   - `node --version`, `npm --version`, `python --version`, `pip --version`
   - `dotnet --version`, `git --version`, `java -version`
   - `msbuild -version`, `gcc --version`
-  - (no debug output)
+
 - **Configuration Reads** (non-modifying queries):
   - `git config --list`, `git config --get user.name`
   - `npm config list`, `npm config get registry`
   - Environment variable reads: `echo $PATH`, `$env:PATH`
-  - (no debug output)
+
 - **Non-Destructive File Operations**:
   - Directory listing: `ls`, `dir`, `tree`
   - Directory navigation: `cd <path>` (safe when used to set context)
   - File reading: `cat`, `type`, `Get-Content` (read-only)
-  - (no debug output)
+
 - **Environment Variable Assignment** (local scope):
   - `export VAR=value` (Bash/sh)
   - `$env:VAR='value'` (PowerShell)
   - `set VAR=value` (CMD - local scope)
-  - (no debug output)
+
 - **Safe Directory Creation** (non-destructive):
   - `mkdir <name>` (creating directories is generally safe)
   - `New-Item -Type Directory`
-  - (no debug output)
+
 
 **UNSAFE Commands** (destructive, modifying, risky, or out-of-scope):
 - **File Deletion/Modification**:
@@ -83,37 +83,37 @@ For EACH command in commands_extracted array, use AI reasoning to determine if i
   - `mv`, `move`, `ren`, `rename`
   - `cp -f`, `copy /Y` (overwriting files)
   - Reason: "destructive_file_operation"
-  - (no debug output)
+
 - **System/Permission Modifications**:
   - `sudo <anything>`, `su`
   - `chmod`, `chown`, `icacls`
   - `setx` (permanent environment variables)
   - Reason: "system_modification"
-  - (no debug output)
+
 - **Network Operations** (downloading executables, security risk):
   - `curl <url> | sh`, `wget <url> | bash`
   - `Invoke-WebRequest <url> -OutFile <exe>`
   - Downloading .exe, .msi, .sh, .bat files
   - Reason: "network_download_execute"
-  - (no debug output)
+
 - **Build/Compile Commands** (handled by other workflow tasks):
   - `msbuild`, `dotnet build`, `dotnet publish`
   - `npm run build`, `npm run start`, `yarn build`
   - `make`, `cmake`, `gradle build`
   - `mvn compile`, `ant build`
   - Reason: "build_command_handled_elsewhere"
-  - (no debug output)
+
 - **Database Operations**:
   - `DROP`, `DELETE`, `UPDATE`, `TRUNCATE`
   - `mongod`, `mysqld`, database server start commands
   - Reason: "database_operation"
-  - (no debug output)
+
 - **Ambiguous/Complex Commands**:
   - Commands with shell redirects that modify files: `> file.txt`
   - Pipes to unknown executables: `| unknown-tool`
   - Complex chained commands: `cmd1 && cmd2 && cmd3` (evaluate each separately)
   - Reason: "ambiguous_safety"
-  - (no debug output)
+
 
 **Safety Decision Logic:**
 - When in doubt, classify as UNSAFE.
@@ -179,23 +179,22 @@ Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST inc
 6. If no skipped commands: `0 skipped`.
 7. On SKIPPED status (no execution attempted): set both to `SKIPPED`.
 8. On FAIL: retain existing values but append ` (FAIL)` unless already marked.
-9. If a line lacks an arrow, normalize: `- {{token}} → <value>`.
+9. Always ensure exactly one `→` per line.
 10. **Inline Variable Policy:** Never create separate refreshed blocks; modify original lines only.
 11. Do not modify other checklist tasks or repository entries.
-12. Do not emit debug output.
 
 ### End of Steps
 
 ## Output Contract
-- repo_directory: string (from checklist)
-- repo_name: string (from checklist)
-- total_commands_scanned: number (raw_commands length before safety classification; 0 if SKIPPED)
-- safe_commands_count: number
-- unsafe_commands_count: number
-- executed_commands: array of execution result objects
-- skipped_commands: array of skipped command objects
-- status: SUCCESS / SKIPPED / FAIL
-- timestamp: string (ISO 8601)
+- `repo_directory`: string (from checklist)
+- `repo_name`: string (from checklist)
+- `total_commands_scanned`: number (raw_commands length before safety classification; 0 if SKIPPED)
+- `safe_commands_count`: number
+- `unsafe_commands_count`: number
+- `executed_commands`: array of execution result objects
+- `skipped_commands`: array of skipped command objects
+- `status`: SUCCESS / SKIPPED / FAIL
+- `timestamp`: string (ISO 8601)
 
 ## Implementation Notes
 1. **THIS IS NOT A SCRIPT**: Use direct tool calls only.
@@ -214,36 +213,8 @@ Structured Output JSON (output/{{repo_name}}_task4_execute-readme.json) MUST inc
 9. **Output Truncation**: Truncate stdout/stderr to prevent massive JSON files.
 10. **Shell Selection**: Choose appropriate shell based on command syntax:
     - PowerShell syntax ($env:, Get-*, New-*) → pwsh
-    - Unix syntax (export, ls, grep) → bash or sh
     - Windows batch (set, dir, type) → cmd
 11. **Working Directory**: All commands execute in {{repo_directory}} context.
 12. **Error Logging**: Failed commands are logged but don't stop the workflow.
 13. **Parameter Usage**: The commands_json_path parameter specifies where to load commands – do not hardcode paths.
 14. **Result Integrity**: Ensure executed_commands + skipped_commands counts align with total_commands_scanned.
-
-## Error Handling
-- For any step that fails:
-  - Log error details (exception type, message, failing command if applicable)
-  - If loading commands_json_path fails, set status=FAIL and abort further execution steps
-  - Do not update checklist or results CSV on critical failure
-  - Individual SAFE command failures do not abort the task; record status=FAIL for that command and continue
-
-## Consistency Checks
-- After writing `output/{{repo_name}}_task4_execute-readme.json`, verify file exists and contains keys: `executed_commands`, `skipped_commands`, `status`.
-- Verify counts: `safe_commands_count == len(executed_commands)` and `unsafe_commands_count == len(skipped_commands)`.
-- After updating checklist, confirm `@task-execute-readme` checkbox only set when status is SUCCESS or SKIPPED (not FAIL).
-- If any verification fails, log an error and do not mark checklist.
-
-## Cross-References
-- Reference the most recent values obtained in earlier steps; never reuse outdated variable snapshots.
-- Variables in scope for this task:
-  - repo_directory (execution working directory)
-  - repo_name (repository identifier)
-  - commands_json_path (input path from scan-readme)
-  - total_commands_scanned (from scan JSON)
-  - safe_commands_count / unsafe_commands_count
-  - executed_commands (array of execution results)
-  - skipped_commands (array of skipped command descriptors)
-  - status (SUCCESS | SKIPPED | FAIL)
-  - timestamp (ISO 8601)
-- Ensure checklist variables `{{executed_commands}}`, `{{skipped_commands}}` reflect final JSON values.

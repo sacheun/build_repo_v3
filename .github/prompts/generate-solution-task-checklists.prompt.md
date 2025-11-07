@@ -140,15 +140,15 @@ Write JSON: `output/{repo_name}_task5_generate-solution-checklists.json` with ke
 ### End of Steps
 
 ## Output Contract
-- repo_name: string (value extracted from repo checklist `- {{repo_name}}` line)
-- repo_directory: string (value from repo checklist `- {{repo_directory}}` line)
-- solutions_total: number (count of solution entries parsed from solutions_json.solutions array)
-- checklist_paths: array of strings (absolute or repo-relative paths to generated solution checklist markdown files)
-- status: SUCCESS | FAIL (SUCCESS only if all required solution files generated and verification passes; any verification_errors -> FAIL)
-- verification_errors: array of objects { type, target, detail } (empty when status=SUCCESS)
-- timestamp: string (ISO 8601 UTC, seconds precision) when JSON written
-- generated_files: array of objects { solution_name, path } (one per solution; optional but recommended for traceability)
-- skipped_solutions: array of strings (solutions skipped due to earlier failure; empty on SUCCESS)
+- `repo_name`: string (value extracted from repo checklist `- {{repo_name}}` line)
+- `repo_directory`: string (value from repo checklist `- {{repo_directory}}` line)
+- `solutions_total`: number (count of solution entries parsed from solutions_json.solutions array)
+- `checklist_paths`: array of strings (absolute or repo-relative paths to generated solution checklist markdown files)
+- `status`: SUCCESS | FAIL (SUCCESS only if all required solution files generated and verification passes; any verification_errors -> FAIL)
+- `verification_errors`: array of objects { type, target, detail } (empty when status=SUCCESS)
+- `timestamp`: string (ISO 8601 UTC, seconds precision) when JSON written
+- `generated_files`: array of objects { solution_name, path } (one per solution; optional but recommended for traceability)
+- `skipped_solutions`: array of strings (solutions skipped due to earlier failure; empty on SUCCESS)
 
 ## Implementation Notes
 1. **THIS IS SCRIPTABLE**: Generate a Python script to execute this task

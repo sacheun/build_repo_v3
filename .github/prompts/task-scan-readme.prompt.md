@@ -73,7 +73,6 @@ The AI agent must analyze the README content intelligently to understand context
 ### Step 5 (MANDATORY)
 **Follow Referenced Markdown Files:**  
 - **CRITICAL REQUIREMENT:** If README references other .md files, you MUST ALWAYS follow them.
-- **THIS IS NOT OPTIONAL – This step is MANDATORY for all README files.**
 - Use AI reasoning to identify ALL references to other markdown files:
    - Markdown link examples: Getting Started (getting_started.md), Setup Guide (docs/setup.md)
   - Plain text references: "See setup.md for instructions", "Refer to INSTALL.md", "check getting_started.md"
@@ -180,27 +179,6 @@ Structured Output Assembly:
 Generate JSON only (no verification in this step) at `output/{{repo_name}}_task3_scan-readme.json`. 
 
 Structured Output JSON (output/{{repo_name}}_task3_scan-readme.json) MUST include:
-
-Verification checklist:
-1. Checklist file exists at `{{checklist_path}}`.
-2. Variable lines present exactly once for:
-   - `- {{repo_name}}` (non-empty if not SKIPPED)
-   - `- {{repo_directory}}` (non-empty if not SKIPPED)
-   - `- {{readme_content_path}}` (non-empty if status not SKIPPED)
-3. `- {{commands_extracted}}` line exists (may be blank pre-refresh).
-4. If status=SUCCESS:
-   - `total_commands > 0`.
-   - `total_commands == len(commands_extracted array)`.
-5. If status=NONE: `total_commands == 0` and README existed.
-6. If status=SKIPPED: README missing or unreadable (char_count=0 or null) and commands_extracted array empty.
-7. No duplicate variable lines for repo_name, repo_directory, commands_extracted.
-8. Task directive line `@task-scan-readme` appears exactly once.
-9. Arrow formatting: each variable line uses `- {{token}} → value`.
-10. Base variables (`repo_name`, `repo_directory`, `readme_content_path`) unchanged (compare loaded vs post-verification; if changed → violation).
-
-Record each failure as: `{ "type": "<code>", "target": "<file|repo>", "detail": "<description>" }` in `verification_errors`.
-
-Structured Output JSON (output/{{repo_name}}_task3_scan-readme.json) MUST include:
 - repo_directory
 - repo_name
 - readme_filename
@@ -225,21 +203,20 @@ Structured Output JSON (output/{{repo_name}}_task3_scan-readme.json) MUST includ
    * If status=FAIL: `FAIL`
 - If the line lacks an arrow, append one then the value: `- {{commands_extracted}} → <value>`.
 - Preserve the exact prefix `- {{commands_extracted}}` (no casing or spacing changes).
-- Do not create a new section; perform an inline in-place update only.
 - Do not modify base variables (`repo_name`, `repo_directory`, `readme_content_path`).
 
 ### End of Steps
 
 ## Output Contract
-- repo_directory: string (absolute path) (extracted from checklist)
-- repo_name: string (extracted from checklist)
-- readme_filename: string or null (from task-search-readme output JSON)
-- sections_identified: array of objects (section_heading, line_number, keywords_matched, source_file)
-- commands_extracted: array of objects (command, category, source_section, source_type, source_file, line_number, context)
-- referenced_files_processed: array of strings (paths to markdown files that were read and analyzed)
-- total_commands: number (count of commands_extracted)
-- status: SUCCESS, NONE, SKIPPED, FAIL
-- timestamp: string (ISO 8601)
+- `repo_directory`: string (absolute path) (extracted from checklist)
+- `repo_name`: string (extracted from checklist)
+- `readme_filename`: string or null (from task-search-readme output JSON)
+- `sections_identified`: array of objects (section_heading, line_number, keywords_matched, source_file)
+- `commands_extracted`: array of objects (command, category, source_section, source_type, source_file, line_number, context)
+- `referenced_files_processed`: array of strings (paths to markdown files that were read and analyzed)
+- `total_commands`: number (count of commands_extracted)
+- `status`: SUCCESS, NONE, SKIPPED, FAIL
+- `timestamp`: string (ISO 8601)
 
 ## Implementation Notes (conceptual)
 1. **THIS IS NOT A SCRIPT**: Use direct tool calls – read_file, run_in_terminal, create_file, replace_string_in_file, list_dir
