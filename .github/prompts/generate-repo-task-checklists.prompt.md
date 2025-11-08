@@ -108,7 +108,7 @@ Generate Individual Repository Checklist Files:
        - [ ] [MANDATORY] [SCRIPTABLE] Clone repository to local directory @task-clone-repo (1)
        - [ ] [MANDATORY] [SCRIPTABLE] Find all solution files in repository @task-find-solutions (2)
        - [ ] [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files (no inline sections) @generate-solution-task-checklists (3)
-      - [ ] [MANDATORY] [SCRIPTABLE] Search for README file in repository @task-search-readme (4)
+       - [ ] [MANDATORY] [SCRIPTABLE] Search for README file in repository @task-search-readme (4)
        - [ ] [MANDATORY] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme (5)
        - [ ] [MANDATORY] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme (6)
 
@@ -132,7 +132,6 @@ Generate Individual Repository Checklist Files:
    - {{clone_path}} →
    - {{repo_directory}} →
    - {{solutions_json}} →
-   - {{solutions}} →
    - {{readme_content}} →
    - {{readme_filename}} →
    - {{commands_extracted}} →
@@ -150,14 +149,14 @@ Generate Individual Repository Checklist Files:
    - executed_commands: Array of commands that were executed (output of @task-execute-readme).
    - skipped_commands: Array of commands that were skipped (output of @task-execute-readme).
    - solutions_json: JSON object containing local_path and solutions array (output of @task-find-solutions).
-   - solutions: Array of solution objects with name and path properties (extracted from solutions_json, output of @task-find-solutions).
-    - Do NOT include any secondary or alternative template examples. The above block is authoritative.
-    - Post-write validation (Mandatory):
+
+   - Do NOT include any secondary or alternative template examples. The above block is authoritative.
+   - Post-write validation (Mandatory):
           1. Count occurrences of `# Task Checklist:` → MUST equal 1.
           2. Count occurrences of `## Repo Variables Available` → MUST equal 1.
           3. Ensure no duplicated task lines (each directive appears once).
           4. If any violation found, delete the faulty file and set status=FAIL before JSON output.
-    - Task classification (for reference – do not duplicate in file):
+   - Task classification (for reference – do not duplicate in file):
           * MANDATORY (sequential): @task-clone-repo (1), @task-search-readme (2), @task-find-solutions (3), @generate-solution-task-checklists (4)
           * CONDITIONAL: @task-scan-readme, @task-execute-readme
           * SCRIPTABLE: @task-clone-repo, @task-search-readme, @task-find-solutions, @generate-solution-task-checklists

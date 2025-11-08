@@ -18,19 +18,16 @@ This task discovers all Visual Studio solution files (`.sln`) within a repositor
 ## Instructions (Follow this Step by Step)
 
 ### Step 1 (MANDATORY)
-Checklist Load, Variable Extraction & Input Validation (Combined):
+Checklist Load, Variable Extraction & Input Validation:
 - Open the file at `{{checklist_path}}`.
 - Extract (value after `→`) from lines:
-  - `- {{repo_name}}`
   - `- {{repo_directory}}`
 - Confirm presence of tokens (values may be placeholders initially):
   - `- {{solutions_json}}`
-  - `- {{solutions}}`
 - Validate immediately:
-  - If any required line missing OR `repo_name`/`repo_directory` value blank → set `status=FAIL` and proceed directly to Step 5 (skip discovery and path collection).
-  - If `repo_directory` does not exist or inaccessible → set `status=FAIL` and proceed directly to Step 5.
-- Base variables (`repo_name`, `repo_directory`) are immutable; do NOT modify them.
-- Rationale: Combining removes redundant early failure branching and centralizes preconditions.
+  - If any required line missing OR `repo_directory` value blank → set `status=FAIL` and proceed directly to Step 5 (skip discovery and path collection).
+- Base variables (`repo_directory`) are immutable; do NOT modify them.
+
 
 ### Step 2 (MANDATORY)
 Recursive Solution Discovery:
@@ -47,15 +44,13 @@ Path Collection:
 Checklist Update & Variable Refresh (INLINE ONLY):
 1. Open `{{checklist_path}}`.
 2. Set `[x]` only on the `@task-find-solutions` entry if status=SUCCESS. Leave `[ ]` on FAIL.
-3. Under `## Repo Variables Available` locate lines beginning with:
-  * `- {{solutions_json}}`
-  * `- {{solutions}}`
-4. Populate ONLY the values for:
-  * `- {{solutions_json}}` → `output/{{repo_name}}_task5_find-solutions.json` (path to structured output file)
-  * `- {{solutions}}` → `<count> solutions: Name1; Name2; Name3 ...` (list up to 5 solution file base names, then `...` if more; if zero, `0 solutions`)
-5. On FAIL status: set both values to `FAIL` (do not mark checklist task).
-6. Always ensure exactly one `→` per line.
-7. Do not modify any other checklist variables.
+3. Under `## Repo Variables Available` ensure a line exists beginning with:
+  * `- {{solutions_json}}` (if missing, append it at the end of that section with an empty placeholder before updating)
+4. Replace ONLY the text after `→` on the `{{solutions_json}}` line as follows (always perform this replacement, regardless of SUCCESS or FAIL):
+  * On SUCCESS: `output/{{repo_name}}_task5_find-solutions.json`
+  * On FAIL: `FAIL`
+5. Always ensure exactly one `→` per line; if the line was newly created, format it exactly: `- {{solutions_json}} → FAIL` (for FAIL) or `- {{solutions_json}} → output/{{repo_name}}_task5_find-solutions.json` (for SUCCESS).
+6. Do not modify any other checklist variables.
 
 ### Step 5 (MANDATORY)
 Structured Output JSON:

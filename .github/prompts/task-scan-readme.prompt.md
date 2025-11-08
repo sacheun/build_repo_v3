@@ -33,7 +33,7 @@ The AI agent must analyze the README content intelligently to understand context
 - NEVER modify `repo_name`, `repo_directory`, `repo_url`, or `readme_content_path` in this task.
 
 ### Step 2 (MANDATORY)
-**README Load & Prerequisites Check (Combined):**
+**README Load & Prerequisites Check:**
 - Use `read_file` to load the JSON at `readme_content_path` (extracted in Step 1).
 - Parse and extract `readme_content` and `readme_filename` fields.
 - If file missing or unreadable:
@@ -185,7 +185,7 @@ Handle multi-line commands (join with proper syntax)
 
 ### Step 9 (MANDATORY)
 Structured Output Assembly:
-Generate JSON only (no verification in this step) at `output/{{repo_name}}_task3_scan-readme.json`. 
+Generate JSON at `output/{{repo_name}}_task3_scan-readme.json`. 
 
 Structured Output JSON (output/{{repo_name}}_task3_scan-readme.json) MUST include:
 - repo_directory

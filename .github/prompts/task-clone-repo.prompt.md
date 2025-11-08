@@ -19,7 +19,7 @@ This task clones a repository from repo_url into clone_path directory. This is a
 
 ### Step 1 (MANDATORY)
 Load Variables From Checklist:
-1. Resolve `checklist_path`; ensure file exists. If missing, set status=FAIL and abort.
+1. Resolve `{{checklist_path}}`; ensure file exists. If missing, set status=FAIL and abort.
 2. Open the checklist file and locate the `## Repo Variables Available` section.
 3. Parse lines beginning with:
    * `- {{repo_url}}`
@@ -53,7 +53,7 @@ Checklist Update & Variable Refresh (INLINE ONLY):
    * `- {{repo_directory}} → {repo_directory}` (replace `{repo_directory}` placeholder with the exact normalized path if not already populated)
 4. Preserve arrow format exactly: `- {{token}} → value` (single space before and after arrow). If value intentionally blank leave nothing after arrow.
 5. Make changes inline—do NOT add duplicate variable lines or new sections.
-6. On clone_status=FAIL, still ensure repo_url and repo_name lines are populated (they are prerequisites); leave all other variable values blank.
+6. On clone_status=FAIL, still ensure repo_url and repo_name lines are populated .
 7. Always ensure exactly one `→` per variable line.
 
 ### Step 5 (MANDATORY)
