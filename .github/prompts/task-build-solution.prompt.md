@@ -1,168 +1,135 @@
- @task-build-solution solution_path={{solution_path}}
+@task-build-solution solution_path={{solution_path}}
 ---
 temperature: 0.0
 ---
 
 Task name: task-build-solution
 
-## Description:
-Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release configuration, extracts diagnostic tokens (error/warning codes), classifies them heuristically, and returns structured JSON summarizing build success along with truncated output segments. Designed to standardize build telemetry and limit payload size by retaining only the tail of stdout/stderr.
+## Description
+Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release configuration, extracts diagnostic tokens, classifies them, and returns structured JSON summarizing build success. This version adds strict, checkpoint-driven execution to prevent skipped steps.
 
-## Execution Policy
-**ALL STEPS BELOW ARE MANDATORY.**
-**DO NOT SKIP OR SUMMARIZE.**
-**THIS TASK IS SCRIPTABLE**
-**Do not deviate from the command list provided. Always use the exact same commands each time you run this prompt.**
+## Reliability Framework (MANDATORY)
+- **Sequential enforcement**: Steps 1→11 must run in order. Do not skip, merge, or reorder steps.
+- **Checkpointing**: After each step, print a checkpoint line: `✅ Step N complete` or on failure `❌ Step N failed — <reason>`.
+- **Retry-once**: If a step's required validation fails, retry the step once; on second failure set `status=FAIL` and go to final structured output.
+- **Atomic writes**: All file writes must be atomic — build to temp file then move/replace.
+- **Audit**: Final integrity check confirms all checkpoints present; otherwise set `status=FAIL_MISSING_STEP`.
 
-## Instructions (Follow this Step by Step)
-### Step 1 (MANDATORY)
-Entry Context:
- Print a single line to indicate start:
-    `[task-build-solution] START solution='{{solution_name}}' path='{{solution_path}}'`
+---
 
-### Step 2 (MANDATORY)
-Input Validation:
-   - Ensure {{solution_path}} is provided and exists.
-   - Must end with .sln; otherwise treat as contract failure.
-   - Derive solution_name from file name (e.g., Foo.sln → Foo).
+## Step 1 — Input Validation (MANDATORY)
+1. Verify `{{solution_path}}` parameter provided, is a string, and file exists. If missing → set `status=FAIL` (error: "CONTRACT") and emit JSON as described in Step 8.
+2. Must end with `.sln`; otherwise `status=FAIL` (error: "CONTRACT").
+3. Derive `solution_name` = basename without extension.
+4. Print `✅ Step 1 complete - solution_path='{{solution_path}}' solution_name='{{solution_name}}'`.
 
-### Step 3 (MANDATORY)
-Build Invocation:
-   - Command: `msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo`
-   - The flag `--maxcpucount` is included for parallel build consistency (matches decision log message).
-   - **IMPORTANT**: All parameters starting with `--` or `-` are command arguments to msbuild, NOT file paths.
-   - Print the exact command line prior to execution for transparency.
-   - Assumes packages already restored by @task-restore-solution.
-   - Capture full stdout and stderr streams.
+---
 
-### Step 4 (MANDATORY)
-Success Determination:
-   - success = (return_code == 0)
-   - Non-zero exit sets success=false but still parse output for diagnostics.
+## Step 2 — Pre-Build Artifact: Snapshot build_count (MANDATORY)
+1. Open checklist: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`. If file missing, record warning but continue (task may still run).
+2. Parse `### Solution Variables` and read single authoritative `- build_count → <int>` line. If missing, assume 0 and insert a single `- build_count → 0` placeholder atomically (but mark that insertion in verification_errors).
+3. Cache `old_build_count` (integer) in memory for mapping logic and artifact naming (do not modify file here).
+4. Print `✅ Step 2 complete - old_build_count=<old_build_count>`.
 
+---
 
-### Step 6 (MANDATORY)
-   Retain only last 12,000 characters of stdout and stderr individually (tail truncation) to manage JSON size.
-   - Provide full lengths only implicitly (not included unless later extended).
+## Step 3 — Build Invocation (MANDATORY)
+1. Command (exact):
+   ```
+   msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo
+   ```
+2. Print command line prior to execution: `[task-build-solution] executing: msbuild ...`
+3. Execute synchronously, capture full stdout/stderr and exit code. Timeout: 30 minutes by default (configurable).
+4. If `msbuild` not found or fails to start, attempt fallback `dotnet msbuild` with same args (log fallback occurrence).
+5. On execution failure to start (both msbuild and dotnet missing), set `status=FAIL` and proceed to Step 8.
+6. Print `✅ Step 3 complete - exit_code=<code>` after capture.
 
-### Step 7 (MANDATORY)
-Token Extraction:
-   - Scan combined output (stdout + stderr) with regex patterns for canonical codes (examples: CS\d{4}, NETSDK\d{4}, CA\d{4}, NU\d{4}, MSB\d{4}).
-   - Produce distinct set of tokens (no duplicates).
+---
 
-### Step 8 (MANDATORY)
-Classification Heuristic:
-   - For each token, case-insensitive search for pattern: warning.*<token> within combined output.
-   - If match found → categorize as warning; else → error.
-   - Edge cases: token appearing outside typical format may misclassify.
+## Step 4 — Success Determination (MANDATORY)
+1. `success = (exit_code == 0)` based on final build invocation (after attempted fallbacks).
+2. Print `✅ Step 4 complete - success=<success>`.
 
-### Step 9 (MANDATORY)
-Diagnostic Object Construction:
-   - errors: array of { code, message } (message empty placeholder for future enrichment).
-   - warnings: array of { code, message } same structure.
-   - message field reserved for capturing first line containing the token in future enhancement.
+---
 
-### Step 10 (MANDATORY)
-Structured Output Emission:
-   - Include: solution_path, solution_name, success, return_code, stdout_tail, stderr_tail, errors[], warnings[].
-   - Maintain JSON Contract regardless of success state.
-   - Write JSON to stdout for workflow consumption and print a single informational line:
-     `[task-build-solution] JSON emitted (size={{json_size}} bytes)`
+## Step 5 — Tail Truncation (MANDATORY)
+1. Truncate stdout and stderr tails to the **last 12,000 characters** each (if shorter, keep full content).
+2. Store as `stdout_tail`, `stderr_tail`.
+3. Print `✅ Step 5 complete - stdout_len=<len_before>-><len_after> stderr_len=<len_before>-><len_after>`.
 
- Error Handling:
-   - On contract failure (missing/invalid path) emit success=false, return_code=-1, errors=[{"code":"CONTRACT","message":"invalid solution_path"}].
-   - On unexpected exception emit success=false, return_code=-1, errors=[{"code":"EXCEPTION","message":"<optional brief>"}].
-   - Always emit warnings array (empty if none).
+---
 
-### Step 12 (MANDATORY)
-Repo Checklist Update: Mark EXACTLY ONE build-related task line based on the PRE-INCREMENT build_count and then increment build_count by exactly 1.
+## Step 6 — Token Extraction (MANDATORY)
+1. Combine full captured output (prefer using truncated tails for performance) and scan for unique tokens matching patterns: `CS\d{4}`, `NETSDK\d{4}`, `CA\d{4}`, `NU\d{4}`, `MSB\d{4}` (case-insensitive).
+2. Produce `tokens` = distinct list of matches.
+3. Print `✅ Step 6 complete - tokens_found=<len(tokens)>`.
 
-Canonical Increment Requirement:
-   - The `build_count` variable MUST be treated as authoritative. Do NOT derive or recompute its value from previously marked task lines.
-   - On every invocation: new_build_count = old_build_count + 1 (always +1, no skipping, no collapsing, no recomputation).
-   - Persist the new value by overwriting ONLY the single `- build_count → <value>` variable line.
+---
 
-Add & Use Variable:
-   - A solution variable `build_count` (integer) MUST exist in `### Solution Variables` (initialize to 0 if missing).
-   - Each invocation increments `build_count` AFTER marking exactly one applicable task line.
+## Step 7 — Classification Heuristic (MANDATORY)
+1. For each token, search combined output for a case-insensitive line containing `warning` near the token (same line or +/-2 lines). If found → categorize as `warning`, else `error`.
+2. Build two distinct arrays: `warnings[]` and `errors[]`; each element `{ code: <token>, message: "" }` (message reserved for future enrichment).
+3. Cap arrays to first 200 entries total (100 each preferred); record truncation in verification_errors if exceeded.
+4. Print `✅ Step 7 complete - warnings=<len(warnings)> errors=<len(errors)>`.
 
-Mapping Logic (choose ONE line to flip from `- [ ]` to `- [x]` using old_build_count BEFORE increment):
-         - If old_build_count == 0: mark the mandatory build line containing @task-build-solution
-         - If old_build_count == 1: mark the first retry build line containing @task-build-solution-retry
-         - If old_build_count == 2: mark the second retry build line containing @task-build-solution-retry
-         - If old_build_count == 3: mark the third retry build line containing @task-build-solution-retry
-   - If old_build_count >= 4: do NOT mark any additional lines (attempt limit reached) but still increment build_count by 1 (showing additional invocations) and proceed with variable refresh & verification.
+---
 
-Rules:
-   - Never convert more than one `[ ]` to `[x]` per run.
-   - Do NOT unmark or modify already marked lines.
-   - Do NOT add, duplicate, or delete task lines.
-   - Preserve original text of the line except the leading `- [ ]` → `- [x]` change.
-   - Do NOT attempt to “correct” build_count based on observed markings; always trust and increment the stored value.
+## Step 8 — Pre-Commit Artifact JSON (MANDATORY)
+1. Compose base JSON payload (regardless of success):
+   - solution_path, solution_name, success, return_code, stdout_tail, stderr_tail, errors[], warnings[]
+2. Write JSON to stdout and also save to `output/{{solution_name}}_task-build-solution.json` atomically.
+3. Additionally, create count-suffixed copy **using PRE-INCREMENT** `old_build_count` (see Step 2) at:
+   - `output/{{repo_name}}_{{solution_name}}_task-build-solution_buildcount-{{old_build_count}}.json`
+4. Print `✅ Step 8 complete - wrote output and suffixed artifact old_build_count=<old_build_count>`.
 
-Procedure:
-   1. Load checklist file: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`.
-   2. Read current `build_count` integer (default 0 if missing).
-   3. Select target task line per mapping using old_build_count; if eligible and unchecked, mark it.
-   4. Compute new_build_count = old_build_count + 1.
-   5. Overwrite the `- build_count → <old>` line with `- build_count → <new_build_count>` (insert after `- max_build_attempts →` if absent).
-   6. Write updated file content.
+---
 
-Verification Note (enforced in Step 12): A violation MUST be recorded if the difference between successive runs is not exactly +1 or if build_count appears more than once.
+## Step 9 — Checklist Marking & build_count Increment (MANDATORY)
+1. Load checklist file and authoritative `- build_count → <old>` line (if missing, was inserted in Step 2).
+2. Determine `target_line_to_mark` using **old_build_count** mapping:
+   - 0 → mark the primary `@task-build-solution` line
+   - 1 → mark first retry line `@task-build-solution-retry` (Attempt 1)
+   - 2 → mark second retry line (Attempt 2)
+   - 3 → mark third retry line (Attempt 3)
+   - >=4 → do NOT mark any task line (limit reached)
+3. For the chosen target: if it exists and is currently `- [ ]`, change leading `- [ ]` → `- [x]`. If already `- [x]`, leave unchanged (do not unmark others).
+4. Compute `new_build_count = old_build_count + 1`. Overwrite the single `- build_count → <old>` line with `- build_count → <new_build_count>` (insert if missing; ensure only one occurrence remains).
+5. Write file atomically. Validation: exactly one `- build_count →` line exists with the new value.
+6. Print `✅ Step 9 complete - marked=<target_line_to_mark> new_build_count=<new_build_count>`.
 
-### Step 13 (MANDATORY)
-Repo Variable Refresh (STRICT ISOLATED UPDATE): Use the PRE-INCREMENT build_count (cached BEFORE Step 8 wrote the new value) to update EXACTLY ONE status variable and NO OTHER VARIABLES. Then rely on the already-performed increment from Step 8 (DO NOT re-increment or recompute).
+---
 
-Procedure:
-1. Open the same checklist file.
-2. Locate `### Solution Variables` section.
-3. Read cached old_build_count (value prior to Step 8). Never derive from task markings. Never read the newly incremented value for mapping.
-4. Apply EXACT ONE mapping based on old_build_count:
-   - If old_build_count == 0: ONLY set `build_status` to SUCCEEDED or FAILED. Do not modify any other variable lines.
-   - If old_build_count == 1: ONLY set `retry_build_status_attempt_1` to SUCCEEDED or FAILED. Do not modify any other variable lines.
-   - If old_build_count == 2: ONLY set `retry_build_status_attempt_2` to SUCCEEDED or FAILED. Do not modify any other variable lines.
-   - If old_build_count == 3: ONLY set `retry_build_status_attempt_3` to SUCCEEDED or FAILED. Do not modify any other variable lines.
-   - If old_build_count >= 4: Do NOT change ANY status variables.
-5. Never alter previously written statuses from earlier attempts.
-6. (Updated) `retry_build_status_attempt_3` MUST be modified ONLY when old_build_count == 3 per the mapping above; never at other counts.
-7. Do NOT touch restore_status, kb_search_status, kb_file_path, kb_article_status, fix_applied_attempt_* or any other variables.
-8. Ensure there remains EXACTLY ONE `- build_count → <value>` line (already updated in Step 8). Do not rewrite or duplicate it here.
-9. Write the updated file with only the single permitted change.
+## Step 10 — Repo Variable Refresh (MANDATORY)
+1. Using cached `old_build_count` (NOT the newly written value), update exactly ONE status variable in `### Solution Variables` per mapping:
+   - old_build_count==0 → set `build_status` to `SUCCEEDED` or `FAILED` based on `success`
+   - old_build_count==1 → set `retry_build_status_attempt_1`
+   - old_build_count==2 → set `retry_build_status_attempt_2`
+   - old_build_count==3 → set `retry_build_status_attempt_3`
+   - old_build_count>=4 → do not modify any status variable
+2. Do NOT modify other variables (`restore_status`, `kb_*`, `fix_applied_*`, etc.).
+3. Ensure exactly one variable change occurs; write atomically.
+4. Print `✅ Step 10 complete - updated_status_for_attempt=<old_build_count>`.
 
-Validation Focus for Step 9:
- - A run modifying more than the single allowed status variable MUST be considered a violation in Step 12 (`variable_mismatch`).
- - Failure to update the required single status variable when old_build_count ∈ {0,1,2,3} MUST also be a violation (`variable_missing`).
+---
 
-### Step 14 (MANDATORY)
-Unconditional Exit Summary:
- Print exactly one line on completion (always):
-    `[task-build-solution] EXIT success={{success}} errors={{error_count}} warnings={{warning_count}}`
- This line marks task completion and provides quick status visibility for pipeline execution.
+## Step 11 — Verification & Final JSON (MANDATORY)
+1. Verify integrity:
+   - Exactly one `- build_count →` line present and value == new_build_count.
+   - Only one task line was flipped (if applicable).
+   - Counts of executed steps' checkpoints exist.
+2. If verification fails, record verification error and set `status=FAIL` (but still emit final JSON).
+3. Final JSON (write to stdout and `output/{{solution_name}}_task-build-solution-final.json`):
+   - solution_path, solution_name, success, return_code, stdout_tail, stderr_tail, errors, warnings, old_build_count, new_build_count, verification_errors
+4. Print `[task-build-solution] JSON emitted (size={{json_size}} bytes)` and `✅ Step 11 complete - final verification passed` (or failed with reason).
+5. If any step earlier failed and was unrecoverable, overall `success=false` and include `errors` with codes per contract.
 
-### Step 16 (MANDATORY)
-Count-Suffixed Artifact Capture & Variable Update:
-   - BEFORE incrementing build_count, write secondary JSON: `output/{{repo_name}}_{{solution_name}}_task-build-solution_buildcount-{{old_build_count}}.json` containing identical payload to base JSON.
-   - Update exactly one stderr artifact variable (per mapping above) to point to that count-suffixed file.
-   - Do NOT modify more than one stderr artifact variable per run.
-   - Arrow format MUST use U+2192.
+---
 
-## Output Contract:
-- solution_path: string (absolute path provided)
-- solution_name: string (basename without extension)
-- success: boolean
-- return_code: integer (MSBuild exit code; -1 on internal failure)
-- stdout_tail: string (last ≤ 12000 chars of stdout)
-- stderr_tail: string (last ≤ 12000 chars of stderr)
-- errors: array[{ code: string, message: string }]
-- warnings: array[{ code: string, message: string }]
-
-## Implementation Notes:
-1. Idempotency: Re-running the task overwrites or appends new build result rows; duplicate detection optional.
-2. Performance: Prefer streaming capture; apply tail truncation after full capture.
-3. Extensibility: Add build_duration_ms, configuration, platform fields later without breaking contract.
-4. Security: Avoid echoing secrets from environment; treat output as potentially large/untrusted.
-5. Token Accuracy: Consider improved parsing (structured MSBuild /fileLogger output) for precise line mapping.
-6. **Error Output on Failure**: When the build command fails (non-zero exit code) print stderr to console: `[task-build-solution] command failed exit_code=<code>` followed by a truncated snippet.
-7. **Command Line Arguments**: MSBuild flags (starting with `--` or `-`) are command arguments, not file paths. Do not request directory access for parameters like `--target:Clean,Build`, `--property:Configuration=Release`, `--maxcpucount`, `--verbosity:quiet`, or `-noLogo`.
-8. **Retry Directive Naming**: Use `@task-build-solution-retry` for retry attempt task lines to avoid uniqueness conflicts with the mandatory directive.
-9. **Artifact Suffix Logic**: The suffix uses PRE-INCREMENT build_count value (old_build_count). After writing suffixed file and updating variable, increment build_count.
+## Implementation Notes
+- All file edits are atomic; modify in-memory then replace file. Preserve original spacing/other variable lines.
+- Use exact arrow U+2192 for variable lines: `- build_count → <n>`.
+- When searching for task lines to mark, match the substring `@task-build-solution` or `@task-build-solution-retry` exactly (case-sensitive).
+- Do NOT attempt to "repair" inconsistent checklists by re-calculating build_count from markings; always use authoritative `build_count` value read in Step 2.
+- Timeouts: build step default 30 min.
+- Tail sizes: 12,000 characters for stdout/stderr.
+- Ensure outputs are deterministic and idempotent aside from build_count increment.

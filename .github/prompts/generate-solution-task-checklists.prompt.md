@@ -37,10 +37,11 @@ Each step must output a verification result before proceeding.
 3. Read the file (UTF-8). Extract exact variable values from these lines (value is the text after `→`):
    ```
    - {{repo_name}} →
+   - {{repo_url}} →
    - {{repo_directory}} →
    - {{solutions_json}} →
    ```
-4. Validate mandatory variables (`repo_name`, `repo_directory`, `solutions_json`) are non-blank.  
+4. Validate mandatory variables (`repo_name`, `repo_directory`, `solutions_json`) are non-blank. `repo_url` may be blank; if blank substitute `<unknown>` in templates.  
 5. If valid AND `solutions_json` points to an existing file, load JSON. Expect key `solutions` (array of absolute `.sln` paths).  
 6. For each path in `solutions`, derive solution name = basename without extension (e.g., `C:\x\Foo.Bar.sln` → `Foo.Bar`).  
 7. Build internal list objects: `{ name: <derived_name>, path: <absolute_path> }`.  
@@ -64,13 +65,20 @@ Each step must output a verification result before proceeding.
 ### Step 3 — Write Solution Checklist Contents (**MANDATORY**)
 **Checkpoint → Confirm each file written with full template.**
 
-1. For each checklist file, write this canonical template atomically:  
+1. For each checklist file, write this canonical template atomically (FULL CONTENT – do not truncate):  
    ```markdown
    # Solution Checklist: {solution_name}
    Repository: {repo_url}
    Generated: {timestamp}
 
    ## Solution: {solution_name}
+
+   ### Solution Variables
+   - Solution name: {solution_name}
+   - Solution path: {solution_path}
+   - Parent repo: {repo_name}
+   - Last build status: (blank)
+   - Last build timestamp: (blank)
 
    ### Tasks
    - [ ] [MANDATORY] Restore NuGet packages @task-restore-solution
@@ -84,11 +92,18 @@ Each step must output a verification result before proceeding.
    - [ ] [CONDITIONAL Attempt 3] Apply fix from KB @task-apply-knowledge-base-fix
    - [ ] [CONDITIONAL Attempt 3] Retry build after fix @task-build-solution
 
+   ### Retry Attempts Guidance
+   Attempt 1: Initial restore/build.
+   Attempt 2: Apply first KB fix then rebuild.
+   Attempt 3: Apply second KB fix then rebuild; escalate if still failing.
+
    ## For Agents Resuming Work
-   (unchanged from original template)
+   1. Start at the first unchecked task in order.
+   2. Update build status/timestamp variables after each build.
+   3. Record any KB article references inline below tasks.
    ```
 
-2. Verify that each file includes “### Tasks”, “### Solution Variables”, and “Retry Attempt 3” sections.  
+2. Verify that each file includes headings: “### Solution Variables”, “### Tasks”, and “### Retry Attempts Guidance”.  
 3. **Checkpoint:** Log verification status and continue to **Step 4**.
 
 ---
@@ -97,7 +112,7 @@ Each step must output a verification result before proceeding.
 **Checkpoint → Confirm repo checklist updated correctly.**
 
 1. Open `tasks/{{repo_name}}_repo_checklist.md`.  
-2. Mark `[x]` on the `@generate-repo-task-checklists` entry **only**.  
+2. Mark `[x]` on the `@generate-solution-task-checklists` entry **only**.  
 3. Do not modify other items.  
 4. **Checkpoint:** Record success/fail. Continue to **Step 5**.
 
