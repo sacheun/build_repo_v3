@@ -34,9 +34,9 @@ TASK_NAME_NORMALIZE = {
 VAR_DEF_PATTERN = re.compile(r"^- ([a-zA-Z0-9_]+):.*\(output of @([a-zA-Z0-9\-]+)\)")
 # Extract variables in Repo Variables Available section
 # Match either the unicode right arrow (→) or ASCII -> sequence.
-VAR_LINE_PATTERN = re.compile(r"^- \{([a-zA-Z0-9_]+)\} *(?:→|->) *(.*)$")
-# Repo name line arrow match (unicode or ASCII)
-REPO_NAME_PATTERN = re.compile(r"^- \{repo_name\} *(?:→|->) *(.*)$")
+VAR_LINE_PATTERN = re.compile(r"^- \{(?:\{)?([a-zA-Z0-9_]+)\}(?:\})? *(?:→|->) *(.*)$")
+# Repo name line arrow match (unicode or ASCII), accept single or double braces
+REPO_NAME_PATTERN = re.compile(r"^- \{(?:\{)?repo_name\}(?:\})? *(?:→|->) *(.*)$")
 
 SECTION_HEADER_PATTERN = re.compile(r"^## ")
 
@@ -57,7 +57,7 @@ def _extract_section(lines: List[str], header_prefix: str) -> List[str]:
 
 def _get_repo_name(lines: List[str]) -> str:
     for line in lines:
-        if line.startswith("- {repo_name}"):
+        if line.startswith("- {repo_name}") or line.startswith("- {{repo_name}}"):  # accept single or double brace form
             m = REPO_NAME_PATTERN.match(line)
             if m:
                 return m.group(1).strip() or "<unknown>"
@@ -66,6 +66,24 @@ def _get_repo_name(lines: List[str]) -> str:
         if line.startswith('# Task Checklist:'):
             return line.partition(':')[2].strip() or '<unknown>'
     return '<unknown>'
+
+def _expected_solution_prefixes(solutions_line: str, repo_name: str) -> List[str]:
+    """Derive expected solution checklist filename prefixes from solutions line value.
+
+    solutions_line example: 'SDKTestApp.sln; ResourceProvider.sln; ...'
+    Returns list like ['<repo>_SDKTestApp_solution_checklist.md', ...]
+    """
+    items = []
+    for part in solutions_line.split(';'):
+        part = part.strip()
+        if not part:
+            continue
+        if part.endswith('.sln'):
+            base = part[:-4]  # remove .sln
+        else:
+            base = part
+        items.append(f"{repo_name}_{base}_solution_checklist.md")
+    return items
 
 def check_repo_readiness(checklist_path: str) -> bool:
     """Check if a repo checklist is ready for conditional tasks.
@@ -116,16 +134,31 @@ def check_repo_readiness(checklist_path: str) -> bool:
     missing_tasks = [t for t, done in mandatory_tasks.items() if not done]
     missing_vars = [v for v in mandatory_vars if not var_values.get(v)]
 
+    # Additional solution checklist verification:
+    # If solutions variable populated, verify that corresponding solution checklist files exist in tasks directory.
+    additional_failures: List[str] = []
+    solutions_value = var_values.get('solutions')
+    if solutions_value:
+        tasks_dir = os.path.dirname(checklist_path) or '.'
+        repo_name_extracted = repo_name
+        expected_files = _expected_solution_prefixes(solutions_value, repo_name_extracted)
+        for fname in expected_files:
+            fpath = os.path.join(tasks_dir, fname)
+            if not os.path.isfile(fpath):
+                additional_failures.append(f"missing_solution_checklist:{fname}")
+
     if not mandatory_tasks:
         print(f"[repo readiness] {repo_name}: NO_MANDATORY_TASKS_DETECTED")
         return False
 
-    if missing_tasks or missing_vars:
+    if missing_tasks or missing_vars or additional_failures:
         parts = []
         if missing_tasks:
             parts.append(f"MISSING_TASKS={missing_tasks}")
         if missing_vars:
             parts.append(f"MISSING_VARS={missing_vars}")
+        if additional_failures:
+            parts.append(f"MISSING_SOLUTION_CHECKLISTS={additional_failures}")
         summary = ' '.join(parts)
         print(f"[repo readiness] {repo_name}: {summary}")
         return False
