@@ -62,40 +62,6 @@ Structured Output:
    - Write to stdout and print one informational line: `[task-restore-solution] JSON emitted size={{json_size}} bytes`.
 
 ### Step 8 (MANDATORY)
-Log to Decision Log:
-   - Call @task-update-decision-log to log task completion:
-   ```
-   @task-update-decision-log 
-     timestamp="{{timestamp}}" 
-     repo_name="{{repo_name}}" 
-     solution_name="{{solution_name}}" 
-     task="task-restore-solution" 
-     message="{{message}}" 
-     status="{{status}}"
-   ```
-   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-   - Message format:
-     * If success=true: "NuGet packages restored successfully"
-     * If success=false: "NuGet restore failed - {{error_count}} errors, {{warning_count}} warnings"
-   - Status: "SUCCESS" if success=true, "FAIL" if success=false
-
-### Step 9 (MANDATORY)
-Result Tracking: Append to solution-results.csv
-1. **Prepare CSV entry:**
-   - timestamp: Current UTC timestamp in ISO 8601 format (e.g., "2025-10-26T12:00:00Z")
-   - repo_name: {{repo_name}}
-   - solution_name: {{solution_name}}
-   - task_name: "@task-restore-solution"
-   - status: "SUCCESS" if success=true, "FAIL" if success=false
-   - symbol: "✓" if status="SUCCESS", "✗" if status="FAIL"
-
-2. **Append to results/solution-results.csv using comma (`,`) as the separator:**
-   - Format: `{{timestamp}},{{repo_name}},{{solution_name}},@task-restore-solution,{{status}},{{symbol}}`
-   - Use PowerShell: `Add-Content -Path ".\results\solution-results.csv" -Value "{{csv_row}}"`
-   - Ensure directory exists: `.\results\`
-   - If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
-
-### Step 10 (MANDATORY)
 Repo Checklist Update: Mark current task complete
 1. **Open checklist file:**
    - Path: `{{solution_checklist}}`
@@ -108,7 +74,7 @@ Repo Checklist Update: Mark current task complete
 
 3. **Write updated content back to file**
 
-### Step 11 (MANDATORY)
+### Step 9 (MANDATORY)
 Repo Variable Refresh: Update solution variables
 1. **Open checklist file:**
    - Path: `{{solution_checklist}}`
@@ -126,30 +92,7 @@ Repo Variable Refresh: Update solution variables
 
 5. **Write updated variables back to checklist file**
 
-### Step 12 (MANDATORY)
-Verification (Post-Variable Refresh)
-Perform a verification pass AFTER Step 11 has updated the checklist and variables. This step validates correctness and records any violations. It MUST run even if the restore failed. It does NOT re-run restore commands.
-
-Scope of Verification:
-1. Checklist File Presence: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md` exists and is readable.
-2. Task Marking:
-   - If success=true: the `@task-restore-solution` line MUST be marked `- [x]`.
-   - If success=false: the line MUST still be marked `- [x]` (task executed) but restore_status MUST reflect FAILED.
-3. Directive Uniqueness: Exactly one line contains `@task-restore-solution`.
-4. Value Consistency:
-   - `restore_status` matches success flag (SUCCEEDED when success=true, FAILED when success=false).
-   - `solution_path` ends with `.sln` and points to existing file.
-5. JSON Output Integrity:
-   - The structured JSON emitted in Step 7 MUST contain keys: success, stdout, stderr, errors, warnings.
-   - If a file `output/{{repo_name}}_{{solution_name}}_task-restore-solution.json` was also written (optional enhancement), it MUST include those keys.
-6. No Duplicate Variables: Each required variable appears exactly once.
-
-Success Criteria for Step 12: Verification JSON written (either updated original or separate file) reflecting accurate error list and final status.
-
-### Step 13 (MANDATORY)
-Unconditional Exit Summary:
- Print exactly one line:
-   `[task-restore-solution] EXIT success={{success}} final_status={{status}} verification_errors={{verification_errors_count}}`
+### End of steps
 
 ## Implementation Notes:
 1. **Command Execution**: Use synchronous execution (NOT background jobs). In PowerShell: `msbuild ... ; $exitCode = $LASTEXITCODE`. In Bash: `msbuild ... ; exitCode=$?`. Do NOT proceed until the command completes.

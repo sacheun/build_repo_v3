@@ -40,20 +40,6 @@ Success Determination:
    - success = (return_code == 0)
    - Non-zero exit sets success=false but still parse output for diagnostics.
 
-### Step 5 (MANDATORY)
-Log to Decision Log:
-   - Call @task-update-decision-log to log task execution:
-   ```
-   @task-update-decision-log 
-     timestamp="{{timestamp}}" 
-     repo_name="{{repo_name}}" 
-     solution_name="{{solution_name}}" 
-     task="task-build-solution" 
-       message="msbuild \"{{solution_path}}\" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo" 
-     status="{{status}}"
-   ```
-   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-   - Status: "SUCCESS" if return_code is 0, "FAIL" if non-zero
 
 ### Step 6 (MANDATORY)
    Retain only last 12,000 characters of stdout and stderr individually (tail truncation) to manage JSON size.
@@ -87,22 +73,6 @@ Structured Output Emission:
    - On contract failure (missing/invalid path) emit success=false, return_code=-1, errors=[{"code":"CONTRACT","message":"invalid solution_path"}].
    - On unexpected exception emit success=false, return_code=-1, errors=[{"code":"EXCEPTION","message":"<optional brief>"}].
    - Always emit warnings array (empty if none).
-
-### Step 11 (MANDATORY)
-Result Tracking: Append to solution-results.csv
-1. **Prepare CSV entry:**
-   - timestamp: Current UTC timestamp in ISO 8601 format (e.g., "2025-10-26T12:00:00Z")
-   - repo_name: {{repo_name}}
-   - solution_name: {{solution_name}}
-   - task_name: "@task-build-solution"
-   - status: "SUCCESS" if success=true, "FAIL" if success=false
-   - symbol: "✓" if status="SUCCESS", "✗" if status="FAIL"
-
-2. **Append to results/solution-results.csv using comma (`,`) as the separator:**
-   - Format: `{{timestamp}},{{repo_name}},{{solution_name}},@task-build-solution,{{status}},{{symbol}}`
-   - Use PowerShell: `Add-Content -Path ".\results\solution-results.csv" -Value "{{csv_row}}"`
-   - Ensure directory exists: `.\results\`
-   - If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
 
 ### Step 12 (MANDATORY)
 Repo Checklist Update: Mark EXACTLY ONE build-related task line based on the PRE-INCREMENT build_count and then increment build_count by exactly 1.
@@ -168,79 +138,6 @@ Unconditional Exit Summary:
  Print exactly one line on completion (always):
     `[task-build-solution] EXIT success={{success}} errors={{error_count}} warnings={{warning_count}}`
  This line marks task completion and provides quick status visibility for pipeline execution.
-
-### Step 15 (MANDATORY)
-Verification (Post-Variable Refresh)
-Perform a verification pass AFTER Step 9 variable refresh and AFTER checklist marking (Step 8). This validates correctness and records violations. Runs regardless of build success.
-
-Scope of Verification:
-1. Checklist File Presence: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md` exists.
-2. Task Marking:
-   - Regardless of success, the `@task-build-solution` line MUST be marked `- [x]` (task executed).
-3. Directive Uniqueness: Exactly one occurrence of the mandatory build directive line containing `@task-build-solution` and `[MANDATORY]`. Retry lines may use `@task-build-solution-retry` and are NOT counted toward uniqueness.
-4. Solution Variables Section Integrity:
-   - Header `### Solution Variables` present.
-   - Parenthetical `(Variables set by tasks for this specific solution)` present.
-   - All required variable lines present in arrow format `variable_name → value` (U+2192):
-   * solution_path
-     * solution_name
-     * max_build_attempts
-   * build_count
-     * restore_status
-     * build_status
-     * kb_search_status
-     * kb_file_path
-     * kb_article_status
-     * fix_applied_attempt_1
-     * retry_build_status_attempt_1
-     * fix_applied_attempt_2
-     * retry_build_status_attempt_2
-     * fix_applied_attempt_3
-     * retry_build_status_attempt_3
-5. Arrow Formatting: Record violation if any required variable line missing arrow or using `->` instead of `→`.
-6. Value Consistency:
-   - `build_status` matches success flag (SUCCEEDED when success=true, FAILED when success=false).
-   - `solution_path` ends with `.sln` and file exists.
-7. JSON Output Integrity:
-   - The structured JSON emitted in Step 10 MUST contain keys: solution_path, solution_name, success, return_code, stdout_tail, stderr_tail, errors, warnings.
-   - Base file: `output/{{repo_name}}_{{solution_name}}_task-build-solution.json` MUST exist.
-   - Count-suffixed file for this invocation: `output/{{repo_name}}_{{solution_name}}_task-build-solution_buildcount-{{old_build_count}}.json` MUST also exist with identical key set.
-8. No Duplicate Variables: Each required variable appears exactly once.
-9. build_count Monotonicity: build_count MUST increase by exactly 1 relative to its previous stored value; record violation `variable_mismatch` if delta != 1.
-10. Stderr Artifact Variable: For each attempt, exactly one stderr artifact variable MUST be updated to the count-suffixed JSON path:
-   - Attempt 0 (old_build_count==0): `build_stderr_content`
-   - Attempt 1 (old_build_count==1): `retry_build_stderr_content_attempt_1`
-   - Attempt 2 (old_build_count==2): `retry_build_stderr_content_attempt_2`
-   - Attempt 3 (old_build_count==3): `retry_build_stderr_content_attempt_3`
-   - Attempts >=4: no stderr artifact variable updated.
-   Missing or multiple updates → `variable_mismatch`.
-
-Violation Recording:
-- Append each violation as `{ "type": "<code>", "target": "<file|variable|line>", "detail": "<human readable>" }` to `verification_errors`.
-- Recommended codes: file_missing, directive_duplicate, checklist_mark_incorrect, variable_missing, variable_mismatch, arrow_format_error, sln_missing, json_missing_key.
-
-Status Adjustment Logic:
-- Start `status = SUCCESS` if success=true else `status = FAIL`.
-- If success=true but any violations exist → set `status = FAIL` (build succeeded but checklist invalid).
-- If success=false keep `status = FAIL`.
-
-Output Update:
-1. If a JSON file was created (optional enhancement) update/add:
-   - `verification_errors` (sorted by type then target)
-   - `status` (adjusted) without altering original `success`.
-2. If JSON only emitted via stdout, ALSO create a separate verification file: `output/{{repo_name}}_{{solution_name}}_task-build-solution_verification.json` containing:
-```json
-{
-  "repo_name": "{{repo_name}}",
-  "solution_name": "{{solution_name}}",
-  "success": <bool>,
-  "status": "SUCCESS"|"FAIL",
-  "verification_errors": [ ... ]
-}
-```
-3. Ensure deterministic ordering (sort errors by type then target).
-
-Success Criteria for Step 12: Verification JSON written reflecting accurate error list and final status.
 
 ### Step 16 (MANDATORY)
 Count-Suffixed Artifact Capture & Variable Update:

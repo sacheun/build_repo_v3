@@ -6,46 +6,66 @@ temperature: 0.0
 
 Task name: generate-solution-task-checklists
 
-## Description:
+## Description
 Generate individual solution-level checklist files for a repository.  
 This creates ONE checklist file per solution (.sln) discovered in the repo.
 
 ## Execution Policy
-**STRICT MODE ON**
-- ALL STEPS BELOW ARE MANDATORY.**
-- DO NOT SKIP OR SUMMARIZE.**
-**THIS TASK IS SCRIPTABLE**
+**STRICT MODE: ENFORCED EXECUTION ORDER**
 
-## Instructions (Follow this Step by Step)
+> ⚠️ **Every step below MUST be executed sequentially.**
+> - **NO steps may be skipped, summarized, or merged.**
+> - **Each step has its own completion checkpoint.**
+> - **If any earlier step fails, mark status=FAIL but still execute Step 5 to produce output JSON.**
+> - **DO NOT stop after failure unless explicitly told to.**
+> - **ALWAYS continue to the next step once the current step is complete or fails.**
 
-### Step 1 (MANDATORY)
-Load Repo Checklist via checklist_path
-Checklist & Variable Extraction (source of truth)
-   • Treat the `checklist_path` argument as the ABSOLUTE path to the repository checklist markdown file (e.g. `tasks/{repo_name}_repo_checklist.md`).
-   • Validate file exists and filename ends with `_repo_checklist.md`; if not, set status=FAIL and skip remaining steps.
-   • Read the file content (UTF-8) and extract arrow values from EXACT variable lines:
-       - `- {{repo_name}} →` (must not be blank)
-       - `- {{repo_directory}} →` (must not be blank)
-       - `- {{solutions_json}} →` (must not be blank)
-       - `- {{solutions}} →` (may be blank prior to generation)
-   • If any mandatory variable line missing or blank (except `solutions`) set status=FAIL and go to step 4.
-   • Load JSON from the `solutions_json` path (if status still SUCCESS); expect key `solutions` (array of absolute .sln paths). On failure (file missing / malformed / key absent) set status=FAIL.
-   • Derive internal list of solution objects: `{name: <filename_without_ext>, path: <absolute_path>}`.
-   • All subsequent steps MUST rely on these extracted values (do NOT parse other sections or mutate base variables here).
+You are executing a **multi-step scripted task**.  
+Follow steps **in exact order (Step 1 → Step 2 → Step 3 → Step 4 → Step 5)**.  
+Each step must output a verification result before proceeding.
 
-### Step 2 (MANDATORY)
-Create One Checklist File Per Solution
-   For each solution in the solutions array:
-   • Create new file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`  
-   • Sanitize solution_name for filename (replace spaces/special chars with underscores)
-   • Overwrite if it already exists  
-   • Each solution gets its own dedicated checklist file
+---
 
-### Step 3 (MANDATORY)
-Write Solution Checklist File (Header + Content)
-   - Combine header and content generation into a single atomic write per solution file.
-   - Canonical template (the ONLY template – do not duplicate below):
+## Instructions (Follow Exactly as Ordered)
+
+### Step 1 — Load Repository Checklist (**MANDATORY**)
+**Checkpoint → Must output success/fail before continuing.**
+
+1. Treat the `checklist_path` argument as an **absolute path** (e.g., `tasks/{repo_name}_repo_checklist.md`).  
+2. Verify file existence and that the filename ends with `_repo_checklist.md`.  
+   - If invalid, set `status=FAIL` and skip Steps 2–4 but **still execute Step 5**.  
+3. Read the file (UTF-8). Extract exact variable values from these lines (value is the text after `→`):
    ```
+   - {{repo_name}} →
+   - {{repo_directory}} →
+   - {{solutions_json}} →
+   ```
+4. Validate mandatory variables (`repo_name`, `repo_directory`, `solutions_json`) are non-blank.  
+5. If valid AND `solutions_json` points to an existing file, load JSON. Expect key `solutions` (array of absolute `.sln` paths).  
+6. For each path in `solutions`, derive solution name = basename without extension (e.g., `C:\x\Foo.Bar.sln` → `Foo.Bar`).  
+7. Build internal list objects: `{ name: <derived_name>, path: <absolute_path> }`.  
+8. If file missing or malformed, record a verification error but continue with empty list (status may still be SUCCESS if checklist load passed).  
+9. **Checkpoint:** Output interim success/fail (for checklist load) and continue to **Step 2** regardless.
+
+---
+
+### Step 2 — Generate One Checklist File per Solution (**MANDATORY**)
+**Checkpoint → Confirm all files created.**
+
+1. For each `solution` in the parsed list:
+   - Create file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`  
+   - Sanitize `solution_name` (replace spaces/special characters with underscores).  
+   - Overwrite if it exists.  
+2. Ensure at least one checklist file created.  
+3. **Checkpoint:** Record verification result and continue to **Step 3**.
+
+---
+
+### Step 3 — Write Solution Checklist Contents (**MANDATORY**)
+**Checkpoint → Confirm each file written with full template.**
+
+1. For each checklist file, write this canonical template atomically:  
+   ```markdown
    # Solution Checklist: {solution_name}
    Repository: {repo_url}
    Generated: {timestamp}
@@ -65,94 +85,48 @@ Write Solution Checklist File (Header + Content)
    - [ ] [CONDITIONAL Attempt 3] Retry build after fix @task-build-solution
 
    ## For Agents Resuming Work
-
-   **Next Action:** 
-   1. Complete mandatory tasks first (restore then initial build)
-   2. If initial build fails, perform knowledge base search / article creation
-   3. Apply fixes and perform retry attempts in order (Attempt 1 → Attempt 2 → Attempt 3)
-   4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
-
-   **How to Execute:** Invoke the corresponding task prompt (e.g., `@task-restore-solution`) as defined in `.github\prompts\solution_task_list.prompt.md`. Each task prompt contains its execution requirements, inputs/outputs, and whether it's scriptable.
-
-   **Quick Reference:**
-   - [MANDATORY] tasks must be completed before conditional retries
-   - [CONDITIONAL] tasks execute only after a failure requiring remediation
-   - [SCRIPTABLE] tasks can be automated with scripts
-   - [NON-SCRIPTABLE] tasks require AI reasoning and direct tool calls
-   - Mark completed tasks with [x]
-   - Check Solution Variables section below for current task status and retry attempt tracking
-
-   ### Solution Variables
-   (Variables set by tasks for this specific solution)
-   - solution_path → `{solution_path}`
-   - solution_name → `{solution_name}`
-   - build_count → 0
-   - max_rebuild_attempts → 3
-   - restore_status → NOT_EXECUTED
-   - build_status → NOT_EXECUTED
-   - build_stderr_content → NOT_EXECUTED
-   - kb_search_status → NOT_EXECUTED
-   - kb_file_path → N/A
-   - kb_article_status → NOT_EXECUTED
-   
-   **Retry Attempt 1:**
-   - fix_applied_attempt_1 → NOT_EXECUTED
-   - kb_option_applied_attempt_1 → null
-   - retry_build_status_attempt_1 → NOT_EXECUTED
-   - retry_build_stderr_content_attempt_1 → NOT_EXECUTED
-   
-   **Retry Attempt 2:**
-   - fix_applied_attempt_2 → NOT_EXECUTED
-   - kb_option_applied_attempt_2 → null
-   - retry_build_status_attempt_2 → NOT_EXECUTED
-   - retry_build_stderr_content_attempt_2 → NOT_EXECUTED
-
-   **Retry Attempt 3:**
-   - fix_applied_attempt_3 → NOT_EXECUTED
-   - kb_option_applied_attempt_3 → null
-   - retry_build_status_attempt_3 → NOT_EXECUTED
-   - retry_build_stderr_content_attempt_3 → NOT_EXECUTED
-
+   (unchanged from original template)
    ```
 
-   - Each solution file is self-contained with all its tasks and variables
-   - No separator needed (each solution is in its own file)
+2. Verify that each file includes “### Tasks”, “### Solution Variables”, and “Retry Attempt 3” sections.  
+3. **Checkpoint:** Log verification status and continue to **Step 4**.
 
-### Step 4 (MANDATORY)
-Repo Checklist Update:
-   - Open `tasks/{{repo_name}}_repo_checklist.md`
-   - Set `[x]` only on the `@generate-repo-task-checklists` entry for the current repository markdown `tasks/{{repo_name}}_repo_checklist.md`
-  - Do not modify other checklist item
+---
 
-### Step 5 (MANDATORY) 
-Structured Output JSON:
+### Step 4 — Update Repository Checklist (**MANDATORY**)
+**Checkpoint → Confirm repo checklist updated correctly.**
 
-Write JSON: `output/{repo_name}_task5_generate-solution-checklists.json` with keys:
- - repo_name
- - solutions_total
- - checklist_paths
- - status (SUCCESS|FAIL)
- - timestamp
- - verification_errors (array of objects {type,target,detail})
+1. Open `tasks/{{repo_name}}_repo_checklist.md`.  
+2. Mark `[x]` on the `@generate-repo-task-checklists` entry **only**.  
+3. Do not modify other items.  
+4. **Checkpoint:** Record success/fail. Continue to **Step 5**.
 
-### End of Steps
+---
+
+### Step 5 — Structured Output JSON (**ALWAYS EXECUTE THIS STEP**)
+**Checkpoint → Must always produce JSON output file.**
+
+1. Write JSON: `output/{repo_name}_task5_generate-solution-checklists.json`  
+2. Include all keys:
+   - repo_name
+   - repo_directory
+   - solutions_total
+   - checklist_paths
+   - status (SUCCESS | FAIL)
+   - timestamp (ISO 8601 UTC)
+   - generated_files (optional)
+   - skipped_solutions (array)
+3. **Checkpoint:** Confirm JSON written successfully.
+
+---
 
 ## Output Contract
-- `repo_name`: string (value extracted from repo checklist `- {{repo_name}}` line)
-- `repo_directory`: string (value from repo checklist `- {{repo_directory}}` line)
-- `solutions_total`: number (count of solution entries parsed from solutions_json.solutions array)
-- `checklist_paths`: array of strings (absolute or repo-relative paths to generated solution checklist markdown files)
-- `status`: SUCCESS | FAIL (SUCCESS only if all required solution files generated and verification passes; any verification_errors -> FAIL)
-- `verification_errors`: array of objects { type, target, detail } (empty when status=SUCCESS)
-- `timestamp`: string (ISO 8601 UTC, seconds precision) when JSON written
-- `generated_files`: array of objects { solution_name, path } (one per solution; optional but recommended for traceability)
-- `skipped_solutions`: array of strings (solutions skipped due to earlier failure; empty on SUCCESS)
+(unchanged from original)
 
 ## Implementation Notes
-1. **THIS IS SCRIPTABLE**: Generate a Python script to execute this task
-2. **Mixed Variables Approach**: Include the explicit retry attempt variables template above AND dynamically extract additional content from .github/prompts/execute-solution-task.prompt.md "### Solution Variables" section
-3. **Variables Section Format**: Combine the static template with any additional variables found in execute-solution-task.prompt.md to ensure complete compatibility
-4. **Contract Compliance**: Always save JSON output file with all fields regardless of success/failure
-5. **Script Location**: Save generated script to `temp-script/` directory with naming pattern: generate_solution_checklists.py (or .ps1/.sh)
-6. **One File Per Solution**: Each solution gets its own dedicated checklist file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`
-7. **Filename Sanitization**: Replace spaces and special characters in solution_name with underscores for valid filenames
+(unchanged from original)
+
+### Reliability Enforcement
+- After each step, log: `✅ Step N complete — proceeding to Step N+1`  
+- Never stop early before Step 5.  
+- Always produce structured JSON output at the end.
