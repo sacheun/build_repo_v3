@@ -112,25 +112,29 @@ Repository: {repo_url}
 Generated: {timestamp}
 
 ## Repo Tasks (Sequential Pipeline - Complete in Order)
-- [ ] [MANDATORY] [SCRIPTABLE] Clone repository to local directory @task-clone-repo (1)
-- [ ] [MANDATORY] [SCRIPTABLE] Find all solution files in repository @task-find-solutions (2)
-- [ ] [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files (no inline sections) @generate-solution-task-checklists (3)
-- [ ] [MANDATORY] [SCRIPTABLE] Search for README file in repository @task-search-readme (4)
-- [ ] [MANDATORY] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme (5)
-- [ ] [MANDATORY] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme (6)
+- [ ] (1) [MANDATORY] [SCRIPTABLE] Clone repository to local directory → @task-clone-repo
+- [ ] (2) [MANDATORY] [SCRIPTABLE] Find all solution files in repository → @task-find-solutions
+- [ ] (3) [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files (no inline sections) → @generate-solution-task-checklists
+- [ ] (4) [MANDATORY] [SCRIPTABLE] Search for README file in repository → @task-search-readme
+- [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Scan README and extract setup commands → @task-scan-readme
+- [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Execute safe commands from README → @task-execute-readme
+---
 
+## 🔁 For Agents Resuming Work
+Follow these rules *exactly* when resuming execution:
 
-## For Agents Resuming Work
-**Next Action:**
-1. Check if all [MANDATORY] tasks are completed
-2. Find the next tasks which is not marked with [x]
-3. **How to Execute:** Invoke the corresponding task prompt.
+1. Identify the **first `[ ]` task** in the checklist.
+2. [MANDATORY] tasks must be completed in numbered order (1 → 2 → 3 → 4 → 5 → 6)
+3. Execute its corresponding prompt file (from `@task-...`).
+4. After successful completion, update this checklist and mark `[x]`.
+5. Do **not** end the run until all required tasks are completed.
 
-**Quick Reference:**
-- [MANDATORY] tasks must be completed in numbered order (1 → 2 → 3 → 4 → 5 → 6)
+---
+## ⚡ Execution Notes
 - [SCRIPTABLE] tasks: clone, search-readme, find-solutions, generate-solution-task-checklists
 - [NON-SCRIPTABLE] tasks: scan-readme, execute-readme
 - Mark completed tasks with [x]
+- Each referenced `@task-*`, `@generate-*` file is an independent prompt that must be executed completely before continuing.
 
 ## Repo Variables Available
 - {{repo_url}} → {repo_url}

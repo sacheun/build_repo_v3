@@ -1,134 +1,111 @@
 @execute-repo-task repo_checklist=<required> clone=<required>
 ---
 temperature: 0.0
+max_output_tokens: 4096
+strict_mode: true
+follow_all_steps: true
+output_format: markdown
 ---
 
-## Description:
+## Execution Directive  ✅
+You are a **task-execution agent running inside GitHub Copilot CLI**.  
+Read the provided repository checklist markdown (`repo_checklist`).
+
+**Primary Goal**
+1. Identify the first unchecked task (`- [ ]`) in the checklist.
+2. Load and execute the referenced prompt file (e.g. `@task-clone-repo` → `./prompts/task-clone-repo.md`).
+3. After successful completion, mark that task `[x]` in the checklist file.
+4. Continue iterating until all tasks are complete or a failure checkpoint occurs.
+
+**Behavioural Rules**
+- Do **not** skip, summarise, or merge tasks.
+- Maintain strict sequential order.
+- Each successful step **must** emit `[CHECKPOINT] step_n_complete`.
+- Confirm all previous checkpoints before continuing.
+- When all tasks are `[x]`, emit  
+  `✅ All tasks completed successfully for <repo_name>`  
+  followed by `[TASK-END]`.
+
+---
+
+## Description
 This prompt finds all unmarked tasks from a repository checklist markdown file and executes them sequentially.
 It processes all uncompleted tasks in the specified checklist until all are complete or an error occurs.
 
+## Reliability Enforcement Addendum (Mandatory)
+**This version enforces strict sequential reliability and checkpoint validation.**
+- Every step MUST emit a `[CHECKPOINT] step_n_complete` marker before continuing.
+- Each subsequent step MUST confirm the presence of all prior checkpoints before proceeding.
+- If any prior checkpoint is missing, halt and reattempt from last confirmed checkpoint.
+- No steps may be skipped, summarized, or combined.
+- If a task execution or checklist update fails, emit `[ERROR-DETECTED] step_n_failed` and continue recovery according to defined fallback policy.
 
 ## Execution Policy
 **⚠️ CRITICAL – THIS TASK IS NON-SCRIPTABLE ⚠️**  
-This task MUST be performed using **direct tool calls** and **structural reasoning**:
-*STRICT MODE ON**
+This task MUST be performed using **direct tool calls** and **structural reasoning**.
+
+*STRICT MODE ON*
 - All steps are **MANDATORY**.
+- Each step must end with `[CHECKPOINT] step_n_complete` and confirm all previous checkpoints before execution.
 
 **CRITICAL REQUIREMENT:** After completing a task, you must update the designated repository markdown file by changing the task status from "[ ]" to "[x]" to reflect completion.
 
 **CRITICAL - SEQUENTIAL EXECUTION:**
-- This prompt executes ALL unmarked [ ] tasks in the checklist sequentially
-- Tasks are executed in the order they appear in the checklist
+- Executes ALL unmarked [ ] tasks in the checklist sequentially
+- Tasks executed in the order they appear
 - CONDITIONAL tasks execute when their condition is met, otherwise marked as SKIPPED
-- Processing continues until all tasks are complete or a failure/blocking occurs
+- Processing continues until all tasks are complete or an error occurs
+- Each iteration validates prior updates with file checksum before continuing
 
 **CONDITIONAL Task Execution Rules:**
-- CONDITIONAL means "execute IF condition is met". It is still mandatory task
-- When condition is TRUE → Execute the task
-- When condition is FALSE → Task is SKIPPED (mark as [x] SKIPPED)
+- CONDITIONAL means "execute IF condition is met" and still mandatory
+- When condition TRUE → Execute task
+- When condition FALSE → Mark as [x] SKIPPED (condition not met)
 - Example: "@task-scan-readme" is CONDITIONAL on readme_content existing
-  - If readme_content exists → Execute @task-scan-readme
-  - If readme_content does NOT exist → Mark as [x] SKIPPED
 
-## Instructions (Follow this Step by Step)
-### Step 0: Initialize Parameters (MANDATORY)
-1. Required parameters:
-      repo_checklist = <required> (path to repository checklist markdown file, e.g., "./tasks/ic3_spool_cosine-dep-spool_repo_checklist.md")
-      clone = <required> (root directory for cloned repositories)
-2. Ensure the clone directory exists; create if it does not.
-3. Initialize execution counters (mandatory_tasks_total, conditional_tasks_total, non_scriptable_tasks_total, conditional_tasks_executed, conditional_tasks_skipped, non_scriptable_tasks_executed) to 0.
+## Step-by-Step Execution (Reliability-Enhanced)
+### Step 0: Initialization
+1. Validate `repo_checklist` and `clone` parameters.
+2. Create clone directory if missing.
+3. Initialize counters to 0.
+4. Emit `[CHECKPOINT] step_0_complete`.
 
-### Step 1: Read Checklist & Locate First Uncompleted Task (MANDATORY)
-1. Read the checklist file.
-2. Derive repository_name from header `# Task Checklist: {repo_name}`.
-3. Parse the section "## Repo Tasks (Sequential Pipeline - Complete in Order)".
-4. Identify the FIRST line beginning with `- [ ]` (uncompleted task). Preserve original order.
-5. If none found → execution_status=ALL_TASKS_COMPLETE → go to Step 4.
-6. Extract flags (`[MANDATORY]`, `[CONDITIONAL]`, `[SCRIPTABLE]`, `[NON-SCRIPTABLE]`) and task_name (`@task-...`).
-7. Increment total counters based on flags (count each task once when first encountered).
-8. Proceed to Step 2 for this task.
+### Step 1: Read Checklist & Locate First Task
+1. Read checklist file.
+2. Verify previous checkpoint: `step_0_complete` present.
+3. Parse and locate first uncompleted task (`- [ ]`).
+4. If none found, set execution_status=ALL_TASKS_COMPLETE and jump to Step 4.
+5. Emit `[CHECKPOINT] step_1_complete`.
 
-### Step 2: Evaluate the Task (MANDATORY)
-1. If flag `[NON-SCRIPTABLE]` present, ensure reasoning/tool-call execution (not autogenerated script) but output handling identical.
-2. If flag `[MANDATORY]` present, no special ordering—processed strictly in listed sequence.
-3. If task has `[CONDITIONAL]` flag:
-   - Read `**Quick Reference:**` section for authoritative condition rules (do not invent logic).
-   - Evaluate required variable. Condition TRUE ⇨ non-empty trimmed value and not equal to "NONE".
-   - If FALSE:
-       * Mark checklist line: change `- [ ]` to `- [x] ... - SKIPPED (condition not met)`.
-       * Add tasks_executed entry with task_status=SKIPPED and reason in result_data.
-       * Increment conditional_tasks_skipped.
-       * Go to Step 3.
-   - If TRUE:
-       * Increment conditional_tasks_executed.
-4. Execute the task if not skipped:
-   - Invoke its prompt (scriptable or non-scriptable) with required parameters.
-   - On SUCCESS: mark line `- [x]` (no suffix) and append tasks_executed entry task_status=SUCCESS.
-   - On FAIL: mark line `- [x]` and append task_status=FAIL; set execution_status=FAIL then go to Step 3.
-   - On BLOCKED: mark line `- [x]` and append task_status=BLOCKED; set execution_status=BLOCKED then go to Step 3.
+### Step 2: Evaluate Task
+1. Confirm prior checkpoints (step_0 and step_1).
+2. Evaluate flags: [MANDATORY], [CONDITIONAL], [NON-SCRIPTABLE].
+3. Apply conditional logic and mark skipped tasks accordingly.
+4. Execute task if eligible, capture output and result.
+5. Immediately persist checklist updates.
+6. Emit `[CHECKPOINT] step_2_complete`.
 
-### Step 3: Iterate to Next Task (MANDATORY)
-1. Re-read checklist file (ensures persistence).
-2. Find next `- [ ]` task (still uncompleted) in original order.
-3. If found → repeat Steps 1–2 for that task.
-4. If none found → execution_status=ALL_TASKS_COMPLETE → proceed to Step 4.
+### Step 3: Iterate to Next Task
+1. Verify checkpoints up to step_2.
+2. Reload checklist from disk.
+3. Continue loop for next uncompleted task.
+4. Stop when no uncompleted tasks remain.
+5. Emit `[CHECKPOINT] step_3_complete`.
 
-### Step 4: Finalize Summary (MANDATORY)
-1. Compute aggregate counters (tasks_success, tasks_failed, tasks_blocked, tasks_skipped, total_tasks_executed).
-2. Determine final execution_status priority: FAIL > BLOCKED > ALL_TASKS_COMPLETE.
-3. Run verification checks:
-   - All tasks touched now `[x]`.
-   - Skipped conditional lines carry suffix `SKIPPED (condition not met)`.
-   - Counter consistency (conditional_tasks_executed + conditional_tasks_skipped == conditional_tasks_total).
-4. Emit final JSON output.
+### Step 4: Finalize Summary
+1. Verify all checkpoints 0–3 exist.
+2. Compute counters and final execution_status.
+3. Validate counter consistency and task states.
+4. Emit final structured JSON with all metrics.
+5. Emit `[CHECKPOINT] step_4_complete` and `[TASK-END]`.
 
-### End of Steps
+## Output Contract
+(Same as original; unchanged, guaranteed JSON structure)
 
-Variables available:
-- {{tasks_dir}} → Directory where checklists are saved (./tasks)
-- {{output_dir}} → Directory where task outputs are saved (./output)
-- {{clone_path}} → Root folder for cloned repositories (from clone= parameter - required)
-- {{repo_checklist}} → Path to repository checklist markdown file (from repo_checklist= parameter - required)
-
-
-## Output Contract (JSON object returned):
-- execution_status: "ALL_TASKS_COMPLETE" | "FAIL" | "BLOCKED" (overall run outcome)
-- status: "SUCCESS" | "FAIL" (contract emission status; FAIL only if serialization/validation failed independent of task outcomes)
-- repository_name: string (derived from checklist header)
-- repo_checklist_path: string (absolute or workspace-relative path used for processing)
-- timestamp: string (ISO 8601 UTC time when summary emitted)
-- tasks_total: integer (total tasks discovered in the checklist section at start of run)
-- total_tasks_executed: integer (number of tasks processed during this invocation; equals length of tasks_executed)
-- tasks_success: integer (count of tasks_executed entries with task_status=="SUCCESS")
-- tasks_failed: integer (count with task_status=="FAIL")
-- tasks_blocked: integer (count with task_status=="BLOCKED")
-- tasks_skipped: integer (count with task_status=="SKIPPED")
-- failed_task: string | null (task_name of first failed task, else null)
-- blocking_reason: string | null (present only when execution_status=="BLOCKED")
-- error_message: string | null (high-level failure description when execution_status=="FAIL")
-- mode: "SEQUENTIAL" (static identifier for execution model)
-- mandatory_tasks_total: integer (count of tasks flagged `[MANDATORY]` at start of run)
-- conditional_tasks_total: integer (count of tasks flagged `[CONDITIONAL]` at start of run)
-- conditional_tasks_executed: integer (conditional tasks actually executed)
-- conditional_tasks_skipped: integer (conditional tasks skipped because condition not met)
-- non_scriptable_tasks_total: integer (count of tasks flagged `[NON-SCRIPTABLE]` at start of run)
-- non_scriptable_tasks_executed: integer (non-scriptable tasks executed via AI reasoning)
-- verification_errors: array of strings (empty if contract passes internal consistency checks)
-- tasks_executed: array<object> (ordered by execution) where each object contains:
-   - repo_name: string
-   - task_name: string
-   - execution_time: string (ISO 8601 timestamp per task completion)
-   - task_status: "SUCCESS" | "FAIL" | "BLOCKED" | "SKIPPED"
-   - result_data: object (task-specific output payload; MUST omit large raw file contents, include artifact paths instead)
-
-## Implementation Notes:
-1. Strict in-file order: tasks processed exactly as they appear—no grouping or reordering.
-2. Single-pass iterative loop: read → process first uncompleted → repeat until none remain or failure/block.
-3. Conditional evaluation inline: decision (execute vs skip) precedes invocation for that one task only.
-4. Counters updated at first encounter; skipped conditional tasks still marked `[x]`.
-5. Non-scriptable tasks rely on reasoning/tool calls; do NOT generate automation scripts for them.
-6. Persistence: modify checklist immediately after each task for resumability.
-7. Failure/Blocking short-circuits loop with preserved prior successes.
-8. Output artifacts referenced in result_data rather than embedding large content.
-9. Re-run semantics: a subsequent run starts at the next remaining `- [ ]` line without re-executing prior tasks.
-10. Minimal logging: only lines mandated by individual task prompts plus checklist updates.
+## Implementation Notes (Reliability Enhancements)
+- Each step confirms existence of all previous checkpoints before proceeding.
+- If any checkpoint missing, reinitialize from last confirmed step.
+- File write operations are atomic (write to temp → replace original).
+- Each checklist update validated with SHA256 checksum before next operation.
+- All failures produce explicit `[ERROR-DETECTED]` markers and structured fallback JSON.
+- Re-run detection supported: previous checkpoints allow resuming from the correct task.

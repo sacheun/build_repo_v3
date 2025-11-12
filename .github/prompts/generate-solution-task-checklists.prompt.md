@@ -28,7 +28,7 @@ Each step must output a verification result before proceeding.
 
 ## Instructions (Follow Exactly as Ordered)
 
-### Step 1 — Load Repository Checklist (**MANDATORY**)
+### Step 1 — Load Repository Checklist (MANDATORY)
 **Checkpoint → Must output success/fail before continuing.**
 
 1. Treat the `checklist_path` argument as an **absolute path** (e.g., `tasks/{repo_name}_repo_checklist.md`).  
@@ -50,7 +50,7 @@ Each step must output a verification result before proceeding.
 
 ---
 
-### Step 2 — Generate One Checklist File per Solution (**MANDATORY**)
+### Step 2 — Generate One Checklist File per Solution (MANDATORY)
 **Checkpoint → Confirm all files created.**
 
 1. For each `solution` in the parsed list:
@@ -62,7 +62,7 @@ Each step must output a verification result before proceeding.
 
 ---
 
-### Step 3 — Write Solution Checklist Contents (**MANDATORY**)
+### Step 3 — Write Solution Checklist Contents (MANDATORY)
 **Checkpoint → Confirm each file written with full template.**
 
 1. For each checklist file, write this canonical template atomically (FULL CONTENT – do not truncate):  
@@ -81,16 +81,16 @@ Each step must output a verification result before proceeding.
    - Last build timestamp: (blank)
 
    ### Tasks
-   - [ ] [MANDATORY] Restore NuGet packages @task-restore-solution
-   - [ ] [MANDATORY] Build solution (Clean + Build) @task-build-solution
-   - [ ] [CONDITIONAL] Search knowledge base for error fix @task-search-knowledge-base
-   - [ ] [CONDITIONAL] Create knowledge base article @task-create-knowledge-base
-   - [ ] [CONDITIONAL Attempt 1] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL Attempt 1] Retry build after fix @task-build-solution
-   - [ ] [CONDITIONAL Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL Attempt 2] Retry build after fix @task-build-solution
-   - [ ] [CONDITIONAL Attempt 3] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL Attempt 3] Retry build after fix @task-build-solution
+   - [ ] (1) [MANDATORY] [SCRIPTABLE] Restore NuGet packages → @task-restore-solution
+   - [ ] (2) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution
+   - [ ] (3) [CONDITIONAL] [NON-SCRIPTABLE] Search knowledge base for error fix → @task-search-knowledge-base
+   - [ ] (4) [CONDITIONAL] [NON-SCRIPTABLE] Create knowledge base article → @task-create-knowledge-base
+   - [ ] (5) [CONDITIONAL Attempt 1] [NON-SCRIPTABLE] Apply fix from KB → @task-apply-knowledge-base-fix
+   - [ ] (6) [CONDITIONAL Attempt 1] [SCRIPTABLE]Retry build after fix → @task-build-solution
+   - [ ] (7) [CONDITIONAL Attempt 2] [NON-SCRIPTABLE] Apply fix from KB → @task-apply-knowledge-base-fix
+   - [ ] (8) [CONDITIONAL Attempt 2] [SCRIPTABLE] Retry build after fix → @task-build-solution
+   - [ ] (9) [CONDITIONAL Attempt 3] [NON-SCRIPTABLE] Apply fix from KB → @task-apply-knowledge-base-fix
+   - [ ] (10) [CONDITIONAL Attempt 3] [SCRIPTABLE] Retry build after fix → @task-build-solution
 
    ### Retry Attempts Guidance
    Attempt 1: Initial restore/build.
@@ -108,7 +108,7 @@ Each step must output a verification result before proceeding.
 
 ---
 
-### Step 4 — Update Repository Checklist (**MANDATORY**)
+### Step 4 — Update Repository Checklist (MANDATORY)
 **Checkpoint → Confirm repo checklist updated correctly.**
 
 1. Open `tasks/{{repo_name}}_repo_checklist.md`.  

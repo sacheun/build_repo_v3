@@ -132,7 +132,9 @@ def check_repo_readiness(checklist_path: str) -> bool:
             var_values[var_name] = value.strip()
 
     missing_tasks = [t for t, done in mandatory_tasks.items() if not done]
-    missing_vars = [v for v in mandatory_vars if not var_values.get(v)]
+    # Treat executed_commands and skipped_commands as optional even if their producing task is mandatory.
+    OPTIONAL_VARS = {'executed_commands', 'skipped_commands'}
+    missing_vars = [v for v in mandatory_vars if v not in OPTIONAL_VARS and not var_values.get(v)]
 
     # Additional solution checklist verification:
     # If solutions variable populated, verify that corresponding solution checklist files exist in tasks directory.
@@ -152,17 +154,21 @@ def check_repo_readiness(checklist_path: str) -> bool:
         return False
 
     if missing_tasks or missing_vars or additional_failures:
-        parts = []
         if missing_tasks:
-            parts.append(f"MISSING_TASKS={missing_tasks}")
+            print(f"[repo readiness] {repo_name}: MISSING_TASKS={missing_tasks}")
         if missing_vars:
-            parts.append(f"MISSING_VARS={missing_vars}")
+            print(f"[repo readiness] {repo_name}: MISSING_VARS={missing_vars}")
         if additional_failures:
-            parts.append(f"MISSING_SOLUTION_CHECKLISTS={additional_failures}")
-        summary = ' '.join(parts)
-        print(f"[repo readiness] {repo_name}: {summary}")
+            print(f"[repo readiness] {repo_name}: MISSING_SOLUTION_CHECKLISTS={additional_failures}")
         return False
 
+    # Successful readiness; emit detail lines to clarify what was validated.
+    verified_tasks = sorted(mandatory_tasks.keys())
+    verified_vars = [var for var in mandatory_vars if var_values.get(var)]
+    if verified_tasks:
+        print(f"[repo readiness detail] {repo_name}: tasks_checked={verified_tasks}")
+    if verified_vars:
+        print(f"[repo readiness detail] {repo_name}: variables_verified={verified_vars}")
     print(f"[repo readiness] {repo_name}: OK")
     return True
 

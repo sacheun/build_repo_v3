@@ -32,6 +32,7 @@ Flags:
     --log <path>             Optional log file (default ./output/all_repos_orchestrator.log)
     --continue-on-error      Continue processing other repositories even if a prompt fails
     --mode {steps,combine}   Pipeline style
+    --include-solution       Run per-solution pipelines with retries after each repo
 """
 from __future__ import annotations
 import argparse, sys, os, json, datetime
@@ -46,6 +47,7 @@ try:
     from copilot_executor import CopilotExecutor
     from pipeline_core import execute_pipeline
     from repo_check_utils import check_repo_readiness
+    from solution_check_utils import check_solution_readiness
 except ImportError:
     print('[fatal] Unable to import copilot_executor from tools directory.', file=sys.stderr)
     sys.exit(1)
@@ -75,7 +77,103 @@ def find_repo_checklists() -> List[str]:
             files.append(os.path.join('tasks', name).replace('\\', '/'))
     return sorted(files)
 
-def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
+
+def find_solution_checklists(repo_name: str) -> List[str]:
+    """Return sorted list of relative solution checklist paths for a repository."""
+    if not os.path.isdir(TASKS_DIR):
+        return []
+    prefix = f"{repo_name}__"
+    results: List[str] = []
+    for name in os.listdir(TASKS_DIR):
+        if name.endswith('_solution_checklist.md') and name.startswith(prefix):
+            results.append(os.path.join('tasks', name).replace('\\', '/'))
+    return sorted(results)
+
+
+def solution_label_from_path(path: str) -> str:
+    """Extract a friendly solution label from checklist path."""
+    base = os.path.splitext(os.path.basename(path))[0]
+    if '__' in base:
+        base = base.split('__', 1)[1]
+    return base.replace('_solution_checklist', '')
+
+
+def run_solution_attempts(
+    repo_name: str,
+    pass_index: int,
+    mode: str,
+    continue_on_error: bool,
+    base_log_dir: str,
+    base_stem: str,
+    base_ext: str
+) -> Tuple[Dict[str, Dict], bool]:
+    """Execute per-solution pipelines with retries; return details and aggregate readiness."""
+    solution_paths = find_solution_checklists(repo_name)
+    if not solution_paths:
+        print(f"    [repo:{repo_name}] solution phase: no solution checklist files found.")
+        return {}, True
+
+    results: Dict[str, Dict] = {}
+    all_ready = True
+    max_attempts = 3
+    step_by_step = (mode == 'steps')
+
+    for rel_path in solution_paths:
+        sol_label = solution_label_from_path(rel_path)
+        sol_key = sol_label
+        results[sol_key] = {
+            'checklist_path': rel_path,
+            'attempts': [],
+            'final_readiness': 'PENDING'
+        }
+        abs_path = rel_path if os.path.isabs(rel_path) else os.path.join(REPO_ROOT, rel_path.replace('/', os.sep))
+        for attempt in range(1, max_attempts + 1):
+            print(f"    [repo:{repo_name}] [solution:{sol_label}] attempt {attempt}/{max_attempts}")
+            log_file = os.path.join(
+                base_log_dir,
+                f"{base_stem}_{repo_name}_{sol_label}_pass{pass_index}_attempt{attempt}{base_ext}"
+            )
+            summary_path = os.path.join(
+                OUTPUT_DIR,
+                f"{os.path.splitext(os.path.basename(rel_path))[0]}_summary_pass{pass_index}_attempt{attempt}.json"
+            )
+            if mode == 'combine':
+                sol_pipeline = [('execute-solution-task', {'solution_checklist': rel_path, 'clone': './clone_repos'})]
+            else:
+                sol_pipeline = [
+                    ('task-restore-solution', {'solution_checklist': rel_path}),
+                    ('task-build-solution', {'solution_checklist': rel_path})
+                ]
+            exit_code, sol_summary = execute_pipeline(
+                pipeline=sol_pipeline,
+                log_file=log_file,
+                continue_on_error=continue_on_error,
+                step_by_step=step_by_step,
+                mode=mode,
+                summary_path=summary_path
+            )
+            ready = check_solution_readiness(abs_path)
+            attempt_record = {
+                'attempt': attempt,
+                'exit_code': exit_code,
+                'readiness': 'PASS' if ready else 'FAIL',
+                'stages': sol_summary.get('pipeline', []),
+                'log_file': os.path.abspath(log_file)
+            }
+            results[sol_key]['attempts'].append(attempt_record)
+            if ready:
+                results[sol_key]['final_readiness'] = 'PASS'
+                print(f"    [repo:{repo_name}] [solution:{sol_label}] readiness PASS after attempt {attempt}.")
+                break
+            else:
+                results[sol_key]['final_readiness'] = 'FAIL'
+                if attempt < max_attempts:
+                    print(f"    [repo:{repo_name}] [solution:{sol_label}] readiness FAIL; retrying (next attempt {attempt+1}/{max_attempts}).")
+        if results[sol_key]['final_readiness'] != 'PASS':
+            all_ready = False
+    return results, all_ready
+
+def run_pipeline(mode: str, log_file: str, continue_on_error: bool, include_solution: bool) -> int:
     # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     # Prepare copilot executor (used for checklist generation only; per-repo pipelines use shared executor logic)
@@ -161,26 +259,74 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
             full_checklist_path = os.path.join(REPO_ROOT, checklist_path.replace('/', os.sep)) if not checklist_path.startswith(REPO_ROOT) else checklist_path
             print(f"    [repo:{repo_name}] readiness verification ...")
             ready = check_repo_readiness(full_checklist_path)
-            state['attempts'].append({
+            attempt_record = {
                 'pass': pass_index,
                 'exit_code': exit_code,
-                'readiness': 'PASS' if ready else 'FAIL',
+                'repo_readiness': 'PASS' if ready else 'FAIL',
                 'stages': stages,
                 'log_file': os.path.abspath(repo_log_file)
-            })
+            }
+
+            solutions_all_ready = True
+            solution_results: Dict[str, Dict] = {}
+            if include_solution and not (exit_code != 0 and not continue_on_error):
+                solution_results, solutions_all_ready = run_solution_attempts(
+                    repo_name=repo_name,
+                    pass_index=pass_index,
+                    mode=mode,
+                    continue_on_error=continue_on_error,
+                    base_log_dir=base_log_dir,
+                    base_stem=base_stem,
+                    base_ext=base_ext
+                )
+                attempt_record['solution_readiness'] = 'PASS' if solutions_all_ready else 'FAIL'
+                attempt_record['solutions'] = solution_results
+                solutions_container = state.setdefault('solutions', {})
+                for sol_label, sol_data in solution_results.items():
+                    sol_entry = solutions_container.setdefault(sol_label, {
+                        'checklist_path': sol_data['checklist_path'],
+                        'attempts': [],
+                        'final_readiness': 'PENDING'
+                    })
+                    sol_entry['checklist_path'] = sol_data['checklist_path']
+                    sol_entry['attempts'].extend(sol_data['attempts'])
+                    sol_entry['final_readiness'] = sol_data['final_readiness']
+            elif include_solution:
+                attempt_record['solution_readiness'] = 'SKIPPED'
+                attempt_record['solutions'] = {}
+                state.setdefault('solutions', {})
+                solutions_all_ready = False if exit_code != 0 else True
+
+            combined_ready = ready and (solutions_all_ready if include_solution else True)
+            attempt_record['combined_readiness'] = 'PASS' if combined_ready else 'FAIL'
+            state['attempts'].append(attempt_record)
+
+            print(f"    [repo:{repo_name}] repo readiness {'PASS' if ready else 'FAIL'}.")
+            if include_solution:
+                label = attempt_record['solution_readiness']
+                if label == 'PASS':
+                    print(f"    [repo:{repo_name}] solutions readiness PASS.")
+                elif label == 'FAIL':
+                    print(f"    [repo:{repo_name}] solutions readiness FAIL.")
+                else:
+                    print(f"    [repo:{repo_name}] solutions readiness SKIPPED (pipeline aborted).")
+
             if exit_code != 0 and not continue_on_error:
                 overall_status = 'FAIL'
                 print(f"    [repo:{repo_name}] aborting global passes due to failure and continue-on-error disabled.")
-                # Mark as failed readiness to surface
                 state['final_readiness'] = 'FAIL'
-                any_pending = False  # Force loop exit
+                any_pending = False
                 break
-            if ready:
+
+            if combined_ready:
                 state['final_readiness'] = 'PASS'
-                print(f"    [repo:{repo_name}] readiness PASS.")
+                print(f"    [repo:{repo_name}] overall readiness PASS.")
             else:
                 state['final_readiness'] = 'FAIL' if pass_index == max_passes else 'PENDING'
-                print(f"    [repo:{repo_name}] readiness FAIL (will retry if passes remain).")
+                msg = 'overall readiness FAIL'
+                if state['final_readiness'] == 'PENDING':
+                    msg += ' (will retry if passes remain).'
+                print(f"    [repo:{repo_name}] {msg}")
         if not any_pending:
             break
         # If all repos passed early, break
@@ -195,7 +341,8 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
             'repo_name': name,
             'checklist_path': state['checklist_path'],
             'attempts': state['attempts'],
-            'final_readiness': state['final_readiness']
+            'final_readiness': state['final_readiness'],
+            'solutions': state.get('solutions', {})
         })
 
     if any(r['final_readiness'] != 'PASS' for r in repo_results):
@@ -214,7 +361,20 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
             for stage in attempt.get('stages', []):
                 if stage.get('stage_status') == 'FAIL':
                     return True
+            for sol in attempt.get('solutions', {}).values():
+                for sol_attempt in sol.get('attempts', []):
+                    for stage in sol_attempt.get('stages', []):
+                        if stage.get('stage_status') == 'FAIL':
+                            return True
         return False
+
+    all_log_files: List[str] = []
+    for repo_entry in repo_results:
+        for attempt in repo_entry.get('attempts', []):
+            all_log_files.append(attempt['log_file'])
+            for sol in attempt.get('solutions', {}).values():
+                for sol_attempt in sol.get('attempts', []):
+                    all_log_files.append(sol_attempt['log_file'])
 
     summary = {
         'overall_status': overall_status,
@@ -225,7 +385,7 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
         'repos_readiness_pass': readiness_pass,
         'repos_readiness_fail': readiness_fail,
         'details': repo_results,
-        'log_files': [a['log_file'] for r in repo_results for a in r.get('attempts', [])]
+        'log_files': all_log_files
     }
     _write_summary(summary)
     print(f"\nPipeline complete. Overall status: {overall_status}. Summary written to ./output/all_repos_pipeline_summary.json")
@@ -247,6 +407,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     p.add_argument('--log', default='./output/all_repos_orchestrator.log', help='Path to log file.')
     p.add_argument('--continue-on-error', action='store_true', help='Continue processing other repositories even if a prompt fails.')
     p.add_argument('--mode', choices=['steps','combine'], default='combine', help="Execution mode: 'steps' granular sequence; 'combine' condensed execute-repo-task.")
+    p.add_argument('--include-solution', action='store_true', help='Execute per-solution pipelines with retries after each repository.')
     return p.parse_args(argv)
 
 
@@ -255,7 +416,12 @@ def main(argv: List[str]) -> int:
     mode = args.mode
     # Normalize log path
     log_file = args.log.replace('\\','/')
-    return run_pipeline(mode=mode, log_file=log_file, continue_on_error=args.continue_on_error)
+    return run_pipeline(
+        mode=mode,
+        log_file=log_file,
+        continue_on_error=args.continue_on_error,
+        include_solution=args.include_solution
+    )
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
