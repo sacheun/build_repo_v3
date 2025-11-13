@@ -88,9 +88,14 @@ from repo_check_utils import check_repo_readiness
 from solution_check_utils import check_solution_readiness
 # Removed solution-level execution; include-solution option deprecated.
 
-def purge_state_directories(log_file: str) -> None:
+def purge_state_directories(log_file: str, *, remove_output: bool = True, remove_tasks: bool = True) -> None:
     """Remove stateful directories for a clean slate before pipeline runs."""
-    purge_targets = ['output', 'temp-script', 'tasks']
+    purge_targets: List[str] = []
+    if remove_output:
+        purge_targets.append('output')
+    purge_targets.append('temp-script')
+    if remove_tasks:
+        purge_targets.append('tasks')
     for rel in purge_targets:
         target_path = os.path.join(REPO_ROOT, rel)
         if os.path.isdir(target_path):
@@ -142,7 +147,11 @@ def main(argv: List[str]) -> int:
     # Normalize base log path (avoid backslashes); we'll derive per-attempt file names
     base_log_path = args.log.replace('\\', '/')
     # Purge using base path (original behavior)
-    purge_state_directories(base_log_path)
+    purge_state_directories(
+        base_log_path,
+        remove_output=('solution_checklist' not in checklist_path),
+        remove_tasks=('solution_checklist' not in checklist_path)
+    )
 
     selected_pipeline = pipeline_all if mode == 'combine' else pipeline_step
     # Track discovered solution checklist files (used for readiness verification)
