@@ -54,7 +54,6 @@ After completing each task, update the solution checklist file:
 1. Validate that `solution_checklist` exists and is accessible.
 2. Create or verify temporary working context if required.
 3. Initialise counters, error flags, and execution metadata.
-4. Emit `[CHECKPOINT] step_0_complete`.
 
 ---
 
@@ -64,7 +63,7 @@ After completing each task, update the solution checklist file:
 3. Locate section: `"## Tasks (Sequential Pipeline - Complete in Order)"`.
 4. Identify the first unmarked (`- [ ]`) task.
    - If none found → `execution_status="ALL_TASKS_COMPLETE"` and jump to Step 4.
-5. Emit `[CHECKPOINT] step_1_complete`.
+
 
 ---
 
@@ -77,7 +76,6 @@ Verify `[CHECKPOINT] step_1_complete` exists.
    - If condition **FALSE** →  
      - Mark `[x] SKIPPED (condition not met)`  
      - Update checklist and re-validate checksum  
-     - Emit `[CHECKPOINT] step_2_skip_complete`  
      - Return to Step 1  
    - If condition **TRUE**, proceed to Step 2.2.
 
@@ -86,11 +84,10 @@ Verify `[CHECKPOINT] step_1_complete` exists.
 2. Capture output, logs, and result metadata.
 3. If task fails →  
    - Mark `[x] FAIL` with diagnostic info.  
-   - Emit `[ERROR-DETECTED] step_2_failed`.  
    - Set `execution_status="FAIL"` and proceed to recovery.
 4. On success → mark `[x] SUCCESS` in checklist.
 5. Persist update and validate checksum.
-6. Emit `[CHECKPOINT] step_2_complete`.
+
 
 ---
 
@@ -107,12 +104,6 @@ Verify `[CHECKPOINT] step_1_complete` exists.
 1. Verify all checkpoints (`step_0` → `step_3`) exist.
 2. Summarise results — count total, succeeded, failed, and skipped tasks.
 3. Output structured JSON report with `execution_status`.
-4. Emit `[CHECKPOINT] step_4_complete` and `[TASK-END]`.
-
----
-
-## Output Contract
-(Keep existing JSON schema — unchanged and compatible.)
 
 ---
 

@@ -83,6 +83,36 @@ To ensure **no skipped steps**, apply these control rules throughout execution:
 
 ---
 
+### Step 10 - Post-Run Verification And Retry Guard (MANDATORY)
+Re-open and fully re-parse `tasks/{{repo_name}}_repo_checklist.md` from disk (no cached content). Perform ALL checks below:
+
+1. Task line correctness:
+  - Locate the line containing `@task-scan-readme`.
+  - If `status=SUCCESS` the line MUST be `[x]`; if `status=SKIPPED` may be `[x]` or `[ ]` (implementation choice) but note outcome; if `status=FAIL` it MUST be `[ ]`.
+2. Variable line presence (exactly once):
+  - `- {{commands_extracted}} → output/{{repo_name}}_task3_scan-readme.json (field=commands_extracted)`
+  - Single arrow `→`, one space before and after, no duplicates, no trailing spaces.
+3. JSON file integrity:
+  - Open `output/{{repo_name}}_task3_scan-readme.json`; verify file exists and is parseable JSON.
+  - Confirm keys: `commands_extracted` (array) and `total_commands` (integer) present.
+4. Semantic alignment by status:
+  - SUCCESS & commands found: `total_commands > 0` AND `len(commands_extracted) == total_commands`.
+  - SUCCESS & no commands: `total_commands == 0` AND `len(commands_extracted) == 0`.
+  - SKIPPED: Either zero commands OR array empty; ensure reason logged earlier; do not fail unless mismatch between counts.
+  - FAIL / FAIL_MISSING_STEP: JSON still exists; counts may be zero; MUST NOT contain placeholder strings like `FAIL` instead of arrays.
+5. Consistency with checklist variable line:
+  - The variable line MUST reference the JSON path exactly; it MUST NOT list raw commands inline (those live only in JSON).
+6. Failure handling:
+  - If ANY check fails (missing line, wrong bracket state, duplicate, JSON mismatch, count mismatch) log `WARNING: checklist verification failed - restarting from Step 1` then re-run Steps 1–9 completely (single automatic retry) and attempt Step 10 again.
+7. Finalization:
+  - On successful verification log `VERIFICATION_PASSED step_completed=10`.
+  - If retry still fails set `status=FAIL` (if not already) and log `VERIFICATION_ABORTED`.
+8. Record internal checkpoint: `step_completed=10` only on pass.
+
+NOTE: Do NOT mutate previously written JSON content other than adding a verification flag if internal framework supports it.
+
+---
+
 ## Output Contract
 ```json
 {
@@ -100,7 +130,7 @@ To ensure **no skipped steps**, apply these control rules throughout execution:
 
 ## Final Reliability Assertion
 Before emitting output, verify:
-- All mandatory steps (1–9) completed and checkpointed.
+- All mandatory steps (1–10) completed and checkpointed.
 - No skipped or merged steps.
 - If any missing, re-run from last valid checkpoint automatically once; if still missing, fail with diagnostic report.
 

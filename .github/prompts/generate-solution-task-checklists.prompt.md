@@ -21,7 +21,7 @@ This creates ONE checklist file per solution (.sln) discovered in the repo.
 > - **ALWAYS continue to the next step once the current step is complete or fails.**
 
 You are executing a **multi-step scripted task**.  
-Follow steps **in exact order (Step 1 → Step 2 → Step 3 → Step 4 → Step 5)**.  
+Follow steps **in exact order (Step 1 → Step 2 → Step 3 → Step 4 → Step 5 → Step 6)**.  
 Each step must output a verification result before proceeding.
 
 ---
@@ -77,8 +77,24 @@ Each step must output a verification result before proceeding.
    - Solution name: {solution_name}
    - Solution path: {solution_path}
    - Parent repo: {repo_name}
+   - restore_status: (blank)
    - Last build status: (blank)
    - Last build timestamp: (blank)
+   - Build attempts: 0
+   - build_status: (blank)
+   - verify_status: (blank)
+   - kb_search_status: (blank)
+   - kb_file_path: (blank)
+   - kb_article_status: (blank)
+   - fix_applied_attempt_1: (blank)
+   - kb_option_applied_attempt_1: (blank)
+   - retry_build_status_attempt_1: (blank)
+   - fix_applied_attempt_2: (blank)
+   - kb_option_applied_attempt_2: (blank)
+   - retry_build_status_attempt_2: (blank)
+   - fix_applied_attempt_3: (blank)
+   - kb_option_applied_attempt_3: (blank)
+   - retry_build_status_attempt_3: (blank)
 
    ### Tasks
    - [ ] (1) [MANDATORY] [SCRIPTABLE] Restore NuGet packages → @task-restore-solution
@@ -86,11 +102,12 @@ Each step must output a verification result before proceeding.
    - [ ] (3) [CONDITIONAL] [NON-SCRIPTABLE] Search knowledge base for error fix → @task-search-knowledge-base
    - [ ] (4) [CONDITIONAL] [NON-SCRIPTABLE] Create knowledge base article → @task-create-knowledge-base
    - [ ] (5) [CONDITIONAL Attempt 1] [NON-SCRIPTABLE] Apply fix from KB → @task-apply-knowledge-base-fix
-   - [ ] (6) [CONDITIONAL Attempt 1] [SCRIPTABLE]Retry build after fix → @task-build-solution
+   - [ ] (6) [CONDITIONAL Attempt 1] [SCRIPTABLE] Retry build after fix → @task-build-solution-retry
    - [ ] (7) [CONDITIONAL Attempt 2] [NON-SCRIPTABLE] Apply fix from KB → @task-apply-knowledge-base-fix
-   - [ ] (8) [CONDITIONAL Attempt 2] [SCRIPTABLE] Retry build after fix → @task-build-solution
+   - [ ] (8) [CONDITIONAL Attempt 2] [SCRIPTABLE] Retry build after fix → @task-build-solution-retry
    - [ ] (9) [CONDITIONAL Attempt 3] [NON-SCRIPTABLE] Apply fix from KB → @task-apply-knowledge-base-fix
-   - [ ] (10) [CONDITIONAL Attempt 3] [SCRIPTABLE] Retry build after fix → @task-build-solution
+   - [ ] (10) [CONDITIONAL Attempt 3] [SCRIPTABLE] Retry build after fix → @task-build-solution-retry
+   - [ ] (11) [MANDATORY] [SCRIPTABLE] Validate build artifacts  → @task-validate-build-artifacts
 
    ### Retry Attempts Guidance
    Attempt 1: Initial restore/build.
@@ -135,13 +152,19 @@ Each step must output a verification result before proceeding.
 
 ---
 
-## Output Contract
-(unchanged from original)
+### Step 6 — Final Verification of Repository Checklist Update (MANDATORY)
+**Checkpoint → Ensure checklist reflects correct completion status.**
 
-## Implementation Notes
-(unchanged from original)
+1. Reopen `tasks/{{repo_name}}_repo_checklist.md`.  
+2. Verify that the entry for `@generate-solution-task-checklists` is **checked `[x]`**.  
+3. If unchecked or missing, log a warning and **redo from Step 0** (reload and re‑execute the entire process).  
+4. Only mark task as `FINAL SUCCESS` if the verification passes.  
+5. Output a final confirmation message:  
+   > ✅ “All checklist updates verified successfully — task complete.”
+
+---
 
 ### Reliability Enforcement
 - After each step, log: `✅ Step N complete — proceeding to Step N+1`  
-- Never stop early before Step 5.  
+- Never stop early before Step 6.  
 - Always produce structured JSON output at the end.
