@@ -37,8 +37,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
    msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo
    ```
 2. Execute synchronously, capture full stdout/stderr and exit code. Timeout: 30 minutes by default (configurable).
-3. If `msbuild` not found or fails to start, attempt fallback `dotnet msbuild` with same args (log fallback occurrence).
-4. On execution failure to start (both msbuild and dotnet missing), set `status=FAIL` and proceed to Step 8.
+3. On execution failure to start (both msbuild and dotnet missing), set `status=FAIL` and proceed to Step 8.
 
 ---
 
@@ -80,8 +79,6 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 2. Determine `target_line_to_mark` using **old_build_count** mapping:
    - 0 → mark the primary `@task-build-solution` line
    - 1 → mark first retry line `@task-build-solution-retry` (Attempt 1)
-   - 2 → mark second retry line (Attempt 2)
-   - 3 → mark third retry line (Attempt 3)
    - >=4 → do NOT mark any task line (limit reached)
 3. For the chosen target: if it exists and is currently `- [ ]`, change leading `- [ ]` → `- [x]`. If already `- [x]`, leave unchanged (do not unmark others).
 4. Compute `new_build_count = old_build_count + 1`. Overwrite the single `- build_count → <old>` line with `- build_count → <new_build_count>` (insert if missing; ensure only one occurrence remains).
@@ -93,9 +90,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 1. Using cached `old_build_count` (NOT the newly written value), update exactly ONE status variable in `### Solution Variables` per mapping:
    - old_build_count==0 → set `build_status` to `SUCCEEDED` or `FAILED` based on `success`
    - old_build_count==1 → set `retry_build_status_attempt_1`
-   - old_build_count==2 → set `retry_build_status_attempt_2`
-   - old_build_count==3 → set `retry_build_status_attempt_3`
-   - old_build_count>=4 → do not modify any status variable
+   - old_build_count>=2 → do not modify any status variable
 2. Do NOT modify other variables (`restore_status`, `kb_*`, `fix_applied_*`, etc.).
 3. Ensure exactly one variable change occurs; write atomically.
 
@@ -105,6 +100,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 1. Verify integrity:
    - Exactly one `- build_count →` line present and value == new_build_count.
    - Only one task line was flipped (if applicable).
+   - Re-open checklist to determine the exact status variable from Step 10 using `old_build_count` (0→`build_status`, 1→`retry_build_status_attempt_1`). If `old_build_count <= 1`, confirm that variable exists exactly once and its value matches `success` (`SUCCEEDED` when true, otherwise `FAILED`). If `old_build_count >= 2`, confirm that none of those variables were touched during Step 10.
    - Counts of executed steps' checkpoints exist.
 2. If verification fails, record verification error and set `status=FAIL` (but still emit final JSON).
 3. Final JSON (write to stdout and `output/{{solution_name}}_task-build-solution-final.json`):

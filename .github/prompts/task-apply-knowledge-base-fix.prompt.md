@@ -1,4 +1,5 @@
-@task-apply-knowledge-base-fix solution_path={{solution_path}} kb_file_path={{kb_file_path}} error_code={{error_code}} last_option_applied={{last_option_applied}}
+@task-apply-knowledge-base-fix solution_checklist={{solution_checklist}}
+
 ---
 temperature: 0.1
 ---
@@ -44,10 +45,6 @@ Use these tools:
 - `last_option_applied`: (Optional) The last option number that was applied (e.g., "1", "2", "3"). If not provided, defaults to applying Option 1.
 
 ## Instructions (Follow this Step by Step)
-### Step 1 (MANDATORY)
-Entry Trace:
-  Print a single line:
-  `[task-apply-knowledge-base-fix] START solution='{{solution_name}}' kb_file='{{kb_file_path}}' error_code='{{error_code}}'`
 
 
 ### Step 2: (MANDATORY)
@@ -184,22 +181,6 @@ Validate Fix Application
    - If no more options available after last_option_applied: `fix_status = NO_MORE_OPTIONS`
 
 
-### Step 4 (MANDATORY)
-Result Tracking: Append to solution-results.csv
-1. **Prepare CSV entry:**
-   - timestamp: Current UTC timestamp in ISO 8601 format (e.g., "2025-10-26T12:00:00Z")
-   - repo_name: {{repo_name}}
-   - solution_name: {{solution_name}}
-   - task_name: "@task-apply-knowledge-base-fix"
-   - status: "SUCCESS" if fix_status=SUCCESS, "FAIL" if fix_status=FAIL, "SKIPPED" if fix_status=SKIPPED or NO_MORE_OPTIONS
-   - symbol: "✓" if status="SUCCESS", "✗" if status="FAIL", "⊘" if status="SKIPPED"
-
-2. **Append to results/solution-results.csv using comma (`,`) as the separator:**
-   - Format: `{{timestamp}},{{repo_name}},{{solution_name}},@task-apply-knowledge-base-fix,{{status}},{{symbol}}`
-   - Use PowerShell: `Add-Content -Path ".\results\solution-results.csv" -Value "{{csv_row}}"`
-   - Ensure directory exists: `.\results\`
-   - If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
-
 ### Step 5 (MANDATORY)
 Repo Checklist Update: Mark current task complete
 1. **Open checklist file:**
@@ -241,27 +222,6 @@ Repo Variable Refresh: Update solution variables
 
 5. **Write updated variables back to checklist file**
 
-### Step 7 (MANDATORY)
-Output Results
-Unconditional Exit Summary:
-  Emit a single line:
-  `[task-apply-knowledge-base-fix] END fix_status='{{fix_status}}' files_modified={{files_modified}}`
-
-### Step 8 (MANDATORY)
-Log to Decision Log:
-   - Call @task-update-decision-log to log task execution:
-   ```
-   @task-update-decision-log 
-     timestamp="{{timestamp}}" 
-     repo_name="{{repo_name}}" 
-     solution_name="{{solution_name}}" 
-     task="task-apply-knowledge-base-fix" 
-     message="Applied KB fix: {{kb_file_name}}" 
-     status="{{status}}"
-   ```
-   - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-   - {{kb_file_name}}: Extract filename from kb_file_path (e.g., "nu1008_central_package_management.md")
-   - Status: "SUCCESS" if fix_status is SUCCESS, "FAIL" if fix_status is FAIL, "SKIPPED" if fix_status is SKIPPED
 
 ### Step 9 (MANDATORY)
 Return JSON Output:

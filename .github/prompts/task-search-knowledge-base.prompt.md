@@ -8,44 +8,10 @@ temperature: 0.1
 ## Description:
 This task analyzes build failures, extracts detection tokens from error output, and searches existing knowledge base articles for matches. If a match is found, it returns the path to the existing KB article. If no match is found, it signals that a new KB article should be created.
 
-## Input Parameter Change (MANDATORY)
-This task now receives ONE parameter: `solution_checklist={{solution_checklist}}` which is the full markdown content of the solution checklist file (NOT just a path). Do NOT expect discrete variables like `solution_path`, `build_status`, or `build_stderr` to be passed separately.
-
-You MUST parse the markdown content to recover required variables and artifact JSON paths. Do not assume ordering beyond the existing "Solution Variables" section. Use AI reasoning plus simple line parsing (not heavy regex) to extract variable values of the form:
-`- variable_name → value`
-
-Required variables to extract from the checklist:
-1. solution_path
-2. solution_name
-3. build_status
-4. build_stderr_content (initial attempt JSON artifact path only)
-
-## stderr_tail Source (SIMPLIFIED)
-Open ONLY the JSON artifact referenced by `build_stderr_content`.
-Steps:
-1. Parse the checklist to find the line defining `build_stderr_content`.
-2. If its value is `NOT_EXECUTED` or blank, treat stderr_tail as empty string and errors/warnings as empty arrays.
-3. Otherwise open the JSON file path with read_file.
-4. Extract `stderr_tail`, `errors`, and `warnings` from the JSON.
-5. Use that `stderr_tail` directly for token extraction and KB matching (do NOT consider retry artifacts).
-
-Expose internally:
-- build_stderr := stderr_tail
-- errors := errors array from JSON (list of code objects or strings; prefer code field if objects)
-- warnings := warnings array from JSON
-
-If the file cannot be read or parsed, log debug line "build_stderr_content unreadable" and proceed with empty stderr_tail.
-
 ## Assumptions & Fallbacks
 * Arrow variants ("->" or "→") are both valid.
 * If JSON `success` is false you still may use its stderr_tail.
 * Truncate extremely long stderr tails to first 5000 characters for reasoning only.
-
-## Additional Debug Lines
-When DEBUG=1 before Step 2 add:
-`[KB-SEARCH-DEBUG] build_stderr_content path: {artifact_path}`
-After reading JSON add:
-`[KB-SEARCH-DEBUG] stderr_tail length={len(stderr_tail)}`
 
 ## Execution Policy
 ** ⚠️ CRITICAL - THIS TASK IS NON-SCRIPTABLE ⚠️ **
@@ -74,17 +40,12 @@ DO NOT:
 ** END WARNING **
 
 ## Instructions (Follow this Step by Step)
-### Step 1 (MANDATORY)
-   - If environment variable DEBUG=1 (string comparison), emit an immediate line to stdout (or terminal):
-   - `[debug][task-search-knowledge-base] START solution='{{solution_name}}' build_status='{{build_status}}' error_count={{len(errors)}}`
-   - This line precedes all other task operations and helps trace task sequencing when multiple tasks run in a pipeline.
 
 ### Step 2 (MANDATORY)
   **Success Check**: If build_status == SUCCESS, return kb_search_status=SKIPPED (no action needed).
-   - DEBUG: Log "[KB-SEARCH-DEBUG] Build status: {build_status}, KB search skipped"
    - Return: kb_search_status=SKIPPED, kb_file_path=null, detection_tokens=[]
 
- **Failure Analysis**: If build_status == FAIL, proceed with error analysis:
+  **Failure Analysis**: If build_status == FAIL, proceed with error analysis:
    
    ** USE AI STRUCTURAL REASONING - NOT REGEX **:
    - Read and comprehend the build error output (don't just scan for patterns)
@@ -94,35 +55,29 @@ DO NOT:
    - **CRITICAL**: Use errors[] array from build task containing extracted diagnostic codes (NU1008, MSB3644, CS0234, etc.)
    
    a. Analyze error information from build task:
-      - DEBUG: Log "[KB-SEARCH-DEBUG] Build failed with {len(errors)} errors, {len(warnings)} warnings"
-      - DEBUG: Log "[KB-SEARCH-DEBUG] Error codes: {errors}"
       - **PRIMARY SOURCE**: Use errors[] array as the primary source of error codes
       - **SECONDARY SOURCE**: Use build_stderr for additional context and error messages
-      - DEBUG: Log "[KB-SEARCH-DEBUG] First 500 chars of stderr: {build_stderr[:500]}"
    
    b. Extract "Detection Tokens" from errors[] and build_stderr:
       - Start with error codes from errors[] array (e.g., ["NU1008", "MSB3644"])
       - Extract additional context from build_stderr (error signatures that uniquely identify the issue)
       - **IMPORTANT**: If build_stderr is empty, fallback to build_stdout (dotnet build often writes errors to stdout)
-      - DEBUG: Log "[KB-SEARCH-DEBUG] stderr is empty, checking stdout (length: {len(build_stdout)} chars)"
       - **USE AI**: Don't just extract with regex - understand the error context
       - NuGet errors: NU#### (e.g., NU1008, NU1605)
       - MSBuild errors: MSB#### (e.g., MSB3644, MSB4019)
       - C# compiler errors: CS#### (e.g., CS0246, CS0234)
       - Platform-specific errors (Service Fabric, .sfproj, etc.)
       - Property errors (BaseOutputPath, OutputPath, etc.)
-      - DEBUG: Log "[KB-SEARCH-DEBUG] Identified error type: {error_type}, code: {error_code}"
    
    c. Extract distinctive tokens using AI judgment:
       - Look for common error patterns (understand them, don't just match them):
         * Property not set: "The <PropertyName> property is not set"
         * Missing file: "Could not find file"
         * Missing assembly: "Could not load file or assembly"
-   * Compilation error pattern: error CS#### (no trailing colon needed)
-   * MSBuild error pattern: error MSB####
-   * NuGet error pattern: NU#### (code followed by context)
+        * Compilation error pattern: error CS#### (no trailing colon needed)
+        * MSBuild error pattern: error MSB####
+        * NuGet error pattern: NU#### (code followed by context)
         * Service Fabric: "SF.sfproj", "BaseOutputPath", "OutputPath"
-      - DEBUG: Log "[KB-SEARCH-DEBUG] Extracted {len(raw_tokens)} raw tokens: {raw_tokens}"
       - **USE AI**: Understand WHY these patterns matter, not just that they exist
    
    d. Clean and normalize tokens (using AI understanding of what's meaningful):
@@ -151,19 +106,16 @@ DO NOT:
    - Determine if the KB article is relevant to the current error (not just keyword matching)
    
    a. Ensure ./knowledge_base_markdown/ directory exists.
-      - DEBUG: Log "[KB-SEARCH-DEBUG] KB directory exists: {kb_dir_exists}"
       - If directory doesn't exist, return kb_search_status=NOT_FOUND (no existing KB articles)
    
    b. List all .md files in ./knowledge_base_markdown/ (exclude README.md and other non-KB files).
-      - DEBUG: Log "[KB-SEARCH-DEBUG] Searching {len(kb_files)} KB articles for matches"
       - **USE list_dir or file_search**: Get list of KB article files
    
    c. For each KB article, use read_file to load and analyze:
-      - DEBUG: Log "[KB-SEARCH-DEBUG] Checking {kb_file}..."
       - **USE read_file**: Actually read the KB article content
       - Look for "Detection Tokens" section in the KB article
       - Extract the detection tokens from the KB article
-      - DEBUG: Log "[KB-SEARCH-DEBUG] KB article tokens: {kb_tokens}"
+
    
    d. Compare using AI understanding of error semantics:
       - **USE AI REASONING**: Compare current error's detection tokens with KB article tokens
@@ -171,23 +123,18 @@ DO NOT:
       - Consider:
         * Same error code (NU1008 matches NU1008)
         * Similar error patterns (both about package versions)
-        * Same root cause (both about Central Package Management)
-      - DEBUG: Log "[KB-SEARCH-DEBUG] Semantic similarity score: {similarity_score}"
+        * Same root cause (both about Central Package Management
       - **USE AI**: Determine if the KB article truly addresses the same error
    
    e. If match found (AI determines KB article is relevant):
-      - DEBUG: Log "[KB-SEARCH-DEBUG] Match found! Using existing KB: {kb_file_path}"
       - Return: kb_search_status=FOUND, kb_file_path={absolute_path_to_kb}, detection_tokens={extracted_tokens}
    
    f. If no match found after checking all KB articles:
-      - DEBUG: Log "[KB-SEARCH-DEBUG] No matching KB article found"
       - Return: kb_search_status=NOT_FOUND, kb_file_path=null, detection_tokens={extracted_tokens}
 
 ### Step 4 (MANDATORY)
 **Output**: Return search results.
-   - DEBUG: Log "[KB-SEARCH-DEBUG] Final status: kb_search_status={status}, kb_file_path={path}, tokens={tokens}"
-
-Variables available (after parsing solution_checklist and applying selection logic):
+\Variables available (after parsing solution_checklist and applying selection logic):
 - {{solution_path}} → Absolute path to the .sln file that failed to build (parsed)
 - {{solution_name}} → Friendly solution name derived from file name (parsed)
 - {{build_status}} → Result of build task (SUCCESS | FAIL | SKIPPED) (parsed)
@@ -206,7 +153,6 @@ Implementation Notes:
 2. Always check if ./knowledge_base_markdown/ directory exists before searching.
 3. Use read_file to actually read KB article content - don't just check filenames.
 4. Use semantic understanding to match errors - not just keyword/substring matching.
-5. If DEBUG=1 or DEBUG environment variable is set, output detailed extraction and matching process with [KB-SEARCH-DEBUG] prefix.
 6. The detection_tokens array should contain meaningful, normalized tokens that uniquely identify the error.
 7. The error_signature should be a concise, lowercase, underscore-separated string suitable for filename generation.
 8. This task focuses on SEARCHING existing KB - it does NOT create new KB articles.
@@ -270,22 +216,6 @@ error_type: "NuGet"
 ```
 
 ---
-
-## Step 3: Result Tracking (MANDATORY)
-Append to solution-results.csv
-1. **Prepare CSV entry:**
-   - timestamp: Current UTC timestamp in ISO 8601 format (e.g., "2025-10-26T12:00:00Z")
-   - repo_name: {{repo_name}}
-   - solution_name: {{solution_name}}
-   - task_name: "@task-search-knowledge-base"
-   - status: "SUCCESS" if kb_search_status="COMPLETED", "SKIPPED" if kb_search_status="SKIPPED"
-   - symbol: "✓" if status="SUCCESS", "⊘" if status="SKIPPED"
-
-2. **Append to results/solution-results.csv using comma (`,`) as the separator:**
-   - Format: `{{timestamp}},{{repo_name}},{{solution_name}},@task-search-knowledge-base,{{status}},{{symbol}}`
-   - Use PowerShell: `Add-Content -Path ".\results\solution-results.csv" -Value "{{csv_row}}"`
-   - Ensure directory exists: `.\results\`
-   - If file doesn't exist, create with headers: `timestamp,repo_name,solution_name,task_name,status,symbol`
 
 ## Step 4: Repo Checklist Update (MANDATORY)
 Mark current task complete

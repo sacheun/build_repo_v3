@@ -1,4 +1,4 @@
-@task-create-knowledge-base solution_path={{solution_path}} solution_name={{solution_name}} kb_search_status={{kb_search_status}} detection_tokens={{detection_tokens}} error_signature={{error_signature}} error_code={{error_code}} error_type={{error_type}} build_stderr={{build_stderr}} errors={{errors}} warnings={{warnings}}
+@task-create-knowledge-base solution_checklist={{solution_checklist}}
 
 ---
 temperature: 0.1
@@ -44,9 +44,7 @@ DO NOT:
 ** END WARNING **
 
 ## Behavior (Follow this Step by Step)
-0. **Entry Trace:**
-   Emit a single line:
-   `[task-create-knowledge-base] START solution='{{solution_name}}' error_signature='{{error_signature}}' error_code='{{error_code}}' errors={{len(errors)}}`
+
 
 1. **Prerequisite Check**: Verify this task should run.
     - If kb_search_status == FOUND: return kb_create_status=SKIPPED, reason="existing KB article found"
@@ -63,7 +61,6 @@ DO NOT:
    - Query for related concepts (e.g., "Central Package Management", "Service Fabric", ".NET build errors")
    - Use AI reasoning to formulate effective search queries
    - **PRINT TO CONSOLE**: `[KB-CREATE] Starting Microsoft Docs MCP server research for errors: {errors}`
-   - **MUST LOG TO DECISION LOG**: This step is mandatory and will be logged
    
    Steps:
    a. **Formulate search query** based on error analysis:
@@ -99,9 +96,9 @@ DO NOT:
       - For NU1008: query="Central Package Management Directory.Packages.props", language="xml"
       - For MSBuild: query="MSBuild property configuration", language="xml"
       - For C# errors: query="namespace resolution", language="csharp"
-      - **PRINT TO CONSOLE**: `[KB-CREATE] Querying Microsoft Docs code samples for: {code_query} (language: {language})`
+
       - **EXECUTE QUERY**: Call mcp_microsoftdocs_microsoft_code_sample_search tool
-      - **PRINT TO CONSOLE**: `[KB-CREATE] Microsoft Docs returned {num_samples} code samples`
+
       - **USE AI**: Extract relevant code snippets for fix examples
    
    d. **If search results are insufficient, use mcp_microsoftdocs_microsoft_docs_fetch**:
@@ -112,9 +109,9 @@ DO NOT:
       Parameters:
         url: "[microsoft_docs_url_from_search]"
       ```
-      - **PRINT TO CONSOLE**: `[KB-CREATE] Fetching full Microsoft Docs article from: {doc_url}`
+
       - **EXECUTE FETCH**: Call mcp_microsoftdocs_microsoft_docs_fetch tool
-      - **PRINT TO CONSOLE**: `[KB-CREATE] Successfully fetched full documentation (length: {content_length} chars)`
+
       - **USE AI**: Read and comprehend full documentation for deeper understanding
    
    e. **Use AI structural reasoning to analyze Microsoft Docs results**:
@@ -212,58 +209,8 @@ DO NOT:
    - **USE create_file**: Save the synthesized KB article
 
 5. **Output**: Return creation results.
-   - **Log to Decision Log (MANDATORY STEPS):**
-     * **MUST LOG MICROSOFT DOCS QUERIES**: Log each MCP server query as a separate entry:
-       - For microsoft_docs_search:
-       ```
-       @task-update-decision-log 
-         timestamp="{{timestamp}}" 
-         repo_name="{{repo_name}}" 
-         solution_name="{{solution_name}}" 
-         task="task-create-knowledge-base" 
-         message="Queried Microsoft Docs MCP: {{search_query}}" 
-         status="INFO"
-       ```
-       - For code_sample_search:
-       ```
-       @task-update-decision-log 
-         timestamp="{{timestamp}}" 
-         repo_name="{{repo_name}}" 
-         solution_name="{{solution_name}}" 
-         task="task-create-knowledge-base" 
-         message="Queried Microsoft Docs code samples: {{code_query}}" 
-         status="INFO"
-       ```
-       - For docs_fetch:
-       ```
-       @task-update-decision-log 
-         timestamp="{{timestamp}}" 
-         repo_name="{{repo_name}}" 
-         solution_name="{{solution_name}}" 
-         task="task-create-knowledge-base" 
-         message="Fetched Microsoft Docs article: {{doc_url}}" 
-         status="INFO"
-       ```
-     * **FINAL TASK STATUS**: Log the overall task completion:
-       ```
-       @task-update-decision-log 
-         timestamp="{{timestamp}}" 
-         repo_name="{{repo_name}}" 
-         solution_name="{{solution_name}}" 
-         task="task-create-knowledge-base" 
-         message="{{message}}" 
-         status="{{status}}"
-       ```
-       - Use ISO 8601 format for timestamp (e.g., "2025-10-22T14:30:45Z")
-       - Message format:
-         * If kb_create_status == SUCCESS: "Created KB: {{kb_filename}}" (e.g., "Created KB: nu1008_central_package_management.md")
-         * If kb_create_status == SKIPPED and kb_search_status == FOUND: "KB already exists - creation skipped"
-         * If kb_create_status == SKIPPED and kb_search_status == SKIPPED: "Build succeeded - KB not needed"
-       - {{kb_filename}}: Extract filename from kb_file_path (e.g., "nu1008_central_package_management.md")
-       - Status:
-         * "SUCCESS" if kb_create_status == SUCCESS
-         * "SKIPPED" if kb_create_status == SKIPPED
-    - **Exit Trace:** Emit `[task-create-knowledge-base] END kb_create_status='{{kb_create_status}}' kb_file_created={{kb_file_created}}`
+    - **LOGGING REQUIREMENT:** Record each Microsoft Docs query and fetch in your execution log (console output acceptable). Include timestamp, query type, and target URL or text.
+    - **FINAL TASK STATUS:** Emit `[task-create-knowledge-base] END kb_create_status='{{kb_create_status}}' kb_file_created={{kb_file_created}}` with an accompanying status message summarizing actions taken (e.g., `Created KB: nu1008_central_package_management.md`).
 
 Variables available:
 - {{solution_path}} → Absolute path to the .sln file that failed to build

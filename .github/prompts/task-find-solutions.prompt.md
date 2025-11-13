@@ -108,49 +108,24 @@ It is a **deterministic, scriptable operation** that must follow each step in ex
 ---
 
 ### Step 6 (MANDATORY)
-**Completion & Confirmation**
+**Final Verification & Completion (With Single Automatic Retry)**
 
-1. Ensure all prior steps were executed in correct order.
-2. Confirm that both checklist and output JSON files exist.
-3. Print or log the final `status` result (SUCCESS or FAIL).
-4. Do not terminate until all confirmations above are complete.
+1. Ensure Steps 1–5 executed sequentially and that both the checklist and `output/{{repo_name}}_task5_find-solutions.json` files currently exist on disk.
+2. Print or log the final `status` result (SUCCESS or FAIL) before verification begins.
+3. Re-open `{{checklist_path}}` from disk (fresh read; do not reuse cached content) and perform ALL checks below:
+   - **Task line correctness**: the line containing `@task-find-solutions` must be `[x]` when `status=SUCCESS`, and must remain `[ ]` when `status=FAIL`.
+   - **`solutions_json` variable**: exactly one line starts with `- {{solutions_json}} →`. When `status=SUCCESS`, its value is `output/{{repo_name}}_task5_find-solutions.json`; when `status=FAIL`, its value is `FAIL`. Ensure proper spacing around the arrow and no duplicates.
+   - **JSON validation (SUCCESS cases)**: `output/{{repo_name}}_task5_find-solutions.json` exists, parses as JSON, and includes the required fields (`local_path`, `repo_name`, `solutions`, `solution_count`, `status`, `timestamp`). Confirm `solution_count == len(solutions)` and each entry in `solutions` is an absolute `.sln` path.
+   - **JSON validation (FAIL cases)**: JSON file still exists with `solutions=[]`, `solution_count=0`, and `status=FAIL`. Confirm the checklist variable value is `FAIL`.
+   - **Consistency**: `repo_name` inside the JSON matches the checklist value, and no duplicate `{{solutions_json}}` lines are present.
+4. If ANY verification check fails (missing line, mismatched bracket state, invalid JSON, count mismatch, etc.):
+   - Log `WARNING: checklist verification failed - restarting from Step 1`.
+   - Re-run Steps 1–5 completely once, then repeat Step 6.
+5. Finalize verification:
+   - If the second attempt still fails, set `status=FAIL` (if not already) and log `VERIFICATION_ABORTED`.
+   - Otherwise log `VERIFICATION_PASSED` and exit.
 
-✅ **At end of Step 6:** all data should be consistent and files saved.
-
----
-
-### Step 7 (FINAL VERIFICATION AND REDO SAFEGUARD)
-**Explicit Variable & State Verification With Single Automatic Retry**
-
-Re-open `{{checklist_path}}` from disk (fresh read; do not reuse cached content) and perform ALL checks below:
-
-1. Task line correctness:
-   - Locate the line containing `@task-find-solutions`.
-   - If `status=SUCCESS` it MUST be `[x]`; if `status=FAIL` it MUST remain `[ ]`.
-2. `solutions_json` variable line presence & format (exactly once):
-   - Line MUST start with `- {{solutions_json}} →`.
-   - When `status=SUCCESS`: value MUST equal `output/{{repo_name}}_task5_find-solutions.json`.
-   - When `status=FAIL`: value MUST equal `FAIL`.
-   - Single arrow `→`, one space on each side, no trailing spaces, no duplication.
-3. JSON file validation (when `status=SUCCESS`):
-   - File `output/{{repo_name}}_task5_find-solutions.json` MUST exist and be valid JSON.
-   - Required fields: `local_path`, `repo_name`, `solutions` (array), `solution_count` (int), `status`, `timestamp`.
-   - `solution_count == len(solutions)`.
-   - Each path in `solutions` ends with `.sln` and is absolute (contains a drive letter or leading root indicator).
-4. JSON file validation (when `status=FAIL`):
-   - JSON file SHOULD still exist (empty `solutions` array, `solution_count=0`).
-   - `solutions_json` variable line MUST be `FAIL` (not blank, not partial path).
-5. Consistency checks:
-   - `repo_name` inside JSON matches value from checklist.
-   - No extraneous duplicate `{{solutions_json}}` lines.
-6. Failure handling:
-   - If ANY check fails (missing line, mismatched bracket state, bad path, JSON parse error, count mismatch) log: `WARNING: checklist verification failed - restarting from Step 1`.
-   - Re-run Steps 1–6 completely once, then attempt this Step 7 again.
-7. Finalization:
-   - On success, log `VERIFICATION_PASSED`.
-   - If retry also fails, set `status=FAIL` (if not already) and log `VERIFICATION_ABORTED`.
-
-✅ **At end of Step 7:** Either verification passed (task COMPLETE & VERIFIED) or failure recorded after retry.
+✅ **At end of Step 6:** Verification either passes (`VERIFICATION_PASSED`) or the failure is recorded after a single retry attempt.
 
 ---
 
@@ -171,6 +146,6 @@ Re-open `{{checklist_path}}` from disk (fresh read; do not reuse cached content)
 4. Each step requires explicit confirmation before moving on.
 5. Save generated script to:  
    `temp-script/step{N}_repo{M}_task5_find-solutions.py`
-6. Verification (Step 7) is **mandatory** — never skip or ignore failed checklist updates.
+6. Final verification (Step 6) is **mandatory** — never skip or ignore failed checklist updates.
 
 ---

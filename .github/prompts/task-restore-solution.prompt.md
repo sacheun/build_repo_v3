@@ -109,7 +109,7 @@ Run this step **only if Step 2’s final exit_code != 0**.
 1. Open `{{solution_checklist}}`.
 2. Mark `@task-restore-solution` as complete (`- [x]`).
 3. In `### Solution Variables`, update:
-   - `restore_status → "SUCCEEDED"` if success=true else `"FAILED"`.
+   - `restore_status` → `"SUCCEEDED"` if success=true else `"FAILED"`.
 4. Preserve all other lines unchanged.
 5. Write atomically (replace file only after full validation).
 
@@ -119,7 +119,9 @@ Run this step **only if Step 2’s final exit_code != 0**.
 
 1. Validate that all checkpoints from Steps 1–7 were printed.
 2. Validate that the final JSON exists and contains `success` and `exit_code`.
-3. If any checkpoint missing → re-run last incomplete step once.
+3. Re-open `{{solution_checklist}}` from disk and confirm `restore_status` reflects the outcome (`SUCCEEDED` when success=true, otherwise `FAILED`).
+4. If the variable is missing or mismatched → re-run Step 7 once; if still incorrect set `status=FAIL`.
+5. If any checkpoint missing → re-run last incomplete step once.
 
 ---
 

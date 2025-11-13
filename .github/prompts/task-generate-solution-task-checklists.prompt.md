@@ -83,11 +83,12 @@ Each step must output a verification result before proceeding.
    - Solution path: {solution_path}
    - Parent repo: {repo_name}
    - restore_status: (blank)
-   - Last build status: (blank)
-   - Last build timestamp: (blank)
-   - Build attempts: 0
+   - build_count: 0
    - build_status: (blank)
    - verify_status: (blank)
+   - expected_artifacts: (blank)
+   - missing_artifacts: (blank)
+   - verified_artifacts: (blank)
 
    ## For Agents Resuming Work
    1. Start at the first unchecked task in order.
@@ -95,7 +96,7 @@ Each step must output a verification result before proceeding.
    3. Record any KB article references inline below tasks.
    ```
 
-2. Verify that each file includes headings: “### Solution Variables”, “### Tasks”, and “### Retry Attempts Guidance”.  
+2. Verify that each file includes headings: “### Solution Variables”, “### Tasks”.  
 3. **Checkpoint:** Log verification status and continue to **Step 4**.
 
 ---
@@ -104,7 +105,7 @@ Each step must output a verification result before proceeding.
 **Checkpoint → Confirm repo checklist updated correctly.**
 
 1. Open `tasks/{{repo_name}}_repo_checklist.md`.  
-2. Mark `[x]` on the `@generate-solution-task-checklists` entry **only**.  
+2. Mark `[x]` on the `@task-generate-solution-task-checklists` entry **only**.  
 3. Do not modify other items.  
 4. **Checkpoint:** Record success/fail. Continue to **Step 5**.
 
@@ -131,7 +132,7 @@ Each step must output a verification result before proceeding.
 **Checkpoint → Ensure checklist reflects correct completion status.**
 
 1. Reopen `tasks/{{repo_name}}_repo_checklist.md`.  
-2. Verify that the entry for `@generate-solution-task-checklists` is **checked `[x]`**.  
+2. Verify that the entry for `@task-generate-solution-task-checklists` is **checked `[x]`**.  
 3. If unchecked or missing, log a warning and **redo from Step 0** (reload and re‑execute the entire process).  
 4. Only mark task as `FINAL SUCCESS` if the verification passes.  
 5. Output a final confirmation message:  
