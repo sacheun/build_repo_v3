@@ -2,9 +2,9 @@
 temperature: 0.0
 ---
 
-@generate-repo-task-checklists input=<optional> append=<optional>
+@task-generate-repo-task-checklists input=<optional> append=<optional>
 
-Task name: generate-repo-task-checklists
+Task name: task-generate-repo-task-checklists
 
 ## Description
 This task generates task checklists for repositories listed in an input file. The checklists enable agents to pick up or resume work. This is a file-generation task and **is scriptable**.
@@ -114,27 +114,10 @@ Generated: {timestamp}
 ## Repo Tasks (Sequential Pipeline - Complete in Order)
 - [ ] (1) [MANDATORY] [SCRIPTABLE] Clone repository to local directory → @task-clone-repo
 - [ ] (2) [MANDATORY] [SCRIPTABLE] Find all solution files in repository → @task-find-solutions
-- [ ] (3) [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files (no inline sections) → @generate-solution-task-checklists
+- [ ] (3) [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files (no inline sections) → @task-generate-solution-task-checklists
 - [ ] (4) [MANDATORY] [SCRIPTABLE] Search for README file in repository → @task-search-readme
 - [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Scan README and extract setup commands → @task-scan-readme
 - [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Execute safe commands from README → @task-execute-readme
----
-
-## 🔁 For Agents Resuming Work
-Follow these rules *exactly* when resuming execution:
-
-1. Identify the **first `[ ]` task** in the checklist.
-2. [MANDATORY] tasks must be completed in numbered order (1 → 2 → 3 → 4 → 5 → 6)
-3. Execute its corresponding prompt file (from `@task-...`).
-4. After successful completion, update this checklist and mark `[x]`.
-5. Do **not** end the run until all required tasks are completed.
-
----
-## ⚡ Execution Notes
-- [SCRIPTABLE] tasks: clone, search-readme, find-solutions, generate-solution-task-checklists
-- [NON-SCRIPTABLE] tasks: scan-readme, execute-readme
-- Mark completed tasks with [x]
-- Each referenced `@task-*`, `@generate-*` file is an independent prompt that must be executed completely before continuing.
 
 ## Repo Variables Available
 - {{repo_url}} → {repo_url}
@@ -148,17 +131,21 @@ Follow these rules *exactly* when resuming execution:
 - {{executed_commands}} →
 - {{skipped_commands}} →
 
-## Variable Definitions (Reference Only – DO NOT PARSE FOR VALUES)
-- repo_url: Original repository URL provided to the workflow.
-- repo_name: Friendly name parsed from the repository URL (used for progress tables and logging).
-- clone_path: Root folder where repositories are cloned (populated later by task-clone-repo).
-- repo_directory: Absolute path to the cloned repository (populated later by task-clone-repo).
-- readme_content: README file content (output of @task-search-readme).
-- readme_filename: README filename (output of @task-search-readme).
-- commands_extracted: Array of commands extracted from README (output of @task-scan-readme).
-- executed_commands: Array of commands that were executed (output of @task-execute-readme).
-- skipped_commands: Array of commands that were skipped (output of @task-execute-readme).
-- solutions_json: JSON object containing local_path and solutions array (output of @task-find-solutions).
+## For Agents Resuming Work
+Follow these rules *exactly* when resuming execution:
+
+1. Identify the **first `[ ]` task** in the checklist.
+2. [MANDATORY] tasks must be completed in numbered order (1 → 2 → 3 → 4 → 5 → 6)
+3. Execute its corresponding prompt file (from `@task-...`).
+4. After successful completion, update this checklist and mark `[x]`.
+5. Do **not** end the run until all required tasks are completed.
+
+## Execution Notes
+- [SCRIPTABLE] tasks: clone, search-readme, find-solutions, generate-solution-task-checklists
+- [NON-SCRIPTABLE] tasks: scan-readme, execute-readme
+- Mark completed tasks with [x]
+- Each referenced `@task-*` file is an independent prompt that must be executed completely before continuing.
+
 ```
 
 ### Step 6 — Populate Base Repo Variables (MANDATORY)

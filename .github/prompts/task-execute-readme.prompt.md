@@ -62,10 +62,11 @@ If mismatch → retry classification once, else mark `status=FAIL`.
 ## Step 4 – Checklist Update (MANDATORY)
 1. Open `tasks/{{repo_name}}_repo_checklist.md`.
 2. Update only task lines for `@task-execute-readme` and the executed/skipped fields.
-3. Ensure only **one** `→` per line.
-4. Confirm `[x]` set correctly (SUCCESS or SKIPPED only).
-5. Validate summary counts match Step 3 output before saving.
-6. If validation fails, retry update once.
+3. Set `- {{executed_commands}} →` to the pipe-delimited list of executed safe commands (or `None` if none executed).
+4. Ensure only **one** `→` per line.
+5. Confirm `[x]` set correctly (SUCCESS or SKIPPED only).
+6. Validate summary counts match Step 3 output before saving.
+7. If validation fails, retry update once.
 
 ---
 

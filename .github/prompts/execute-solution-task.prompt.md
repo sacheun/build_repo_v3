@@ -80,7 +80,7 @@ Verify `[CHECKPOINT] step_1_complete` exists.
    - If condition **TRUE**, proceed to Step 2.2.
 
 #### Step 2.2 – Task Invocation
-1. Execute the corresponding task prompt (e.g. `@task-build-solution`, `@task-run-tests`, etc.).
+1. Execute the corresponding task prompt (e.g. `@task-build-solution`, `@task-restore-solution`, etc.).
 2. Capture output, logs, and result metadata.
 3. If task fails →  
    - Mark `[x] FAIL` with diagnostic info.  

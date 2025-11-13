@@ -73,6 +73,11 @@ Each step must output a verification result before proceeding.
 
    ## Solution: {solution_name}
 
+   ### Tasks
+   - [ ] (1) [MANDATORY] [SCRIPTABLE] Restore NuGet packages → @task-restore-solution
+   - [ ] (2) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution
+   - [ ] (3) [MANDATORY] [SCRIPTABLE] Validate build artifacts  → @task-validate-build-artifacts
+
    ### Solution Variables
    - Solution name: {solution_name}
    - Solution path: {solution_path}
@@ -83,36 +88,6 @@ Each step must output a verification result before proceeding.
    - Build attempts: 0
    - build_status: (blank)
    - verify_status: (blank)
-   - kb_search_status: (blank)
-   - kb_file_path: (blank)
-   - kb_article_status: (blank)
-   - fix_applied_attempt_1: (blank)
-   - kb_option_applied_attempt_1: (blank)
-   - retry_build_status_attempt_1: (blank)
-   - fix_applied_attempt_2: (blank)
-   - kb_option_applied_attempt_2: (blank)
-   - retry_build_status_attempt_2: (blank)
-   - fix_applied_attempt_3: (blank)
-   - kb_option_applied_attempt_3: (blank)
-   - retry_build_status_attempt_3: (blank)
-
-   ### Tasks
-   - [ ] (1) [MANDATORY] [SCRIPTABLE] Restore NuGet packages → @task-restore-solution
-   - [ ] (2) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution
-   - [ ] (3) [CONDITIONAL] [NON-SCRIPTABLE] Search knowledge base for error fix → @task-search-knowledge-base
-   - [ ] (4) [CONDITIONAL] [NON-SCRIPTABLE] Create knowledge base article → @task-create-knowledge-base
-   - [ ] (5) [CONDITIONAL Attempt 1] [NON-SCRIPTABLE] Apply fix from KB → @task-apply-knowledge-base-fix
-   - [ ] (6) [CONDITIONAL Attempt 1] [SCRIPTABLE] Retry build after fix → @task-build-solution-retry
-   - [ ] (7) [CONDITIONAL Attempt 2] [NON-SCRIPTABLE] Apply fix from KB → @task-apply-knowledge-base-fix
-   - [ ] (8) [CONDITIONAL Attempt 2] [SCRIPTABLE] Retry build after fix → @task-build-solution-retry
-   - [ ] (9) [CONDITIONAL Attempt 3] [NON-SCRIPTABLE] Apply fix from KB → @task-apply-knowledge-base-fix
-   - [ ] (10) [CONDITIONAL Attempt 3] [SCRIPTABLE] Retry build after fix → @task-build-solution-retry
-   - [ ] (11) [MANDATORY] [SCRIPTABLE] Validate build artifacts  → @task-validate-build-artifacts
-
-   ### Retry Attempts Guidance
-   Attempt 1: Initial restore/build.
-   Attempt 2: Apply first KB fix then rebuild.
-   Attempt 3: Apply second KB fix then rebuild; escalate if still failing.
 
    ## For Agents Resuming Work
    1. Start at the first unchecked task in order.

@@ -136,6 +136,14 @@ def check_repo_readiness(checklist_path: str) -> bool:
     OPTIONAL_VARS = {'executed_commands', 'skipped_commands'}
     missing_vars = [v for v in mandatory_vars if v not in OPTIONAL_VARS and not var_values.get(v)]
 
+    # Catch any repo variables present in the checklist with empty values (excluding optional ones).
+    additional_missing_vars = [
+        var for var, value in var_values.items()
+        if var not in OPTIONAL_VARS and not value
+    ]
+    if additional_missing_vars:
+        missing_vars.extend(v for v in additional_missing_vars if v not in missing_vars)
+
     # Additional solution checklist verification:
     # If solutions variable populated, verify that corresponding solution checklist files exist in tasks directory.
     additional_failures: List[str] = []
@@ -164,7 +172,7 @@ def check_repo_readiness(checklist_path: str) -> bool:
 
     # Successful readiness; emit detail lines to clarify what was validated.
     verified_tasks = sorted(mandatory_tasks.keys())
-    verified_vars = [var for var in mandatory_vars if var_values.get(var)]
+    verified_vars = sorted([var for var, value in var_values.items() if value])
     if verified_tasks:
         print(f"[repo readiness detail] {repo_name}: tasks_checked={verified_tasks}")
     if verified_vars:
