@@ -54,7 +54,6 @@ DEFAULT_CHECKLIST = 'tasks/ic3_spool_cosine-dep-spool_repo_checklist.md'
 def build_repo_pipelines(checklist_path: str) -> tuple[List[tuple], List[tuple]]:
     """Construct repository pipeline definitions for the provided checklist."""
     repo_pipeline_step = [
-        ('task-generate-repo-task-checklists', {'input': 'repositories_small.txt'}),
         ('task-clone-repo', {'clone_path': './clone_repos', 'checklist_path': checklist_path}),
         ('task-find-solutions', {'checklist_path': checklist_path}),
         ('task-generate-solution-task-checklists', {'checklist_path': checklist_path}),
@@ -127,9 +126,12 @@ def main(argv: List[str]) -> int:
     args = parse_args(argv)
     mode = args.mode
     checklist_path = args.checklist.replace('\\', '/')
+    initial_tasks: List[tuple] = []
     readiness_checker = None
     checklist_label = 'repository'
     if 'repo_checklist.md' in checklist_path:
+        # Always seed repo checklist generation before any repository pipelines run.
+        initial_tasks.append(('task-generate-repo-task-checklists', {'input': 'repositories_small.txt'}))
         pipeline_step, pipeline_all = build_repo_pipelines(checklist_path)
         readiness_checker = check_repo_readiness
         checklist_label = 'repository'
@@ -174,6 +176,25 @@ def main(argv: List[str]) -> int:
         stem, ext = base_file, '.log'
 
     os.makedirs(base_dir, exist_ok=True)
+
+    if checklist_label == 'repository' and initial_tasks:
+        initial_log_file = os.path.join(base_dir, f"{stem}_initial{ext}")
+        initial_summary = os.path.join(REPO_ROOT, 'output', 'initial_pipeline_summary.json')
+        os.makedirs(os.path.dirname(initial_summary), exist_ok=True)
+        print("[pipeline] Running initial tasks prior to main pipeline ...")
+        print(f"[log] Writing Copilot execution log to: {initial_log_file}")
+        init_exit_code, _ = execute_pipeline(
+            pipeline=[(p, params) for p, params in initial_tasks],
+            log_file=initial_log_file,
+            continue_on_error=args.continue_on_error,
+            step_by_step=step_by_step,
+            mode=mode,
+            summary_path=initial_summary
+        )
+        per_attempt_logs.append(os.path.abspath(initial_log_file))
+        if init_exit_code != 0 and not args.continue_on_error:
+            print(f"[fatal] Initial pipeline failed with exit code {init_exit_code}.")
+            return init_exit_code
 
     # Phase 1: Repo attempts (original behavior)
     while attempt <= max_attempts:

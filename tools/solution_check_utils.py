@@ -27,37 +27,18 @@ Exit code 0 if all requested files are ready, 1 otherwise.
 """
 from __future__ import annotations
 import os, re, sys
-from typing import List, Dict, Tuple
+from typing import List, Dict
+
+from checklist_utils import (
+    extract_tasks,
+    extract_variables,
+    classify_variables,
+)
 
 # Patterns (similar to repo_check_utils but solution-focused)
 MANDATORY_TASK_PATTERN = re.compile(r"^- \[(x| )\].*\[MANDATORY\].*?@([a-zA-Z0-9\-]+)")
-VAR_DEF_PATTERN = re.compile(r"^- ([a-zA-Z0-9_]+):.*\(output of @([a-zA-Z0-9\-]+)\)")
-VAR_LINE_PATTERN = re.compile(r"^- \{(?:\{)?([a-zA-Z0-9_]+)\}(?:\})? *(?:→|->) *(.*)$")
+RELAXED_TASK_PATTERN = re.compile(r"^- \[(x| )\].*?@([a-zA-Z0-9\-]+)")
 SOLUTION_NAME_HEADER_PATTERN = re.compile(r"^# Solution Checklist: *(.+?)\s*$")
-
-SECTION_HEADER_PREFIX = "## "
-
-def _extract_section(lines: List[str], header_prefix: str) -> List[str]:
-    """Return lines belonging to a section starting with the given header prefix.
-
-    Accepts either level 2 (##) or level 3 (###) headers to tolerate checklist template variants.
-    """
-    content: List[str] = []
-    in_section = False
-    header_prefix_lower = header_prefix.lower()
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith('## ') or stripped.startswith('### '):
-            # Normalize both forms for comparison
-            lower = stripped.lower()
-            if lower.startswith(header_prefix_lower):
-                in_section = True
-                continue
-            elif in_section:
-                break
-        elif in_section:
-            content.append(line)
-    return content
 
 def _get_solution_name(lines: List[str]) -> str:
     for line in lines:
@@ -84,50 +65,33 @@ def check_solution_readiness(solution_checklist_path: str) -> bool:
     solution_name = _get_solution_name(lines)
 
     # Support both '## Solution Tasks' and template variant '### Tasks'
-    tasks_section = _extract_section(lines, '## Solution Tasks')
-    if not tasks_section:
-        tasks_section = _extract_section(lines, '### Tasks')
-    mandatory_tasks: Dict[str, bool] = {}
-    for line in tasks_section:
-        m = MANDATORY_TASK_PATTERN.match(line.strip())
-        if m:
-            done_flag, task_name = m.groups()
-            task_name_norm = TASK_NAME_NORMALIZE.get(task_name, task_name)
-            mandatory_tasks[task_name_norm] = (done_flag == 'x')
+    normalize = lambda name: TASK_NAME_NORMALIZE.get(name, name)
+    mandatory_tasks = extract_tasks(
+        lines,
+        ('## Solution Tasks', '### Tasks'),
+        MANDATORY_TASK_PATTERN,
+        normalize=normalize,
+        relaxed_pattern=RELAXED_TASK_PATTERN,
+    )
 
-    # Fallback: if no explicit [MANDATORY] markers found but tasks_section has content,
-    # treat every listed task line as mandatory (uses relaxed pattern without [MANDATORY]).
-    if not mandatory_tasks and tasks_section:
-        RELAXED_TASK_PATTERN = re.compile(r"^- \[(x| )\].*?@([a-zA-Z0-9\-]+)")
-        for line in tasks_section:
-            m2 = RELAXED_TASK_PATTERN.match(line.strip())
-            if m2:
-                done_flag, task_name = m2.groups()
-                task_name_norm = TASK_NAME_NORMALIZE.get(task_name, task_name)
-                # Avoid overwriting in case of duplicates
-                if task_name_norm not in mandatory_tasks:
-                    mandatory_tasks[task_name_norm] = (done_flag == 'x')
+    var_values: Dict[str, str] = extract_variables(
+        lines,
+        (
+            '## Solution Variables Available',
+            '## Solution Variables',
+            '### Solution Variables'
+        )
+    )
 
-    var_defs_section = _extract_section(lines, '## Variable Definitions')
-    mandatory_vars: List[str] = []
-    for line in var_defs_section:
-        m = VAR_DEF_PATTERN.match(line.strip())
-        if m:
-            var_name, source_task = m.groups()
-            source_task_norm = TASK_NAME_NORMALIZE.get(source_task, source_task)
-            if source_task_norm in mandatory_tasks:
-                mandatory_vars.append(var_name)
-
-    vars_section = _extract_section(lines, '## Solution Variables Available')
-    var_values: Dict[str, str] = {}
-    for line in vars_section:
-        m = VAR_LINE_PATTERN.match(line.strip())
-        if m:
-            var_name, value = m.groups()
-            var_values[var_name] = value.strip()
+    # Emit diagnostic detail similar to repo readiness tooling.
+    tasks_checked = sorted(mandatory_tasks.keys())
+    missing_vars, verified_vars = classify_variables(var_values)
+    verified_vars = sorted(verified_vars)
+    print(f"[solution readiness detail] {solution_name}: tasks_checked={tasks_checked}")
+    print(f"[solution readiness detail] {solution_name}: variables_verified={verified_vars}")
 
     missing_tasks = [t for t, done in mandatory_tasks.items() if not done]
-    missing_vars = [v for v in mandatory_vars if not var_values.get(v)]
+    missing_vars = sorted(missing_vars)
 
     if not mandatory_tasks:
         # No tasks discovered at all -> cannot be ready.
@@ -163,24 +127,3 @@ def check_all_solutions(tasks_dir: str) -> Dict[str, bool]:
     return results
 
 __all__ = ["check_solution_readiness", "check_all_solutions"]
-
-if __name__ == '__main__':
-    if '--dir' in sys.argv:
-        try:
-            dir_index = sys.argv.index('--dir')
-            tasks_dir = sys.argv[dir_index + 1]
-        except Exception:
-            print('Usage: python solution_check_utils.py --dir <tasks_dir>')
-            sys.exit(2)
-        results = check_all_solutions(tasks_dir)
-        # Exit code 0 only if all present solution checklists passed
-        if results and all(results.values()):
-            sys.exit(0)
-        sys.exit(1)
-    elif len(sys.argv) >= 2:
-        path = sys.argv[1]
-        ok = check_solution_readiness(path)
-        sys.exit(0 if ok else 1)
-    else:
-        print('Usage: python solution_check_utils.py <path_to_solution_checklist.md> | --dir <tasks_dir>')
-        sys.exit(2)

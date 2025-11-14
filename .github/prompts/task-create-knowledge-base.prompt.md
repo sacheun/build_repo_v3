@@ -49,8 +49,8 @@ DO NOT:
 
 ### Step 1 — Prerequisite Check (MANDATORY)
 1. Verify this task should run.
-   - If kb_search_status == FOUND: return `kb_create_status=SKIPPED`, reason=`"existing KB article found"`,  proceed to Step 6.
-   - If kb_search_status == SKIPPED: return `kb_create_status=SKIPPED`, reason=`"build succeeded"`,  proceed to Step 6.
+   - If kb_search_status == FOUND: return `kb_article_creation_status=SKIPPED`, reason=`"existing KB article found"`,  proceed to Step 6.
+   - If kb_search_status == SKIPPED: return `kb_article_creation_status=SKIPPED`, reason=`"build succeeded"`,  proceed to Step 6.
    - If kb_search_status == NOT_FOUND: proceed to Step 2.
 
 ### Step 2 — Research Using Microsoft Docs MCP Server (MANDATORY)
@@ -79,11 +79,11 @@ DO NOT:
 1. Open `{{solution_checklist}}` (fresh read).
 2. Locate the task line for `@task-create-knowledge-base` for this attempt.
 3. Mark task as:
-   - `[x] ... - KB CREATED` when `kb_create_status == SUCCESS`
-   - `[x] ... - SKIPPED` when `kb_create_status == SKIPPED`
+   - `[x] ... - KB CREATED` when `kb_article_creation_status == SUCCESS`
+   - `[x] ... - SKIPPED` when `kb_article_creation_status == SKIPPED`
    - `[x] ... - ERROR` when a failure occurred
 4. Update Solution Variables in **### Solution Variables**:
-   - `kb_article_status` → CREATED | SKIPPED | ERROR
+   - `kb_article_creation_status` → CREATED | SKIPPED | ERROR
    - `kb_file_path` → absolute path if created, else `N/A`
 5. Do not alter unrelated lines.
 6. Save atomically.
@@ -94,20 +94,19 @@ DO NOT:
 2. Verify:
    - Task line present and correctly marked `[x]`.
    - Variables updated exactly according to Step 5 results.
-   - `kb_file_path` exists when `kb_create_status == SUCCESS`.
+   - `kb_file_path` exists when `kb_article_creation_status == SUCCESS`.
 3. If any check fails:
    - Log: `VERIFICATION FAILED — RESTARTING`
    - Re-run Steps 1–5 once.
 4. Re-run verification.
 5. If still failing:
-   - Set `kb_create_status=ERROR`
-   - Set `kb_article_status=ERROR`
+   - Set `kb_article_creation_status=ERROR`
    - Log `VERIFICATION_ABORTED`
 6. On success, log `VERIFICATION_PASSED`.
 
 
 ## Output Contract:
-- kb_create_status: SUCCESS | SKIPPED
+- kb_article_creation_status: SUCCESS | SKIPPED
 - kb_file_path: string (absolute path to created .md file, null if skipped)
 - microsoft_docs_urls: array[string] (URLs referenced in research)
 - detection_tokens: array[string] Array of error signatures from task-search-knowledge-base

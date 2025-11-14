@@ -24,7 +24,7 @@ Validate that a build for the specified Visual Studio solution produced all expe
 4. Read the checklist and locate `build_status` within `### Solution Variables`. If missing, set `status=FAIL` (`result="CONTRACT_ERROR"`) and proceed to Step 10.
 5. If `build_status != SUCCEEDED`:
    - Set `status = SKIPPED`, `result = "BUILD_NOT_READY"`, and maintain `verify_status = "SKIPPED"` for use in later steps.
-   - Initialize empty lists `expected_artifacts = []`, `missing = []`, `verified = []`.
+   - Initialize empty lists `expected_artifacts = []`, `missing = []`, `verified = []` (later converted to `(blank)` values in Step 9).
    - Emit the Step 1 checkpoint explaining the skip and jump directly to Step 9 (skip Steps 2–8).
 6. Otherwise initialize `verify_status = "PENDING_VERIFICATION"` and emit checkpoint summarizing resolved paths.
 
@@ -90,12 +90,12 @@ Validate that a build for the specified Visual Studio solution produced all expe
 2. Mark the task line containing `@task-validate-build-artifacts` as complete by changing `- [ ]` → `- [x]` (leave marked if already completed).
 3. Prepare variable updates using deterministic ordering based on the `verify_status` value tracked through prior steps:
    - Write `verify_status` → one of `"SKIPPED"`, `"SUCCEEDED"`, or `"FAILED"` as currently held.
-   - If `verify_status = "SKIPPED"`, set the artifact variables (`expected_artifacts`, `missing_artifacts`, `verified_artifacts`) → `None`.
+   - If `verify_status = "SKIPPED"`, set the artifact variables (`expected_artifacts`, `missing_artifacts`, `verified_artifacts`) → the literal text `(blank)`.
    - If `verify_status = "SUCCEEDED"`, use the collected arrays to populate the artifact variables.
    - If `verify_status = "FAILED"`, set `missing_artifacts` to the missing list while still filling `expected_artifacts` and `verified_artifacts` as above.
-     * `expected_artifacts` → pipe-delimited string of all expected artifact paths (sorted, absolute). If none, set to `None`.
-     * `missing_artifacts` → pipe-delimited string of missing artifact paths (sorted). If none, set to `None`.
-     * `verified_artifacts` → pipe-delimited string of verified artifact paths (sorted). If none, set to `None`.
+   * `expected_artifacts` → pipe-delimited string of all expected artifact paths (sorted, absolute). If none, set to `(blank)`.
+   * `missing_artifacts` → pipe-delimited string of missing artifact paths (sorted). If none, set to `(blank)`.
+   * `verified_artifacts` → pipe-delimited string of verified artifact paths (sorted). If none, set to `(blank)`.
 4. Ensure exactly one `- <name> → <value>` line exists for each variable; insert if missing, replace otherwise. Preserve other variable lines unchanged.
 5. Write the checklist atomically and emit the step checkpoint.
 
@@ -103,7 +103,7 @@ Validate that a build for the specified Visual Studio solution produced all expe
 1. Re-open the checklist from disk and confirm:
    - The task line for `@task-validate-build-artifacts` is checked.
    - `verify_status` matches the computed outcome (`SUCCEEDED`, `FAILED`, or `SKIPPED`).
-   - `expected_artifacts`, `missing_artifacts`, and `verified_artifacts` exactly match the pipe-delimited strings (or `None`) derived in Step 9 from the `expected`, `missing`, and `verified` arrays (or `None` when skipping).
+   - `expected_artifacts`, `missing_artifacts`, and `verified_artifacts` exactly match the pipe-delimited strings (or `(blank)`) derived in Step 9 from the `expected`, `missing`, and `verified` arrays (or `(blank)` when skipping).
    - If any check fails, retry Step 9 once; if still inconsistent, append to verification errors and keep `status=FAIL`.
 2. Compose JSON payload:
    ```json

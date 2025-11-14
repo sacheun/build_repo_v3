@@ -39,7 +39,7 @@ This task requires AI STRUCTURAL semantic reasoning. Do **not** replace it with 
 ✅ Checkpoint: Variables loaded and basic validation completed.
 
 ### Step 2 (MANDATORY) — Failure Detection & Token Extraction
-1. If `build_status == SUCCESS` (from task context), in the solution checklist md file, set `kb_search_status=SKIPPED`, `detection_tokens=[]`, `error_signature=null` and go to Step 4 (Checklist Update).
+1. If `build_status == SUCCESS` (from task context), in the solution checklist md file, set `kb_search_status=SKIPPED`, `kb_file_path=None`, `detection_tokens=[]`, `error_signature=null` and go to Step 4 (Checklist Update).
 2. If `build_status == FAIL`:
    a. Use `errors[]` array (if provided) as primary source of error codes (e.g., NU1008, MSB3644, CS0246).
    b. Use `build_stderr` (or fallback to `build_stdout`) as secondary context. Truncate to 5000 chars for analysis.
@@ -79,7 +79,7 @@ This task requires AI STRUCTURAL semantic reasoning. Do **not** replace it with 
    `- [x] [CONDITIONAL (4)] Search knowledge base for error fix @task-search-knowledge-base - {suffix}`
 5. In the same file, locate `### Solution Variables` and update only:
    - `kb_search_status` → `FOUND` | `NOT_FOUND` | `SKIPPED` | `ERROR`
-   - `kb_file_path` → absolute KB path when FOUND; `N/A` when NOT_FOUND or SKIPPED; `FAIL` when `kb_search_status = ERROR`
+   - `kb_file_path` → absolute KB path when FOUND; `None` when NOT_FOUND or SKIPPED; `FAIL` when `kb_search_status = ERROR`
    - `kb_article_status` → set to `REFERENCED` when FOUND; otherwise leave the existing value unchanged
 6. Preserve formatting, avoid duplicating lines, and save atomically (write to temp then replace).
 
@@ -106,7 +106,7 @@ This task requires AI STRUCTURAL semantic reasoning. Do **not** replace it with 
 2. Verify the task line and variables were updated as per Step 4:
    - Task line must be present and use `[x]` when `kb_search_status` != `SKIPPED`.
    - `kb_search_status` variable must equal the value produced in Step 5.
-   - `kb_file_path` must be set according to status rules: absolute KB path when FOUND, `N/A` when NOT_FOUND or SKIPPED, and `FAIL` when `kb_search_status = ERROR`.
+   - `kb_file_path` must be set according to status rules: absolute KB path when FOUND, `None` when NOT_FOUND or SKIPPED, and `FAIL` when `kb_search_status = ERROR`.
 3. Verify that the JSON output (if any) exists and is valid JSON with required fields.
    - When `kb_search_status == FOUND`: `kb_file_path` must point to an existing KB .md file.
    - When `kb_search_status == NOT_FOUND`: JSON must exist and `detection_tokens` must be non-empty.

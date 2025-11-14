@@ -41,10 +41,21 @@ Use these tools:
 ## Prerequisites
 - `solution_path`: Absolute path to the .sln file
 - `kb_file_path`: Absolute path to the KB article markdown file
-- `error_code`: Error code to fix (e.g., NU1008, MSB3644, SF0001)
 - `last_option_applied`: (Optional) The last option number that was applied (e.g., "1", "2", "3"). If not provided, defaults to applying Option 1.
 
 ## Instructions (Follow this Step by Step)
+
+### Step 0 (MANDATORY) — Early Exit When No KB Fix Is Required
+1. Load `{{solution_checklist}}` from disk (fresh read) and read the current `kb_search_status` value under `### Solution Variables`.
+2. If `kb_search_status` (case-insensitive) is `SKIPPED`, `NOT REQUIRED`, or starts with `SKIPPED (`:
+    - Locate the checklist entry for `@task-apply-knowledge-base-fix` attempt 1 ("CONDITIONAL number 5 - Attempt 1") and mark it `[x]` with suffix `- SKIPPED (KB search skipped)` if not already present.
+    - Under `### Solution Variables`, set:
+       * `- fix_applied_attempt_1:` → ` NOT REQUIRED`
+       * `- kb_option_applied_attempt_1:` → ` NOT REQUIRED`
+    - Save the checklist atomically.
+    - Prepare Step 6 output values: `fix_status = SKIPPED`, `option_applied = null`, `fix_applied = "KB search skipped - fix not required"`, `target_files = []`, `changes_made = []`, and ensure `available_options` reflects no change (`last_applied = null`, `next_available = null`).
+    - Skip Steps 1–5 and proceed directly to Step 6 (Structured Output) and Step 7 (Verification).
+3. Otherwise continue with Step 1.
 
 ### Step 1 (MANDATORY)
 Parse KB Article
@@ -132,17 +143,19 @@ Checklist Task & Variable Update
     - If `option_applied` is `null` (e.g., `fix_status = NO_MORE_OPTIONS`), derive `attempt_index = int(last_option_applied or 0) + 1` and cap within `[1,3]`.
     - Store `attempt_label = {1: "CONDITIONAL number 5 - Attempt 1", 2: "CONDITIONAL number 7 - Attempt 2", 3: "CONDITIONAL number 9 - Attempt 3"}[attempt_index]`.
 3. **Update the checklist task line:**
-    - Locate the bullet containing `@task-apply-knowledge-base-fix` and the matching attempt label.
-    - Replace the leading checkbox with `[x]`.
-    - When `fix_status` is `SKIPPED` or `NO_MORE_OPTIONS`, append ` - SKIPPED ({reason})` using a concise reason (e.g., `no more KB options`). Otherwise keep the existing suffix when the fix executed.
+   - Locate the bullet containing `@task-apply-knowledge-base-fix` and the matching attempt label.
+   - Replace the leading checkbox with `[x]`.
+   - When `fix_status` is `SKIPPED`, `NO_MORE_OPTIONS`, or the KB search indicated no fix required, append ` - SKIPPED ({reason})` using a concise reason (e.g., `no more KB options`, `KB search skipped`). Otherwise keep the existing suffix when the fix executed.
 4. **Refresh solution variables in `### Solution Variables`:**
     - Locate or insert the line starting with `- fix_applied_attempt_{attempt_index}:` and replace everything after the colon with:
        * ` APPLIED` when `fix_status = SUCCESS`.
        * ` NOT_APPLIED` when `fix_status` is `FAIL` or `FAIL_VERIFICATION`.
        * ` SKIPPED ({reason})` when `fix_status` is `SKIPPED` or `NO_MORE_OPTIONS`. Use clear, short wording for `{reason}`.
-    - Locate or insert the line starting with `- kb_option_applied_attempt_{attempt_index}:` and set the value to:
+       * ` NOT REQUIRED` when the KB search status indicated no fix was necessary (Step 0 path).
+   - Locate or insert the line starting with `- kb_option_applied_attempt_{attempt_index}:` and set the value to:
        * ` {option_applied}` when an option number exists.
        * ` null` when no option ran (e.g., `NO_MORE_OPTIONS`).
+       * ` NOT REQUIRED` when the KB search status indicated no fix was necessary (Step 0 path).
     - Leave attempt slots for other indices untouched, as well as unrelated variables (`solution_path`, `build_status`, etc.).
 5. **Write changes atomically** (temp file replace) so the checklist is never partially updated.
 
@@ -150,7 +163,7 @@ Checklist Task & Variable Update
 ### Step 6 (MANDATORY)
 Structured Output
 - Emit a single JSON object (stdout and saved file) containing:
-  - `fix_status`: `SUCCESS` | `FAIL` | `SKIPPED` | `NO_MORE_OPTIONS` | `FAIL_VERIFICATION`.
+   - `fix_status`: `SUCCESS` | `FAIL` | `SKIPPED` | `NO_MORE_OPTIONS` | `FAIL_VERIFICATION`.
   - `option_applied`: option number as string (`"1"`, `"2"`, `"3"`) or `null` when no option ran.
   - `fix_applied`: short human-readable summary of the change or reason for skip.
   - `kb_file_path`: absolute path to the KB article used.
@@ -167,11 +180,11 @@ Structured Output
 
 1. Reload `{{solution_checklist}}` from disk (fresh read).
 2. Verify the checklist reflects the outcome from Step 5:
-   - Locate the `@task-apply-knowledge-base-fix` entry for the computed attempt index and confirm the leading checkbox is `[x]`.
-   - When `fix_status` is `SKIPPED` or `NO_MORE_OPTIONS`, ensure the line ends with `- SKIPPED (...)` using the same reason written in Step 5.
+   - Locate the `@task-apply-knowledge-base-fix` entry for the computed attempt index (or attempt 1 when Step 0 triggered) and confirm the leading checkbox is `[x]`.
+   - When `fix_status` is `SKIPPED`, `NO_MORE_OPTIONS`, or the KB search indicated no fix required, ensure the line ends with `- SKIPPED (...)` using the same reason written earlier.
 3. Verify the solution variables under `### Solution Variables` match Step 5 updates:
-   - `fix_applied_attempt_{attempt_index}` carries the expected value (`APPLIED`, `NOT_APPLIED`, or `SKIPPED (...)`).
-   - `kb_option_applied_attempt_{attempt_index}` matches `option_applied` (or `null`).
+   - `fix_applied_attempt_{attempt_index}` carries the expected value (`APPLIED`, `NOT_APPLIED`, `SKIPPED (...)`, or `NOT REQUIRED`).
+   - `kb_option_applied_attempt_{attempt_index}` matches `option_applied` (or `null`, or `NOT REQUIRED` for the Step 0 path).
    - No duplicate variable lines exist and unrelated variables remain unchanged.
 4. If any verification fails:
    - Re-run Steps 1–6 exactly once and repeat Step 7.

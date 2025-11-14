@@ -25,13 +25,13 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 ---
 
 ## Step 2 — Pre-Build Artifact: Snapshot build_count (MANDATORY)
-1. Open checklist: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`. If file missing, record warning but continue (task may still run).
+1. Open checklist: `{{solution_path}}`. If file missing, record warning but continue (task may still run).
 2. Parse `### Solution Variables` and read single authoritative `- build_count → <int>` line. If missing, assume 0 and insert a single `- build_count → 0` placeholder atomically (but mark that insertion in verification_errors).
 3. Cache `old_build_count` (integer) in memory for mapping logic and artifact naming (do not modify file here).
 
 ---
 
-## Step 3 — Build Invocation (MANDATORY)
+## Step 3 — MsBuild Invocation (MANDATORY)
 1. Command (exact):
    ```
    msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo
