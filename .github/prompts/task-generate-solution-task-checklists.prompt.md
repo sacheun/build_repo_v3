@@ -91,14 +91,15 @@ Each step must output a verification result before proceeding.
    - verified_artifacts: (blank)
 
    ** Knowledge base **
-   kb_search_status: (blank)
-   kb_file_path: (blank)
-   kb_article_status: (blank)
-   kb_create_status: (blank)
-   last_option_applied: 0
-   fix_status = (blank)
-   fix_applied_attempt_1: (blank)
-   kb_option_applied_attempt_1: (blank)
+   - kb_search_status: (blank)
+   - kb_file_path: (blank)
+   - kb_article_status: (blank)
+   - kb_create_status: (blank)
+   - last_option_applied: 0
+   - fix_status = (blank)
+   - fix_applied_attempt_1: (blank)
+   - kb_option_applied_attempt_1: (blank)
+   - retry_build_status_attempt_1: (blank)
 
    ## For Agents Resuming Work
    1. Start at the first unchecked task in order.

@@ -126,16 +126,25 @@ Validate Fix Application
 
 ### Step 5 (MANDATORY)
 Checklist Task & Variable Update
-1. **Open the checklist:** `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`.
-2. **Update the conditional task entry for this attempt:**
-  - Attempt 1: mark the checklist entry labelled MANDATORY] [NON-SCRIPTABLE] Apply fix from knowledge base → @task-apply-knowledge-base-fix
-  - When the fix runs, change the leading checkbox to `[x]`; when skipped, append ` - SKIPPED (<reason>)`. Leave every other checklist line unchanged.
-3. **Refresh solution variables in `### Solution Variables`:**
-  - Only edit the attempt-specific slots that correspond to this run.
-  - Set `fix_applied_attempt_N` → `APPLIED`, `NOT_APPLIED`, or `SKIPPED (<reason>)` based on `fix_status` (`SUCCESS`, `FAIL`, `SKIPPED`, `NO_MORE_OPTIONS`).
-  - Set `kb_option_applied_attempt_N` → option number (`1`, `2`, `3`) when applied; use `null` when no option ran or the KB is exhausted.
-  - Keep unrelated variables (e.g., `solution_path`, `build_status`, other attempts) exactly as-is.
-4. **Write changes atomically** (temp file replace) so the checklist is never partially updated.
+1. **Open the checklist:** load `{{solution_checklist}}` from disk (fresh read).
+2. **Determine the attempt index for this run:**
+    - If an option was applied, parse `option_applied` (`"1"`, `"2"`, `"3"`) → `attempt_index`.
+    - If `option_applied` is `null` (e.g., `fix_status = NO_MORE_OPTIONS`), derive `attempt_index = int(last_option_applied or 0) + 1` and cap within `[1,3]`.
+    - Store `attempt_label = {1: "CONDITIONAL number 5 - Attempt 1", 2: "CONDITIONAL number 7 - Attempt 2", 3: "CONDITIONAL number 9 - Attempt 3"}[attempt_index]`.
+3. **Update the checklist task line:**
+    - Locate the bullet containing `@task-apply-knowledge-base-fix` and the matching attempt label.
+    - Replace the leading checkbox with `[x]`.
+    - When `fix_status` is `SKIPPED` or `NO_MORE_OPTIONS`, append ` - SKIPPED ({reason})` using a concise reason (e.g., `no more KB options`). Otherwise keep the existing suffix when the fix executed.
+4. **Refresh solution variables in `### Solution Variables`:**
+    - Locate or insert the line starting with `- fix_applied_attempt_{attempt_index}:` and replace everything after the colon with:
+       * ` APPLIED` when `fix_status = SUCCESS`.
+       * ` NOT_APPLIED` when `fix_status` is `FAIL` or `FAIL_VERIFICATION`.
+       * ` SKIPPED ({reason})` when `fix_status` is `SKIPPED` or `NO_MORE_OPTIONS`. Use clear, short wording for `{reason}`.
+    - Locate or insert the line starting with `- kb_option_applied_attempt_{attempt_index}:` and set the value to:
+       * ` {option_applied}` when an option number exists.
+       * ` null` when no option ran (e.g., `NO_MORE_OPTIONS`).
+    - Leave attempt slots for other indices untouched, as well as unrelated variables (`solution_path`, `build_status`, etc.).
+5. **Write changes atomically** (temp file replace) so the checklist is never partially updated.
 
 
 ### Step 6 (MANDATORY)
@@ -154,17 +163,19 @@ Structured Output
 - Write the same JSON payload to `output/{repo_name}_{solution_name}_task-apply-kb-fix.json` atomically.
 
 
-### Step 7 — Final Verification and Redo Safeguard (MANDATORY)
+## Step 7 — Final Verification and Redo Safeguard (MANDATORY)
 
-1. Reload `{solution_checklist}` from disk.
-2. Verify:
-   - Correct task line updated.
-   - Correct variable lines updated.
-   - No duplicates.
-3. If verification fails:
-  - Log warning: `VERIFICATION FAILED — RESTARTING`
-  - Re-run Steps 1–6 exactly once.
-4. If still failing, set `fix_status=FAIL_VERIFICATION`.
+1. Reload `{{solution_checklist}}` from disk (fresh read).
+2. Verify the checklist reflects the outcome from Step 5:
+   - Locate the `@task-apply-knowledge-base-fix` entry for the computed attempt index and confirm the leading checkbox is `[x]`.
+   - When `fix_status` is `SKIPPED` or `NO_MORE_OPTIONS`, ensure the line ends with `- SKIPPED (...)` using the same reason written in Step 5.
+3. Verify the solution variables under `### Solution Variables` match Step 5 updates:
+   - `fix_applied_attempt_{attempt_index}` carries the expected value (`APPLIED`, `NOT_APPLIED`, or `SKIPPED (...)`).
+   - `kb_option_applied_attempt_{attempt_index}` matches `option_applied` (or `null`).
+   - No duplicate variable lines exist and unrelated variables remain unchanged.
+4. If any verification fails:
+   - Re-run Steps 1–6 exactly once and repeat Step 7.
+5. If verification still fails after the retry, set `fix_status=FAIL_VERIFICATION`  and exit.
 
 ---
 

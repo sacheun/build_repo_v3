@@ -79,7 +79,7 @@ This task requires AI STRUCTURAL semantic reasoning. Do **not** replace it with 
    `- [x] [CONDITIONAL (4)] Search knowledge base for error fix @task-search-knowledge-base - {suffix}`
 5. In the same file, locate `### Solution Variables` and update only:
    - `kb_search_status` → `FOUND` | `NOT_FOUND` | `SKIPPED` | `ERROR`
-   - `kb_file_path` → absolute KB path when FOUND, else `N/A` (SKIPPED/NOT_FOUND) or `FAIL` (ERROR)
+   - `kb_file_path` → absolute KB path when FOUND; `N/A` when NOT_FOUND or SKIPPED; `FAIL` when `kb_search_status = ERROR`
    - `kb_article_status` → set to `REFERENCED` when FOUND; otherwise leave the existing value unchanged
 6. Preserve formatting, avoid duplicating lines, and save atomically (write to temp then replace).
 
@@ -106,7 +106,7 @@ This task requires AI STRUCTURAL semantic reasoning. Do **not** replace it with 
 2. Verify the task line and variables were updated as per Step 4:
    - Task line must be present and use `[x]` when `kb_search_status` != `SKIPPED`.
    - `kb_search_status` variable must equal the value produced in Step 5.
-   - `kb_file_path` must be `N/A`, valid absolute path, or `FAIL` consistent with `kb_search_status`.
+   - `kb_file_path` must be set according to status rules: absolute KB path when FOUND, `N/A` when NOT_FOUND or SKIPPED, and `FAIL` when `kb_search_status = ERROR`.
 3. Verify that the JSON output (if any) exists and is valid JSON with required fields.
    - When `kb_search_status == FOUND`: `kb_file_path` must point to an existing KB .md file.
    - When `kb_search_status == NOT_FOUND`: JSON must exist and `detection_tokens` must be non-empty.
