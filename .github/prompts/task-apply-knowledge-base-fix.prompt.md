@@ -46,11 +46,10 @@ Use these tools:
 
 ## Instructions (Follow this Step by Step)
 
-
-### Step 2: (MANDATORY)
+### Step 1 (MANDATORY)
 Parse KB Article
 
-1. **Read the KB Article:**
+1. **Read the KB Article**:
    ```
    read_file kb_file_path={{kb_file_path}}
    ```
@@ -84,86 +83,30 @@ Parse KB Article
      * Individual `.csproj` files
      * Solution `.sln` file (for platform configuration)
 
-### Step 3: (MANDATORY)
-Locate Target Files
+### Step 2 (MANDATORY)
+Resolve Target Files from KB Instructions
 
-1. **Find Solution Directory:**
-   - Extract directory from solution_path: `Path.GetDirectoryName(solution_path)`
-
-2. **Search for Target Files:**
-   - Use `file_search` to locate files matching the pattern from KB instructions
-   - Example patterns:
-     * `**/Directory.Build.props` - Find build props files
-     * `**/*.csproj` - Find all project files
-     * `**/Directory.Packages.props` - Find package props files
-
-3. **Validate Files Exist:**
-   - If required file doesn't exist, create it (e.g., Directory.Packages.props)
-   - If file exists, read current content before modifying
+1. **Determine working directory:** use `solution_path` to derive the solution root.
+2. **For each file or artifact mentioned in the selected KB option**, locate it with `file_search` or direct path resolution. Example patterns (`**/*.csproj`, `**/Directory.Packages.props`, etc.) are suggestions—follow whatever the KB article calls for.
+3. **Create or stage files when the KB requires them:** if a referenced file is missing and the KB specifies creating it, prepare an empty scaffold with `create_file` before applying content.
+4. Keep a running list of target files so Step 3 can reference them and the final JSON can report them.
 
 
-### Step 4: (MANDATORY)
-Apply Fix Instructions
+### Step 3 (MANDATORY)
+Apply the KB Fix
 
-** CRITICAL: Use `replace_string_in_file` or `create_file` - DO NOT output code blocks **
+**Always execute changes directly with tooling (`replace_string_in_file`, `create_file`, `run_in_terminal` for command steps); never emit instructions for manual follow-up.**
 
-#### Example Fix Patterns:
+1. **Interpret the KB option line-by-line:** for each action (edits, additions, command invocations), translate the instruction into the appropriate tool call.
+2. **When editing files:**
+   - Load the current content with `read_file`.
+   - Use `replace_string_in_file` (with surrounding context) to insert, update, or remove the exact segments described in the KB.
+   - Re-read to confirm the change and capture before/after snippets for `changes_made`.
+3. **When the KB requires new files or sections:** create them atomically with `create_file`, populating only the content specified in the article.
+4. **If the KB directs you to run commands (e.g., `dotnet tool install`, `nuget restore`)**, execute them via `run_in_terminal` and capture the outcome in your notes.
+5. **Document every modification:** record file path, action taken, and a short description for later JSON output.
 
-**Pattern 1: NU1008 - Central Package Management**
-- **Action:** Remove `<Version>` from PackageReference, add to Directory.Packages.props
-- **Target:** All .csproj files + Directory.Packages.props
-- **Implementation:**
-  1. Read each .csproj file
-  2. Find `<PackageReference Include="..." Version="x.x.x" />`
-  3. Use `replace_string_in_file` to remove Version attribute
-  4. Add corresponding `<PackageVersion Include="..." Version="x.x.x" />` to Directory.Packages.props
-
-**Pattern 2: Service Fabric Platform**
-- **Action:** Add `/p:Platform=x64` to build command or set in props
-- **Target:** Directory.Build.props or solution configuration
-- **Implementation:**
-  1. Check if Directory.Build.props exists
-  2. Add `<Platform>x64</Platform>` to PropertyGroup
-  3. Or note that msbuild command needs `/p:Platform=x64` parameter
-
-**Pattern 3: NU1605 - Package Downgrade**
-- **Action:** Update package versions to consistent versions
-- **Target:** .csproj files or Directory.Packages.props
-- **Implementation:**
-  1. Identify all conflicting package versions
-  2. Determine highest required version
-  3. Update all references to use highest version
-
-#### Fix Application Steps:
-
-1. **For Each Required Change:**
-   - Read target file with `read_file`
-   - Identify exact string to replace (include context lines)
-   - Use `replace_string_in_file` with:
-     * `oldString`: Current content (with 3-5 lines context)
-     * `newString`: Fixed content (with same context)
-   - Verify change was applied successfully
-
-2. **Create Missing Files if Needed:**
-   - If Directory.Packages.props doesn't exist, create it:
-   ```xml
-   <Project>
-     <PropertyGroup>
-       <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-     </PropertyGroup>
-     <ItemGroup>
-       <!-- Package versions will be added here -->
-     </ItemGroup>
-   </Project>
-   ```
-
-3. **Track All Changes:**
-   - Maintain array of changes_made:
-     * File path
-     * Change description
-     * Old value → New value
-
-### Step 5 (MANDATORY)
+### Step 4 (MANDATORY)
 Validate Fix Application
 
 1. **Check File Modifications:**
@@ -182,96 +125,63 @@ Validate Fix Application
 
 
 ### Step 5 (MANDATORY)
-Repo Checklist Update: Mark current task complete
-1. **Open checklist file:**
-   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
+Checklist Task & Variable Update
+1. **Open the checklist:** `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`.
+2. **Update the conditional task entry for this attempt:**
+  - Attempt 1: mark the checklist entry labelled MANDATORY] [NON-SCRIPTABLE] Apply fix from knowledge base → @task-apply-knowledge-base-fix
+  - When the fix runs, change the leading checkbox to `[x]`; when skipped, append ` - SKIPPED (<reason>)`. Leave every other checklist line unchanged.
+3. **Refresh solution variables in `### Solution Variables`:**
+  - Only edit the attempt-specific slots that correspond to this run.
+  - Set `fix_applied_attempt_N` → `APPLIED`, `NOT_APPLIED`, or `SKIPPED (<reason>)` based on `fix_status` (`SUCCESS`, `FAIL`, `SKIPPED`, `NO_MORE_OPTIONS`).
+  - Set `kb_option_applied_attempt_N` → option number (`1`, `2`, `3`) when applied; use `null` when no option ran or the KB is exhausted.
+  - Keep unrelated variables (e.g., `solution_path`, `build_status`, other attempts) exactly as-is.
+4. **Write changes atomically** (temp file replace) so the checklist is never partially updated.
 
-2. **Find and update the appropriate conditional task entry based on attempt number:**
-   - For Attempt 1: `- [ ] [CONDITIONAL #5 - Attempt 1] Apply fix from KB @task-apply-knowledge-base-fix`
-   - For Attempt 2: `- [ ] [CONDITIONAL #7 - Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix`
-   - For Attempt 3: `- [ ] [CONDITIONAL #9 - Attempt 3] Apply fix from KB @task-apply-knowledge-base-fix`
-   - If executed: Replace `[ ]` with `[x]`
-   - If skipped: Add ` - SKIPPED (reason)` suffix
-   - Do NOT modify any other task entries
-
-3. **Write updated content back to file**
 
 ### Step 6 (MANDATORY)
-Repo Variable Refresh: Update solution variables
-1. **Open checklist file:**
-   - Path: `tasks/{{repo_name}}_{{solution_name}}_solution_checklist.md`
-
-2. **Find the Solution Variables section**
-
-3. **Update variables based on which attempt this is:**
-   - **For Attempt 1:**
-     * `fix_applied_attempt_1` → "APPLIED" if fix_status=SUCCESS, "NOT_APPLIED" if fix_status=FAIL, "SKIPPED (reason)" if fix_status=SKIPPED or NO_MORE_OPTIONS
-     * `kb_option_applied_attempt_1` → option number (1, 2, 3) if fix_status=SUCCESS, or "null" if NO_MORE_OPTIONS or not applied
-   
-   - **For Attempt 2:**
-     * `fix_applied_attempt_2` → "APPLIED" if fix_status=SUCCESS, "NOT_APPLIED" if fix_status=FAIL, "SKIPPED (reason)" if fix_status=SKIPPED or NO_MORE_OPTIONS
-     * `kb_option_applied_attempt_2` → option number (1, 2, 3) if fix_status=SUCCESS, or "null" if NO_MORE_OPTIONS or not applied
-   
-   - **For Attempt 3:**
-     * `fix_applied_attempt_3` → "APPLIED" if fix_status=SUCCESS, "NOT_APPLIED" if fix_status=FAIL, "SKIPPED (reason)" if fix_status=SKIPPED or NO_MORE_OPTIONS
-     * `kb_option_applied_attempt_3` → option number (1, 2, 3) if fix_status=SUCCESS, or "null" if NO_MORE_OPTIONS or not applied
-
-4. **Maintain all other existing variables unchanged:**
-   - solution_path, solution_name, max_build_attempts, restore_status, build_status, kb_search_status, kb_file_path, kb_article_status
-   - Other attempt variables (don't update attempt 2 if this is attempt 1, etc.)
-
-5. **Write updated variables back to checklist file**
+Structured Output
+- Emit a single JSON object (stdout and saved file) containing:
+  - `fix_status`: `SUCCESS` | `FAIL` | `SKIPPED` | `NO_MORE_OPTIONS` | `FAIL_VERIFICATION`.
+  - `option_applied`: option number as string (`"1"`, `"2"`, `"3"`) or `null` when no option ran.
+  - `fix_applied`: short human-readable summary of the change or reason for skip.
+  - `kb_file_path`: absolute path to the KB article used.
+  - `error_code`: error code addressed (e.g., `"NU1008"`).
+  - `target_files`: array of absolute file paths touched during the fix (may be empty).
+  - `changes_made`: array of `{ file, action, description }` entries documenting edits.
+  - `validation`: object with fields like `files_modified` (int) and `syntax_valid` (bool) capturing any quick checks performed.
+  - `available_options`: object summarizing `{ total, last_applied, next_available }` so the workflow can decide on retries.
+  - `timestamp`: ISO 8601 UTC string for traceability.
+- Write the same JSON payload to `output/{repo_name}_{solution_name}_task-apply-kb-fix.json` atomically.
 
 
-### Step 9 (MANDATORY)
-Return JSON Output:
+### Step 7 — Final Verification and Redo Safeguard (MANDATORY)
 
-Return JSON output with the following structure:
-
-```json
-{
-  "fix_status": "SUCCESS | FAIL | SKIPPED | NO_MORE_OPTIONS",
-  "option_applied": "1 | 2 | 3 | null",
-  "fix_applied": "Description of what was fixed",
-  "kb_file_path": "path/to/kb/article.md",
-  "error_code": "NU1008",
-  "target_files": [
-    "C:\\...\\Directory.Packages.props",
-    "C:\\...\\Project1.csproj"
-  ],
-  "changes_made": [
-    {
-      "file": "C:\\...\\Directory.Packages.props",
-      "action": "created",
-      "description": "Created central package management file"
-    },
-    {
-      "file": "C:\\...\\Project1.csproj",
-      "action": "modified",
-      "description": "Removed Version from PackageReference 'Newtonsoft.Json'"
-    }
-  ],
-  "validation": {
-    "files_modified": 2,
-    "syntax_valid": true
-  },
-  "available_options": {
-    "total": 3,
-    "last_applied": "1",
-    "next_available": "2"
-  }
-}
-```
-
-#### Status Definitions:
-- **SUCCESS**: All fix instructions applied successfully, files modified correctly
-- **FAIL**: Unable to apply fix due to file access issues, syntax errors, or unexpected file structure
-- **SKIPPED**: Fix instructions not applicable to this solution (wrong error code, files don't match KB expectations)
-- **NO_MORE_OPTIONS**: The last_option_applied was provided, but no additional options are available in the KB article (all options exhausted)
+1. Reload `{solution_checklist}` from disk.
+2. Verify:
+   - Correct task line updated.
+   - Correct variable lines updated.
+   - No duplicates.
+3. If verification fails:
+  - Log warning: `VERIFICATION FAILED — RESTARTING`
+  - Re-run Steps 1–6 exactly once.
+4. If still failing, set `fix_status=FAIL_VERIFICATION`.
 
 ---
 
-### Implementation Notes
+## Output Contract
+- `fix_status`: `SUCCESS` | `FAIL` | `SKIPPED` | `NO_MORE_OPTIONS` | `FAIL_VERIFICATION`
+- `option_applied`: string option number (`"1"`, `"2"`, `"3"`) or `null`
+- `fix_applied`: concise description of the applied change or skip rationale
+- `kb_file_path`: absolute path to the KB article referenced during the fix
+- `error_code`: string error code (e.g., `"NU1008"`) or `null`
+- `target_files`: array of absolute file paths that were touched (empty array when none)
+- `changes_made`: array of objects `{ file, action, description }` summarising each modification
+- `validation`: object containing quick-check data such as `files_modified` (int) and `syntax_valid` (bool)
+- `available_options`: object with keys `total`, `last_applied`, `next_available`
+- `timestamp`: ISO 8601 UTC string
+
+
+## Implementation Notes
 
 1. **File Encoding:** Preserve original file encoding when modifying (UTF-8, UTF-8 BOM, etc.)
 2. **Line Endings:** Preserve original line endings (CRLF on Windows, LF on Unix)
@@ -287,61 +197,3 @@ Return JSON output with the following structure:
    - Don't make additional "improvements" beyond the fix
    - Preserve all existing content not related to the fix
 
----
-
-## Common Fix Scenarios
-
-### Scenario 1: Central Package Management (NU1008) - Multiple Options
-**KB Structure:**
-- **Option 1:** Remove Version from PackageReference, add to Directory.Packages.props
-- **Option 2:** Disable CPM globally
-- **Option 3:** Use specific package versions in Directory.Build.props
-
-**Implementation (Option Selection):**
-- **First attempt (last_option_applied not provided):**
-  * Apply Option 1 (recommended CPM approach)
-  * Return `option_applied: "1"`
-  
-- **Second attempt (last_option_applied = "1"):**
-  * Skip Option 1, apply Option 2
-  * Return `option_applied: "2"`
-  
-- **Third attempt (last_option_applied = "2"):**
-  * Skip Options 1 & 2, apply Option 3
-  * Return `option_applied: "3"`
-  
-- **Fourth attempt (last_option_applied = "3"):**
-  * No Option 4 exists in KB
-  * Return `fix_status: "NO_MORE_OPTIONS"`, `option_applied: null`
-
-### Scenario 2: Platform Configuration (Service Fabric) - Multiple Options
-**KB Structure:**
-- **Option 1:** Add Platform=x64 to build command
-- **Option 2:** Modify .sfproj file to set default Platform
-- **Option 3:** Use nuget restore fallback
-
-**Implementation:**
-Follow same sequential option logic as Scenario 1
-
-### Scenario 3: Package Version Conflicts (NU1605) - Single Option
-**KB Structure:**
-- **Option 1:** Update conflicting packages to consistent version
-
-**Implementation:**
-- **First attempt:** Apply Option 1
-- **Second attempt (last_option_applied = "1"):** Return `NO_MORE_OPTIONS`
-
----
-
-## Logging
-Use concise unconditional informational lines only (no DEBUG mode). Avoid verbose per-step dumps; summarize key decisions (selected option, files modified, counts) in the final JSON and exit line.
-
----
-
-## Task Output File
-
-Save output to: `output/{repo_name}_{solution_name}_task-apply-kb-fix.json`
-
-Example filename: `ic3_spool_cosine-dep-spool_MigrateCosmosDb_task-apply-kb-fix.json`
-
-This output becomes input to the retry build step in the workflow loop.
