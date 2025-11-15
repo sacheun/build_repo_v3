@@ -60,7 +60,6 @@ def build_repo_pipelines(checklist_path: str) -> tuple[List[tuple], List[tuple]]
     ]
 
     repo_pipeline_all = [
-        ('task-generate-repo-task-checklists', {'input': 'repositories_small.txt'}),
         ('execute-repo-task', {'repo_checklist': checklist_path}),
     ]
     return repo_pipeline_step, repo_pipeline_all
