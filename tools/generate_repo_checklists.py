@@ -18,16 +18,16 @@ Generated: {timestamp}
 - [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Execute safe commands from README → @task-execute-readme
 
 ## Repo Variables Available
-- {{repo_url}} → {repo_url}
-- {{repo_name}} → {repo_name}
-- {{clone_path}} →
-- {{repo_directory}} →
-- {{solutions_json}} →
-- {{readme_content}} →
-- {{readme_filename}} →
-- {{commands_extracted}} →
-- {{executed_commands}} →
-- {{skipped_commands}} →
+- {{{{repo_url}}}} → {repo_url}
+- {{{{repo_name}}}} → {repo_name}
+- {{{{clone_path}}}} →
+- {{{{repo_directory}}}} →
+- {{{{solutions_json}}}} →
+- {{{{readme_content}}}} →
+- {{{{readme_filename}}}} →
+- {{{{commands_extracted}}}} →
+- {{{{executed_commands}}}} →
+- {{{{skipped_commands}}}} →
 
 ## For Agents Resuming Work
 Follow these rules *exactly* when resuming execution:
