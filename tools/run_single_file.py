@@ -99,6 +99,21 @@ def sanitize_slug(name: str) -> str:
     return slug.lower() or 'checklist'
 
 
+def colorize(message: str, *, status: Optional[str] = None) -> str:
+    """Return a colorized message when stdout is a TTY."""
+    if not sys.stdout.isatty():
+        return message
+    colors = {
+        'OK': '\033[32m',  # green
+        'FAIL': '\033[31m',  # red
+    }
+    reset = '\033[0m'
+    prefix = colors.get(status)
+    if prefix:
+        return f"{prefix}{message}{reset}"
+    return message
+
+
 def execute_initial_tasks(
     initial_pipeline: List[Tuple[str, Dict[str, str]]],
     *,
@@ -191,7 +206,8 @@ def run_pipeline_for_checklist(
         )
     repo_name = os.path.splitext(os.path.basename(checklist_path))[0]
     status = 'OK' if ready else 'FAIL'
-    print(f"[final readiness] {checklist_label}={status} [{repo_name}]")
+    final_message = f"[final readiness] {checklist_label}={status} [{repo_name}]"
+    print(colorize(final_message, status=status))
     return ready, last_exit_code
 
 def _handle_remove_readonly(func: Callable[[str], None], path: str, exc: tuple) -> None:

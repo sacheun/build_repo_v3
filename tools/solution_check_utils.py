@@ -54,6 +54,13 @@ TASK_NAME_NORMALIZE = {
     'execute-solution-task': 'execute-solution-task',  # Allow legacy consolidated task
 }
 
+OPTIONAL_VARIABLES = {
+    'fix_applied_attempt_1',
+    'kb_file_path',
+    'kb_option_applied_attempt_1',
+    'last_option_applied',
+}
+
 def check_solution_readiness(solution_checklist_path: str) -> bool:
     """Validate a single solution checklist file."""
     if not os.path.isfile(solution_checklist_path):
@@ -85,7 +92,7 @@ def check_solution_readiness(solution_checklist_path: str) -> bool:
 
     # Emit diagnostic detail similar to repo readiness tooling.
     tasks_checked = sorted(mandatory_tasks.keys())
-    missing_vars, verified_vars = classify_variables(var_values)
+    missing_vars, verified_vars = classify_variables(var_values, optional=OPTIONAL_VARIABLES)
     verified_vars = sorted(verified_vars)
     print(f"[solution readiness detail] {solution_name}: tasks_checked={tasks_checked}")
     print(f"[solution readiness detail] {solution_name}: variables_verified={verified_vars}")
