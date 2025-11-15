@@ -32,6 +32,7 @@ Flags:
     --log <path>             Optional log file (default ./output/all_repos_orchestrator.log)
     --continue-on-error      Continue processing other repositories even if a prompt fails
     --mode {steps,combine}   Pipeline style
+    (solution-level pipelines deprecated; per-solution attempts removed)
 """
 from __future__ import annotations
 import argparse, sys, os, json, datetime
@@ -46,6 +47,7 @@ try:
     from copilot_executor import CopilotExecutor
     from pipeline_core import execute_pipeline
     from repo_check_utils import check_repo_readiness
+    # solution_check_utils import removed (solution-level pipelines deprecated)
 except ImportError:
     print('[fatal] Unable to import copilot_executor from tools directory.', file=sys.stderr)
     sys.exit(1)
@@ -74,6 +76,21 @@ def find_repo_checklists() -> List[str]:
         if name.endswith('_repo_checklist.md'):
             files.append(os.path.join('tasks', name).replace('\\', '/'))
     return sorted(files)
+
+
+def find_solution_checklists(repo_name: str) -> List[str]:
+    """(Deprecated) Previously returned solution checklist paths; now always empty."""
+    return []
+
+
+def solution_label_from_path(path: str) -> str:
+    """(Deprecated) Placeholder retained for backward compatibility."""
+    return ''
+
+
+def run_solution_attempts(*args, **kwargs) -> Tuple[Dict[str, Dict], bool]:
+    """(Deprecated) Solution attempts removed; return empty results and True readiness."""
+    return {}, True
 
 def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
     # Ensure output directory exists
@@ -161,26 +178,35 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
             full_checklist_path = os.path.join(REPO_ROOT, checklist_path.replace('/', os.sep)) if not checklist_path.startswith(REPO_ROOT) else checklist_path
             print(f"    [repo:{repo_name}] readiness verification ...")
             ready = check_repo_readiness(full_checklist_path)
-            state['attempts'].append({
+            attempt_record = {
                 'pass': pass_index,
                 'exit_code': exit_code,
-                'readiness': 'PASS' if ready else 'FAIL',
+                'repo_readiness': 'PASS' if ready else 'FAIL',
                 'stages': stages,
                 'log_file': os.path.abspath(repo_log_file)
-            })
+            }
+
+            combined_ready = ready
+            attempt_record['combined_readiness'] = 'PASS' if combined_ready else 'FAIL'
+            state['attempts'].append(attempt_record)
+
+            print(f"    [repo:{repo_name}] repo readiness {'PASS' if ready else 'FAIL'}.")
             if exit_code != 0 and not continue_on_error:
                 overall_status = 'FAIL'
                 print(f"    [repo:{repo_name}] aborting global passes due to failure and continue-on-error disabled.")
-                # Mark as failed readiness to surface
                 state['final_readiness'] = 'FAIL'
-                any_pending = False  # Force loop exit
+                any_pending = False
                 break
-            if ready:
+
+            if combined_ready:
                 state['final_readiness'] = 'PASS'
-                print(f"    [repo:{repo_name}] readiness PASS.")
+                print(f"    [repo:{repo_name}] overall readiness PASS.")
             else:
                 state['final_readiness'] = 'FAIL' if pass_index == max_passes else 'PENDING'
-                print(f"    [repo:{repo_name}] readiness FAIL (will retry if passes remain).")
+                msg = 'overall readiness FAIL'
+                if state['final_readiness'] == 'PENDING':
+                    msg += ' (will retry if passes remain).'
+                print(f"    [repo:{repo_name}] {msg}")
         if not any_pending:
             break
         # If all repos passed early, break
@@ -195,7 +221,8 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
             'repo_name': name,
             'checklist_path': state['checklist_path'],
             'attempts': state['attempts'],
-            'final_readiness': state['final_readiness']
+            'final_readiness': state['final_readiness'],
+            # 'solutions' key omitted (deprecated)
         })
 
     if any(r['final_readiness'] != 'PASS' for r in repo_results):
@@ -214,7 +241,20 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
             for stage in attempt.get('stages', []):
                 if stage.get('stage_status') == 'FAIL':
                     return True
+            for sol in attempt.get('solutions', {}).values():
+                for sol_attempt in sol.get('attempts', []):
+                    for stage in sol_attempt.get('stages', []):
+                        if stage.get('stage_status') == 'FAIL':
+                            return True
         return False
+
+    all_log_files: List[str] = []
+    for repo_entry in repo_results:
+        for attempt in repo_entry.get('attempts', []):
+            all_log_files.append(attempt['log_file'])
+            for sol in attempt.get('solutions', {}).values():
+                for sol_attempt in sol.get('attempts', []):
+                    all_log_files.append(sol_attempt['log_file'])
 
     summary = {
         'overall_status': overall_status,
@@ -225,7 +265,7 @@ def run_pipeline(mode: str, log_file: str, continue_on_error: bool) -> int:
         'repos_readiness_pass': readiness_pass,
         'repos_readiness_fail': readiness_fail,
         'details': repo_results,
-        'log_files': [a['log_file'] for r in repo_results for a in r.get('attempts', [])]
+        'log_files': all_log_files
     }
     _write_summary(summary)
     print(f"\nPipeline complete. Overall status: {overall_status}. Summary written to ./output/all_repos_pipeline_summary.json")
@@ -247,6 +287,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     p.add_argument('--log', default='./output/all_repos_orchestrator.log', help='Path to log file.')
     p.add_argument('--continue-on-error', action='store_true', help='Continue processing other repositories even if a prompt fails.')
     p.add_argument('--mode', choices=['steps','combine'], default='combine', help="Execution mode: 'steps' granular sequence; 'combine' condensed execute-repo-task.")
+    # include-solution flag removed (solution-level pipelines deprecated)
     return p.parse_args(argv)
 
 
@@ -255,7 +296,11 @@ def main(argv: List[str]) -> int:
     mode = args.mode
     # Normalize log path
     log_file = args.log.replace('\\','/')
-    return run_pipeline(mode=mode, log_file=log_file, continue_on_error=args.continue_on_error)
+    return run_pipeline(
+        mode=mode,
+        log_file=log_file,
+        continue_on_error=args.continue_on_error
+    )
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

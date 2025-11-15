@@ -34,52 +34,73 @@ To ensure **no skipped steps**, apply these control rules throughout execution:
 - Load `{{checklist_path}}`.  
 - Extract only the values listed under `## Repo Variables Available`.  
 - If any expected variable is missing or malformed, stop immediately and set `status=FAIL`.  
-- Log checkpoint: `step_completed=1`.
 
 ### Step 2 – README Load & Preflight Verification (MANDATORY)
 - Load the file at `readme_content_path` extracted in Step 1.  
 - Validate existence, readability, and non-empty content.  
 - If missing: set `status=SKIPPED` and stop.  
 - Verify `tasks/{{repo_name}}_repo_checklist.md` contains line `- {{commands_extracted}} →`. Restore if missing.  
-- Log checkpoint: `step_completed=2`.
 
 ### Step 3 – Structural Reasoning: Identify Setup Sections (MANDATORY)
 - Read the actual README content.  
 - Identify section headings indicating setup/build instructions using reasoning, not regex alone.  
 - Ignore unrelated sections.  
-- Log checkpoint: `step_completed=3`.
 
 ### Step 4 – Follow Referenced Markdown Files (MANDATORY)
 - Identify, resolve, and read all referenced `.md` files per the priority hierarchy.  
 - Follow up to 3 levels deep; skip external wiki links but record them.  
 - Apply the same reasoning rules from Steps 3–6 to each referenced file.  
-- Log checkpoint: `step_completed=4`.
 
 ### Step 5 – Extract Commands (MANDATORY)
 - From setup sections, extract real setup commands (shell or environment commands).  
 - Exclude clone/fetch commands.  
 - Use reasoning to distinguish example code from setup commands.  
-- Log checkpoint: `step_completed=5`.
 
 ### Step 6 – Categorize Commands (MANDATORY)
 - Categorize each command by type (install, version_check, config, directory, etc.).  
-- Log checkpoint: `step_completed=6`.
 
 ### Step 7 – Clean Commands (MANDATORY)
 - Normalize commands: remove prompts, continuation symbols, comments.  
 - Rejoin multi-line commands.  
-- Log checkpoint: `step_completed=7`.
 
 ### Step 8 – Update Repo Checklist (MANDATORY)
 - Update only the `- {{commands_extracted}} →` line in `tasks/{{repo_name}}_repo_checklist.md`.  
+  - If commands were found, point the line to `output/{{repo_name}}_task3_scan-readme.json (field=commands_extracted)`.  
+  - If no commands were found, set the value to `None`.
 - Mark `@task-scan-readme` as complete.  
-- Log checkpoint: `step_completed=8`.
 
 ### Step 9 – Structured Output Assembly (MANDATORY)
 - Write final JSON to `output/{{repo_name}}_task3_scan-readme.json`.  
 - Include all required fields.  
 - Validate all checkpoints 1–9 exist; if any missing, set `status=FAIL_MISSING_STEP`.  
 - Log checkpoint: `step_completed=9`.
+
+---
+
+### Step 10 - Post-Run Verification And Retry Guard (MANDATORY)
+Re-open and fully re-parse `tasks/{{repo_name}}_repo_checklist.md` from disk (no cached content). Perform ALL checks below:
+
+1. Task line correctness:
+  - Locate the line containing `@task-scan-readme`.
+  - If `status=SUCCESS` the line MUST be `[x]`; if `status=SKIPPED` may be `[x]` or `[ ]` (implementation choice) but note outcome; if `status=FAIL` it MUST be `[ ]`.
+2. Variable line presence (exactly once):
+  - `- {{commands_extracted}} → output/{{repo_name}}_task3_scan-readme.json (field=commands_extracted)`
+  - Single arrow `→`, one space before and after, no duplicates, no trailing spaces.
+3. JSON file integrity:
+  - Open `output/{{repo_name}}_task3_scan-readme.json`; verify file exists and is parseable JSON.
+  - Confirm keys: `commands_extracted` (array) and `total_commands` (integer) present.
+4. Semantic alignment by status:
+  - SUCCESS & commands found: `total_commands > 0` AND `len(commands_extracted) == total_commands`.
+  - SUCCESS & no commands: `total_commands == 0` AND `len(commands_extracted) == 0`.
+  - SKIPPED: Either zero commands OR array empty; ensure reason logged earlier; do not fail unless mismatch between counts.
+  - FAIL / FAIL_MISSING_STEP: JSON still exists; counts may be zero; MUST NOT contain placeholder strings like `FAIL` instead of arrays.
+5. Consistency with checklist variable line:
+  - The variable line MUST reference the JSON path exactly; it MUST NOT list raw commands inline (those live only in JSON).
+6. Failure handling:
+  - If ANY check fails (missing line, wrong bracket state, duplicate, JSON mismatch, count mismatch), re-run Steps 1–9 completely (single automatic retry) and attempt Step 10 again.
+7. Record internal checkpoint: `step_completed=10` only on pass.
+
+NOTE: Do NOT mutate previously written JSON content other than adding a verification flag if internal framework supports it.
 
 ---
 
@@ -100,7 +121,7 @@ To ensure **no skipped steps**, apply these control rules throughout execution:
 
 ## Final Reliability Assertion
 Before emitting output, verify:
-- All mandatory steps (1–9) completed and checkpointed.
+- All mandatory steps (1–10) completed and checkpointed.
 - No skipped or merged steps.
 - If any missing, re-run from last valid checkpoint automatically once; if still missing, fail with diagnostic report.
 

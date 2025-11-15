@@ -21,14 +21,14 @@ This creates ONE checklist file per solution (.sln) discovered in the repo.
 > - **ALWAYS continue to the next step once the current step is complete or fails.**
 
 You are executing a **multi-step scripted task**.  
-Follow steps **in exact order (Step 1 → Step 2 → Step 3 → Step 4 → Step 5)**.  
+Follow steps **in exact order (Step 1 → Step 2 → Step 3 → Step 4 → Step 5 → Step 6)**.  
 Each step must output a verification result before proceeding.
 
 ---
 
 ## Instructions (Follow Exactly as Ordered)
 
-### Step 1 — Load Repository Checklist (**MANDATORY**)
+### Step 1 — Load Repository Checklist (MANDATORY)
 **Checkpoint → Must output success/fail before continuing.**
 
 1. Treat the `checklist_path` argument as an **absolute path** (e.g., `tasks/{repo_name}_repo_checklist.md`).  
@@ -48,9 +48,7 @@ Each step must output a verification result before proceeding.
 8. If file missing or malformed, record a verification error but continue with empty list (status may still be SUCCESS if checklist load passed).  
 9. **Checkpoint:** Output interim success/fail (for checklist load) and continue to **Step 2** regardless.
 
----
-
-### Step 2 — Generate One Checklist File per Solution (**MANDATORY**)
+### Step 2 — Generate One Checklist File per Solution (MANDATORY)
 **Checkpoint → Confirm all files created.**
 
 1. For each `solution` in the parsed list:
@@ -60,9 +58,7 @@ Each step must output a verification result before proceeding.
 2. Ensure at least one checklist file created.  
 3. **Checkpoint:** Record verification result and continue to **Step 3**.
 
----
-
-### Step 3 — Write Solution Checklist Contents (**MANDATORY**)
+### Step 3 — Write Solution Checklist Contents (MANDATORY)
 **Checkpoint → Confirm each file written with full template.**
 
 1. For each checklist file, write this canonical template atomically (FULL CONTENT – do not truncate):  
@@ -73,29 +69,37 @@ Each step must output a verification result before proceeding.
 
    ## Solution: {solution_name}
 
-   ### Solution Variables
-   - Solution name: {solution_name}
-   - Solution path: {solution_path}
-   - Parent repo: {repo_name}
-   - Last build status: (blank)
-   - Last build timestamp: (blank)
-
    ### Tasks
-   - [ ] [MANDATORY] Restore NuGet packages @task-restore-solution
-   - [ ] [MANDATORY] Build solution (Clean + Build) @task-build-solution
-   - [ ] [CONDITIONAL] Search knowledge base for error fix @task-search-knowledge-base
-   - [ ] [CONDITIONAL] Create knowledge base article @task-create-knowledge-base
-   - [ ] [CONDITIONAL Attempt 1] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL Attempt 1] Retry build after fix @task-build-solution
-   - [ ] [CONDITIONAL Attempt 2] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL Attempt 2] Retry build after fix @task-build-solution
-   - [ ] [CONDITIONAL Attempt 3] Apply fix from KB @task-apply-knowledge-base-fix
-   - [ ] [CONDITIONAL Attempt 3] Retry build after fix @task-build-solution
+   - [ ] (1) [MANDATORY] [SCRIPTABLE] Restore NuGet packages → @task-restore-solution
+   - [ ] (2) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution
+   - [ ] (3) [MANDATORY] [SCRIPTABLE] Validate build artifacts  → @task-validate-build-artifacts
+   - [ ] (4) [MANDATORY] [NON-SCRIPTABLE] Search knowledge base for error fix → @task-search-knowledge-base
+   - [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Create new knowledge base for error → @task-create-knowledge-base
+   - [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Apply fix from knowledge base → @task-apply-knowledge-base-fix
+   - [ ] (7) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution retry
 
-   ### Retry Attempts Guidance
-   Attempt 1: Initial restore/build.
-   Attempt 2: Apply first KB fix then rebuild.
-   Attempt 3: Apply second KB fix then rebuild; escalate if still failing.
+   ### Solution Variables
+   - solution_name: {solution_name}
+   - solution_path: {solution_path}
+   - parent_repo: {repo_name}
+   - restore_status: (blank)
+   - build_count: 0
+   - build_status: (blank)
+   - verify_status: (blank)
+   - expected_artifacts: (blank)
+   - missing_artifacts: (blank)
+   - verified_artifacts: (blank)
+
+   ** Knowledge base **
+   - kb_search_status: (blank)
+   - kb_file_path: (blank)
+   - kb_article_status: (blank)
+   - kb_create_status: (blank)
+   - last_option_applied: 0
+   - fix_status = (blank)
+   - fix_applied_attempt_1: (blank)
+   - kb_option_applied_attempt_1: (blank)
+   - retry_build_status_attempt_1: (blank)
 
    ## For Agents Resuming Work
    1. Start at the first unchecked task in order.
@@ -103,20 +107,16 @@ Each step must output a verification result before proceeding.
    3. Record any KB article references inline below tasks.
    ```
 
-2. Verify that each file includes headings: “### Solution Variables”, “### Tasks”, and “### Retry Attempts Guidance”.  
+2. Verify that each file includes headings: “### Solution Variables”, “### Tasks”.  
 3. **Checkpoint:** Log verification status and continue to **Step 4**.
 
----
-
-### Step 4 — Update Repository Checklist (**MANDATORY**)
+### Step 4 — Update Repository Checklist (MANDATORY)
 **Checkpoint → Confirm repo checklist updated correctly.**
 
 1. Open `tasks/{{repo_name}}_repo_checklist.md`.  
-2. Mark `[x]` on the `@generate-solution-task-checklists` entry **only**.  
+2. Mark `[x]` on the `@task-generate-solution-task-checklists` entry **only**.  
 3. Do not modify other items.  
 4. **Checkpoint:** Record success/fail. Continue to **Step 5**.
-
----
 
 ### Step 5 — Structured Output JSON (**ALWAYS EXECUTE THIS STEP**)
 **Checkpoint → Must always produce JSON output file.**
@@ -133,15 +133,17 @@ Each step must output a verification result before proceeding.
    - skipped_solutions (array)
 3. **Checkpoint:** Confirm JSON written successfully.
 
----
+### Step 6 — Final Verification of Repository Checklist Update (MANDATORY)
+**Checkpoint → Ensure checklist reflects correct completion status.**
 
-## Output Contract
-(unchanged from original)
-
-## Implementation Notes
-(unchanged from original)
+1. Reopen `tasks/{{repo_name}}_repo_checklist.md`.  
+2. Verify that the entry for `@task-generate-solution-task-checklists` is **checked `[x]`**.  
+3. If unchecked or missing, log a warning and **redo from Step 0** (reload and re‑execute the entire process).  
+4. Only mark task as `FINAL SUCCESS` if the verification passes.  
+5. Output a final confirmation message:  
+   > ✅ “All checklist updates verified successfully — task complete.”
 
 ### Reliability Enforcement
 - After each step, log: `✅ Step N complete — proceeding to Step N+1`  
-- Never stop early before Step 5.  
+- Never stop early before Step 6.  
 - Always produce structured JSON output at the end.

@@ -20,7 +20,13 @@ Return:
 """
 from __future__ import annotations
 import os, re
-from typing import List, Dict, Tuple
+from typing import List, Dict
+
+from checklist_utils import (
+    extract_tasks,
+    extract_variables,
+    classify_variables,
+)
 
 MANDATORY_TASK_PATTERN = re.compile(r"^- \[(x| )\].*\[MANDATORY\].*?@([a-zA-Z0-9\-]+)")
 # Include generate-solution-task-checklists which may not have @task- prefix in variable definitions
@@ -30,30 +36,8 @@ TASK_NAME_NORMALIZE = {
     'generate-solution-task-checklists': 'generate-solution-task-checklists',
     'task-search-readme': 'task-search-readme',
 }
-# Extract variable definitions referencing output of tasks
-VAR_DEF_PATTERN = re.compile(r"^- ([a-zA-Z0-9_]+):.*\(output of @([a-zA-Z0-9\-]+)\)")
-# Extract variables in Repo Variables Available section
-# Match either the unicode right arrow (→) or ASCII -> sequence.
-VAR_LINE_PATTERN = re.compile(r"^- \{(?:\{)?([a-zA-Z0-9_]+)\}(?:\})? *(?:→|->) *(.*)$")
 # Repo name line arrow match (unicode or ASCII), accept single or double braces
 REPO_NAME_PATTERN = re.compile(r"^- \{(?:\{)?repo_name\}(?:\})? *(?:→|->) *(.*)$")
-
-SECTION_HEADER_PATTERN = re.compile(r"^## ")
-
-def _extract_section(lines: List[str], header_prefix: str) -> List[str]:
-    """Return lines belonging to a section starting with the given header prefix."""
-    content: List[str] = []
-    in_section = False
-    for line in lines:
-        if line.startswith("## "):
-            if line.strip().lower().startswith(header_prefix.lower()):
-                in_section = True
-                continue
-            elif in_section:
-                break
-        elif in_section:
-            content.append(line)
-    return content
 
 def _get_repo_name(lines: List[str]) -> str:
     for line in lines:
@@ -67,8 +51,8 @@ def _get_repo_name(lines: List[str]) -> str:
             return line.partition(':')[2].strip() or '<unknown>'
     return '<unknown>'
 
-def _expected_solution_prefixes(solutions_line: str, repo_name: str) -> List[str]:
-    """Derive expected solution checklist filename prefixes from solutions line value.
+def _expected_solution_checklist_filenames(solutions_line: str, repo_name: str) -> List[str]:
+    """Derive expected solution checklist filenames from the solutions variable value.
 
     solutions_line example: 'SDKTestApp.sln; ResourceProvider.sln; ...'
     Returns list like ['<repo>_SDKTestApp_solution_checklist.md', ...]
@@ -102,46 +86,31 @@ def check_repo_readiness(checklist_path: str) -> bool:
     repo_name = _get_repo_name(lines)
 
     # Extract Repo Tasks section
-    tasks_section = _extract_section(lines, '## Repo Tasks')
-    mandatory_tasks: Dict[str, bool] = {}
-    for line in tasks_section:
-        m = MANDATORY_TASK_PATTERN.match(line.strip())
-        if m:
-            done_flag, task_name = m.groups()
-            task_name_norm = TASK_NAME_NORMALIZE.get(task_name, task_name)
-            mandatory_tasks[task_name_norm] = (done_flag == 'x')
+    normalize = lambda name: TASK_NAME_NORMALIZE.get(name, name)
+    mandatory_tasks = extract_tasks(
+        lines,
+        ('## Repo Tasks',),
+        MANDATORY_TASK_PATTERN,
+        normalize=normalize
+    )
 
-    # Extract Variable Definitions section
-    var_defs_section = _extract_section(lines, '## Variable Definitions')
-    mandatory_vars: List[str] = []
-    for line in var_defs_section:
-        m = VAR_DEF_PATTERN.match(line.strip())
-        if m:
-            var_name, source_task = m.groups()
-            source_task_norm = TASK_NAME_NORMALIZE.get(source_task, source_task)
-            if source_task_norm in mandatory_tasks:
-                mandatory_vars.append(var_name)
-
-    # Extract Repo Variables Available section values
-    repo_vars_section = _extract_section(lines, '## Repo Variables Available')
-    var_values: Dict[str, str] = {}
-    for line in repo_vars_section:
-        m = VAR_LINE_PATTERN.match(line.strip())
-        if m:
-            var_name, value = m.groups()
-            var_values[var_name] = value.strip()
+    var_values: Dict[str, str] = extract_variables(lines, ('## Repo Variables Available',))
 
     missing_tasks = [t for t, done in mandatory_tasks.items() if not done]
-    missing_vars = [v for v in mandatory_vars if not var_values.get(v)]
+    # Treat executed_commands and skipped_commands as optional even if their producing task is mandatory.
+    OPTIONAL_VARS = {'executed_commands', 'skipped_commands'}
+    missing_vars, verified_vars = classify_variables(var_values, optional=OPTIONAL_VARS)
+    missing_vars = sorted(missing_vars)
+    verified_vars = sorted(verified_vars)
 
     # Additional solution checklist verification:
     # If solutions variable populated, verify that corresponding solution checklist files exist in tasks directory.
     additional_failures: List[str] = []
     solutions_value = var_values.get('solutions')
-    if solutions_value:
+    if solutions_value and 'solutions' not in missing_vars:
         tasks_dir = os.path.dirname(checklist_path) or '.'
         repo_name_extracted = repo_name
-        expected_files = _expected_solution_prefixes(solutions_value, repo_name_extracted)
+        expected_files = _expected_solution_checklist_filenames(solutions_value, repo_name_extracted)
         for fname in expected_files:
             fpath = os.path.join(tasks_dir, fname)
             if not os.path.isfile(fpath):
@@ -152,27 +121,21 @@ def check_repo_readiness(checklist_path: str) -> bool:
         return False
 
     if missing_tasks or missing_vars or additional_failures:
-        parts = []
         if missing_tasks:
-            parts.append(f"MISSING_TASKS={missing_tasks}")
+            print(f"[repo readiness] {repo_name}: MISSING_TASKS={missing_tasks}")
         if missing_vars:
-            parts.append(f"MISSING_VARS={missing_vars}")
+            print(f"[repo readiness] {repo_name}: MISSING_VARS={missing_vars}")
         if additional_failures:
-            parts.append(f"MISSING_SOLUTION_CHECKLISTS={additional_failures}")
-        summary = ' '.join(parts)
-        print(f"[repo readiness] {repo_name}: {summary}")
+            print(f"[repo readiness] {repo_name}: MISSING_SOLUTION_CHECKLISTS={additional_failures}")
         return False
 
+    # Successful readiness; emit detail lines to clarify what was validated.
+    verified_tasks = sorted(mandatory_tasks.keys())
+    if verified_tasks:
+        print(f"[repo readiness detail] {repo_name}: tasks_checked={verified_tasks}")
+    if verified_vars:
+        print(f"[repo readiness detail] {repo_name}: variables_verified={verified_vars}")
     print(f"[repo readiness] {repo_name}: OK")
     return True
 
 __all__ = ["check_repo_readiness"]
-
-if __name__ == '__main__':
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: python repo_check_utils.py <path_to_repo_checklist.md>")
-        sys.exit(2)
-    path = sys.argv[1]
-    ok = check_repo_readiness(path)
-    sys.exit(0 if ok else 1)

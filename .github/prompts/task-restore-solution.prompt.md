@@ -33,7 +33,6 @@ Performs NuGet package restore for a Visual Studio solution file using MSBuild w
 5. If missing or blank → `status=FAIL` (`error_code="variable_missing"`) → terminate.
 6. Validate file exists and ends with `.sln`; if not → `status=FAIL` (`error_code="sln_missing"`).
 7. Derive `solution_name` from the basename.
-8. Print checkpoint: `[task-restore-solution] ✔ Step 1 complete - solution_path='{{solution_path}}' solution_name='{{solution_name}}'`
 9. Proceed **only if Step 1 checkpoint is printed**.
 
 ---
@@ -44,16 +43,14 @@ Performs NuGet package restore for a Visual Studio solution file using MSBuild w
    ```
    msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo
    ```
-2. Print checkpoint before execution: `[task-restore-solution] executing msbuild restore`
-3. Run synchronously and capture stdout, stderr, and exit code.
-4. If msbuild not found → fallback:
+2. Run synchronously and capture stdout, stderr, and exit code.
+3. If msbuild not found → fallback:
    ```
    dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo
    ```
-   Log `[task-restore-solution] fallback to dotnet msbuild restore`.
-5. Record exit_code, restore_stdout, restore_stderr.
-6. If command or fallback both fail to run → `status=FAIL` (`error_code="restore_failed_init"`).
-7. Proceed only if **exit_code** or **stderr/stdout** are captured successfully.
+4. Record exit_code, restore_stdout, restore_stderr.
+5. If command or fallback both fail to run → `status=FAIL` (`error_code="restore_failed_init"`).
+6. Proceed only if **exit_code** or **stderr/stdout** are captured successfully.
 
 ---
 
@@ -65,15 +62,12 @@ Run this step **only if Step 2’s final exit_code != 0**.
    ```
    nuget restore "{{solution_path}}"
    ```
-   Log `[task-restore-solution] nuget fallback invoked`.
 2. If success → re-run MSBuild restore once:
    ```
    msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo
    ```
-   Log `[task-restore-solution] msbuild retry after nuget`.
 3. Aggregate outputs with section headers (MSBUILD_PRIMARY, NUGET_FALLBACK, MSBUILD_RETRY).
 4. Ensure captured outputs are merged before proceeding.
-5. Print checkpoint `[task-restore-solution] ✔ Step 3 complete`.
 
 ---
 
@@ -82,8 +76,6 @@ Run this step **only if Step 2’s final exit_code != 0**.
 1. `success = (final_exit_code == 0)`.
 2. Combine stdout+stderr → search for lines containing `warning` or `error` (case-insensitive).
 3. Extract up to 50 warning lines and 50 error lines.
-4. Record arrays: `errors[]`, `warnings[]`.
-5. Print checkpoint `[task-restore-solution] ✔ Step 4 - result parsed (success={{success}} warnings={{len(warnings)}} errors={{len(errors)}})`.
 
 ---
 
@@ -91,7 +83,6 @@ Run this step **only if Step 2’s final exit_code != 0**.
 
 1. Truncate both stdout and stderr to last 8000 characters.
 2. Confirm truncation succeeded (`len<=8000` each).
-3. Print `[task-restore-solution] ✔ Step 5 - outputs trimmed`.
 
 ---
 
@@ -108,9 +99,8 @@ Run this step **only if Step 2’s final exit_code != 0**.
      "exit_code": <int>
    }
    ```
-2. Print `[task-restore-solution] JSON emitted size={{json_size}} bytes`.
-3. Verify JSON field presence and validity.
-4. Proceed only after JSON validated.
+2. Verify JSON field presence and validity.
+3. Proceed only after JSON validated.
 
 ---
 
@@ -119,10 +109,9 @@ Run this step **only if Step 2’s final exit_code != 0**.
 1. Open `{{solution_checklist}}`.
 2. Mark `@task-restore-solution` as complete (`- [x]`).
 3. In `### Solution Variables`, update:
-   - `restore_status → "SUCCEEDED"` if success=true else `"FAILED"`.
+   - `restore_status` → `"SUCCEEDED"` if success=true else `"FAILED"`.
 4. Preserve all other lines unchanged.
 5. Write atomically (replace file only after full validation).
-6. Print `[task-restore-solution] ✔ checklist updated`.
 
 ---
 
@@ -130,8 +119,9 @@ Run this step **only if Step 2’s final exit_code != 0**.
 
 1. Validate that all checkpoints from Steps 1–7 were printed.
 2. Validate that the final JSON exists and contains `success` and `exit_code`.
-3. If any checkpoint missing → re-run last incomplete step once.
-4. Log `[task-restore-solution] ✅ all steps verified sequentially`.
+3. Re-open `{{solution_checklist}}` from disk and confirm `restore_status` reflects the outcome (`SUCCEEDED` when success=true, otherwise `FAILED`).
+4. If the variable is missing or mismatched → re-run Step 7 once; if still incorrect set `status=FAIL`.
+5. If any checkpoint missing → re-run last incomplete step once.
 
 ---
 
@@ -144,5 +134,3 @@ Run this step **only if Step 2’s final exit_code != 0**.
 - If output or validation missing → retry step once, then fail cleanly.
 
 ---
-
-✅ **End of Steps – Reliability enforced**

@@ -104,6 +104,35 @@ The JSON must always include **all fields**, even on failure:
 
 ---
 
+### Step 6 - Final Verification And Retry Guard (MANDATORY)
+Re-open and re-parse `{{checklist_path}}` to ensure on-disk consistency. Perform ALL of the following checks:
+
+1. Task line accuracy:
+   - Locate the line containing `@task-search-readme`.
+   - If `status=SUCCESS` it MUST be `[x]`; if `status=FAIL` it MUST be `[ ]`.
+2. Required variable lines (exactly once each) under `## Repo Variables Available`:
+   - `- {{readme_content}} → output/{{repo_name}}_task2_search-readme.json (field=readme_content)`
+   - `- {{readme_filename}} → <actual filename or empty if none>`
+3. Semantic validation by status:
+   - SUCCESS + README found: `readme_filename` non-empty AND JSON file exists AND JSON.readme_content length > 0.
+   - SUCCESS + no README: `readme_filename` empty AND JSON.readme_content is null.
+   - FAIL: JSON exists; variable lines may remain but MUST NOT contain placeholder words like `FAIL` in place of a path.
+4. Formatting rules:
+   - Each variable line contains a single arrow `→` with one space before and after.
+   - No duplicate occurrences of the variable lines.
+   - No trailing spaces after the value.
+5. Consistency with JSON file:
+   - Open `output/{{repo_name}}_task2_search-readme.json` and confirm fields `readme_content` and `readme_filename` match the checklist values.
+6. Failure handling:
+   - If ANY check fails, log `WARNING: checklist verification failed - restarting from Step 1` then re-run Steps 1–5 completely and attempt Step 6 again (single automatic retry).
+7. Finalization:
+   - If retry still fails, leave checklist unchanged, set `status=FAIL` if not already, and proceed to completion.
+   - On success, log `VERIFICATION_PASSED` internally.
+
+✅ **Checkpoint:** Step 6 verification passed OR failure recorded after retry.
+
+---
+
 ## Implementation Notes
 1. **Strict sequential execution:** complete one step fully before next.  
 2. **Idempotent behaviour:** running again should not duplicate variables or add new sections.  

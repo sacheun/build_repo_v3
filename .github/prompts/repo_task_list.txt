@@ -1,0 +1,6 @@
+1. ./task-clone-repo.prompt.md
+2. ./task-search-readme.prompt.md
+3. ./task-scan-readme.prompt.md
+4. ./task-execute-readme.prompt.md
+5. ./task-find-solutions.prompt.md
+6. ./generate-solution-task-checklists.prompt.md
