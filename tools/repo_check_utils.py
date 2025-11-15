@@ -52,20 +52,13 @@ def _get_repo_name(lines: List[str]) -> str:
     return '<unknown>'
 
 def _expected_solution_checklist_filenames(solutions_line: str, repo_name: str) -> List[str]:
-    """Derive expected solution checklist filenames from the solutions variable value.
-
-    solutions_line example: 'SDKTestApp.sln; ResourceProvider.sln; ...'
-    Returns list like ['<repo>_SDKTestApp_solution_checklist.md', ...]
-    """
-    items = []
-    for part in solutions_line.split(';'):
+    """Derive expected checklist filenames from the solutions variable value."""
+    items: List[str] = []
+    for part in re.split(r"[;\n,]+", solutions_line):
         part = part.strip()
         if not part:
             continue
-        if part.endswith('.sln'):
-            base = part[:-4]  # remove .sln
-        else:
-            base = part
+        base = part[:-4] if part.lower().endswith('.sln') else part
         items.append(f"{repo_name}_{base}_solution_checklist.md")
     return items
 

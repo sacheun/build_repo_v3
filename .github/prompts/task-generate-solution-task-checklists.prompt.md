@@ -73,10 +73,11 @@ Each step must output a verification result before proceeding.
    - [ ] (1) [MANDATORY] [SCRIPTABLE] Restore NuGet packages → @task-restore-solution
    - [ ] (2) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution
    - [ ] (3) [MANDATORY] [SCRIPTABLE] Validate build artifacts  → @task-validate-build-artifacts
-   - [ ] (4) [MANDATORY] [NON-SCRIPTABLE] Search knowledge base for error fix → @task-search-knowledge-base
-   - [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Create new knowledge base for error → @task-create-knowledge-base
-   - [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Apply fix from knowledge base → @task-apply-knowledge-base-fix
-   - [ ] (7) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution retry
+   - [ ] (4) [MANDATORY] [SCRIPTABLE] Dotnet Build solution → @task-dotnet-build-solution
+   - [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Search knowledge base for error fix → @task-search-knowledge-base
+   - [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Create new knowledge base for error → @task-create-knowledge-base
+   - [ ] (7) [MANDATORY] [NON-SCRIPTABLE] Apply fix from knowledge base → @task-apply-knowledge-base-fix
+   - [ ] (8) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution retry
 
    ### Solution Variables
    - solution_name: {solution_name}
@@ -89,6 +90,7 @@ Each step must output a verification result before proceeding.
    - expected_artifacts: (blank)
    - missing_artifacts: (blank)
    - verified_artifacts: (blank)
+   - dotnetbuild_status: (blank)
 
    ** Knowledge base **
    - kb_search_status: (blank)

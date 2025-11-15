@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Tuple, Dict, Optional
 
 # Default model constant injected per user request
-MODEL = "claude-sonnet-4.5"
+MODEL = "gpt-5"
 
 
 class CopilotExecutor:
