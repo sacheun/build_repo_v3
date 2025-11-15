@@ -29,150 +29,83 @@ This task can be implemented as a Python script that:
 
 **Step 2: Define Expected Format Requirements**
 
-ALL {repo_name}_repo_checklist.md files MUST have this exact structure:
+The verification script must enforce the canonical structure while remaining flexible about how many tasks or variables appear. All `{repo_name}_repo_checklist.md` files must include the following sections in this order:
 
-```markdown
-# Task Checklist: {repo_name}
+1. **Header block**
+  ```markdown
+  # Task Checklist: {repo_name}
+  Repository: {repo_url}
+  Generated: {timestamp}
+  ```
+  - `Generated` must use ISO-8601 format (e.g., `2025-11-14T23:59:12Z`).
+  - Allow optional blank lines between header lines but do not allow other content before the header.
 
-Repository: {repo_url}
-Generated: {timestamp}
+2. **`## Repo Tasks (Sequential Pipeline - Complete in Order)` section**
+  - Each task line must match the pattern:
+    ```text
+    - [x] (N) [TAG] ... → @task-handle
+    - [ ] (N) [TAG] ... → @task-handle
+    ```
+    Requirements:
+     * Checkbox is either `[ ]` or `[x]`.
+     * `(N)` is a positive integer. Numbers must begin at 1 and increment by 1 without gaps.
+     * One or more `[TAG]` blocks may appear; tags are uppercase words separated by spaces (e.g., `[MANDATORY] [SCRIPTABLE]`).
+     * Description text is freeform but must precede the arrow.
+     * Arrow may be Unicode `→` or ASCII `->`.
+     * Task handle must match `@task-[a-z0-9\-]+`.
+  - Additional tasks are allowed; do not hardcode specific descriptions.
 
-## Repo Tasks (Sequential Pipeline - Complete in Order)
+3. **`## Repo Variables Available` section**
+  - Each variable line must match `- {{variable_name}} → value`.
+  - Variable names must be lowercase snake_case (`[a-z0-9_]+`).
+  - Values may be blank; treat `(blank)` or empty strings as valid content.
 
-- [ ] [MANDATORY #1] Clone repository to local directory @task-clone-repo
-- [ ] [MANDATORY #2] Search for README file in repository @task-search-readme
-- [ ] [CONDITIONAL] [NON-SCRIPTABLE] Scan README and extract setup commands @task-scan-readme
-- [ ] [CONDITIONAL] [NON-SCRIPTABLE] Execute safe commands from README @task-execute-readme
-- [ ] [MANDATORY #3] Find all solution files in repository @task-find-solutions
-- [ ] [MANDATORY #4] Generate solution-specific task sections in checklist @generate-solution-task-checklists
+4. **`## For Agents Resuming Work` section**
+  - Section must contain at least one ordered list item (line starting with `1.`).
+  - Additional paragraphs or bullet points allowed.
 
-Note: Tasks 3 and 4 may also use format `[CONDITIONAL - NON-SCRIPTABLE]` - both formats are valid.
+5. **`## Execution Notes` section**
+  - Section must contain at least one bullet line starting with `- `.
+  - Bullet text should mention which tasks are SCRIPTABLE vs NON-SCRIPTABLE.
 
-## Task Variables
-
-Variables set by completed tasks:
-- `repo_url`: {value}
-- `clone_path`: {value}
-- `repo_directory`: {value}
-- `repo_name`: {value}
-- `readme_content`: {value}
-- `readme_filename`: {value}
-- `commands_extracted`: {value}
-- `executed_commands`: {value}
-- `skipped_commands`: {value}
-- `solutions_json`: {value}
-
-## For Agents Resuming Work
-
-**Next Action:** 
-1. Check if all [MANDATORY] tasks are completed
-2. If YES and {{readme_content}} is not blank and not NONE, execute @task-scan-readme
-3. If {{commands_extracted}} is not blank and not NONE, execute @task-execute-readme
-4. [CONDITIONAL] tasks require AI reasoning and manual tool calls - not automated
-
-**How to Execute:** Invoke the corresponding task prompt as defined in repo_tasks_list.prompt.md.
-
-**Quick Reference:**
-- [MANDATORY] tasks must be completed in numbered order
-- [CONDITIONAL - NON-SCRIPTABLE] @task-scan-readme executes when readme_content is not blank and not NONE
-- [CONDITIONAL - NON-SCRIPTABLE] @task-execute-readme executes when commands_extracted is not blank and not NONE
-- Mark completed tasks with [x]
-
-## Repo Variables Available
-
-Variables available:
-- {{repo_url}} → Original repository URL provided to the workflow.
-- {{clone_path}} → Root folder where repositories are cloned.
-...
-```
+No other sections should appear unless future templates require them; flag unexpected sections.
 
 **Step 3: Verify Each File Structure**
 
-For each repo checklist file, verify:
+For each repo checklist file, perform these checks:
 
-**A. Header Section:**
-- [ ] Line 1: Starts with `# Task Checklist: {repo_name}`
-- [ ] Line 2: Empty line
-- [ ] Line 3: Starts with `Repository: `
-- [ ] Line 4: Starts with `Generated: ` (ISO 8601 timestamp)
-- [ ] Line 5: Empty line
+**A. Header Block**
+- [ ] File starts with `# Task Checklist:`.
+- [ ] `Repository:` line appears before the first blank line after the header.
+- [ ] `Generated:` line matches regex `^Generated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`.
 
-**B. Repo Tasks Section:**
-- [ ] Section header: `## Repo Tasks (Sequential Pipeline - Complete in Order)`
-- [ ] Empty line before section
-- [ ] Empty line after section header
-- [ ] Exactly 6 tasks listed in correct order:
-  1. Task contains `MANDATORY #1` and `@task-clone-repo`
-  2. Task contains `MANDATORY #2` and `@task-search-readme`
-  3. Task contains `CONDITIONAL` and `NON-SCRIPTABLE` and `@task-scan-readme` (format flexible: may use dash or brackets)
-  4. Task contains `CONDITIONAL` and `NON-SCRIPTABLE` and `@task-execute-readme` (format flexible: may use dash or brackets)
-  5. Task contains `MANDATORY #3` and `@task-find-solutions`
-  6. Task contains `MANDATORY #4` and `@generate-solution-task-checklists`
-- [ ] Empty line after tasks
-- [ ] Tasks may be checked `[x]` or unchecked `[ ]`
-- [ ] Note: Conditional task format may be `[CONDITIONAL - NON-SCRIPTABLE]` or `[CONDITIONAL] [NON-SCRIPTABLE]` - both are valid
+**B. Repo Tasks Section**
+- [ ] Section heading exactly equals `## Repo Tasks (Sequential Pipeline - Complete in Order)`.
+- [ ] All task lines match the pattern in Step 2.
+- [ ] Task numbers are sequential (1..N with no gaps or duplicates).
+- [ ] Task handles are unique within the file.
 
-**C. Task Variables Section:**
-- [ ] Section header: `## Task Variables` (exact match)
-- [ ] Empty line before section
-- [ ] Empty line after section header
-- [ ] Subheading: `Variables set by completed tasks:` (exact match)
-- [ ] All 10 variables present in this exact order:
-  1. `` `repo_url`: {value} ``
-  2. `` `clone_path`: {value} ``
-  3. `` `repo_directory`: {value} ``
-  4. `` `repo_name`: {value} ``
-  5. `` `readme_content`: {value} ``
-  6. `` `readme_filename`: {value} ``
-  7. `` `commands_extracted`: {value} ``
-  8. `` `executed_commands`: {value} ``
-  9. `` `skipped_commands`: {value} ``
-  10. `` `solutions_json`: {value} ``
-- [ ] Variable format: Backticks around variable name, colon separator, space, value
-- [ ] Empty line after variables
+**C. Repo Variables Section**
+- [ ] Section heading exactly equals `## Repo Variables Available`.
+- [ ] Variable lines follow `- {{name}} → value` with valid snake_case names.
+- [ ] Variable names are unique within the file.
 
-**D. For Agents Resuming Work Section:**
-- [ ] Section header: `## For Agents Resuming Work` (exact match)
-- [ ] Empty line before section
-- [ ] Empty line after section header
-- [ ] Contains `**Next Action:**` subsection
-- [ ] Contains `**How to Execute:**` subsection
-- [ ] Contains `**Quick Reference:**` subsection
-- [ ] Empty line after section
+**D. For Agents Resuming Work Section**
+- [ ] Section heading exactly equals `## For Agents Resuming Work`.
+- [ ] Section contains at least one ordered list item (`^[0-9]+\.`).
 
-**E. Repo Variables Available Section:**
-- [ ] Section header: `## Repo Variables Available` (exact match)
-- [ ] Empty line before section
-- [ ] Empty line after section header
-- [ ] Contains variables documentation from repo_tasks_list.prompt.md
-- [ ] Variables use `{{variable_name}}` format with double curly braces
+**E. Execution Notes Section**
+- [ ] Section heading exactly equals `## Execution Notes`.
+- [ ] Section contains at least one bullet line starting with `- `.
 
 **Step 4: Cross-File Consistency Check**
 
 Compare all repo checklist files to ensure:
 
-1. **Section Order Consistency:**
-   - All files have sections in same order
-   - No extra sections
-   - No missing sections
-
-2. **Task Variables Order:**
-   - All 10 variables in exact same order across all files
-   - Same variable naming (no typos)
-   - Same format (backticks, colon, space)
-
-3. **Task List Consistency:**
-   - All 6 tasks in exact same order
-   - Same task numbering (#1, #2, #3, #4)
-   - Same labels (MANDATORY, CONDITIONAL)
-   - Note: CONDITIONAL tasks may use `[CONDITIONAL - NON-SCRIPTABLE]` or `[CONDITIONAL] [NON-SCRIPTABLE]` - both valid
-   - Same task directive names (@task-clone-repo, etc.)
-
-4. **Formatting Consistency:**
-   - Same number of empty lines between sections
-   - Same markdown heading levels (##)
-   - Same list formatting (- [ ] or - [x])
-   - Same code formatting (backticks for variables)
+1. **Section Order** — Sections defined above appear once and in the same order across files.
+2. **Task Formatting** — Task numbering is sequential in every file; tag and handle syntax is valid everywhere.
+3. **Variable Formatting** — All variables follow the `- {{name}} → value` pattern. When files share the same set of variable names, enforce identical ordering; otherwise, report mismatches.
+4. **Arrow Usage** — Only `→` or `->` arrows are used in task and variable lines.
 
 **Step 5: Generate Verification Report**
 

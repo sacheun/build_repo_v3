@@ -33,8 +33,8 @@ Flags:
 
 """
 from __future__ import annotations
-import argparse, sys, json, datetime, os, shutil, glob, re
-from typing import List, Tuple, Dict
+import argparse, sys, json, datetime, os, shutil, glob, re, stat
+from typing import List, Tuple, Dict, Optional, Callable
 
 # Ensure relative paths are resolved from repository root
 REPO_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -47,9 +47,6 @@ try:
 except ImportError:
     print('[fatal] Unable to import copilot_executor from tools directory.', file=sys.stderr)
     sys.exit(1)
-
-DEFAULT_CHECKLIST = 'tasks/ic3_spool_cosine-dep-spool_repo_checklist.md'
-
 
 def build_repo_pipelines(checklist_path: str) -> tuple[List[tuple], List[tuple]]:
     """Construct repository pipeline definitions for the provided checklist."""
@@ -87,6 +84,126 @@ from repo_check_utils import check_repo_readiness
 from solution_check_utils import check_solution_readiness
 # Removed solution-level execution; include-solution option deprecated.
 
+
+def normalize_checklist_path(path: str) -> str:
+    """Return a repository-relative checklist path with forward slashes."""
+    normalized = path.replace('\\', '/')
+    if os.path.isabs(normalized):
+        normalized = os.path.relpath(normalized, REPO_ROOT)
+    normalized = normalized.replace('\\', '/')
+    return normalized
+
+
+def sanitize_slug(name: str) -> str:
+    """Produce a filesystem-safe slug for log file naming."""
+    slug = re.sub(r'[^A-Za-z0-9]+', '-', name).strip('-')
+    return slug.lower() or 'checklist'
+
+
+def execute_initial_tasks(
+    initial_pipeline: List[Tuple[str, Dict[str, str]]],
+    *,
+    args: argparse.Namespace,
+    mode: str,
+    step_by_step: bool,
+    base_dir: str,
+    stem: str,
+    ext: str,
+    per_attempt_logs: List[str],
+) -> int:
+    """Run the bootstrap pipeline before main checklist processing."""
+    if not initial_pipeline:
+        return 0
+    initial_log_file = os.path.join(base_dir, f"{stem}_initial{ext}")
+    initial_summary = os.path.join(REPO_ROOT, 'output', 'initial_pipeline_summary.json')
+    os.makedirs(os.path.dirname(initial_summary), exist_ok=True)
+    print("[pipeline] Running initial tasks prior to main pipeline ...")
+    print(f"[log] Writing Copilot execution log to: {initial_log_file}")
+    exit_code, _ = execute_pipeline(
+        pipeline=[(prompt, params) for prompt, params in initial_pipeline],
+        log_file=initial_log_file,
+        continue_on_error=args.continue_on_error,
+        step_by_step=step_by_step,
+        mode=mode,
+        summary_path=initial_summary,
+    )
+    per_attempt_logs.append(os.path.abspath(initial_log_file))
+    return exit_code
+
+
+def run_pipeline_for_checklist(
+    checklist_path: str,
+    *,
+    args: argparse.Namespace,
+    mode: str,
+    step_by_step: bool,
+    base_dir: str,
+    stem: str,
+    ext: str,
+    per_attempt_logs: List[str],
+    pipeline_step: List[Tuple[str, Dict[str, str]]],
+    pipeline_all: List[Tuple[str, Dict[str, str]]],
+    readiness_checker: Callable[[str], bool],
+    checklist_label: str,
+) -> Tuple[bool, Optional[int]]:
+    """Execute the appropriate pipeline for a given checklist and verify readiness."""
+    selected_pipeline = pipeline_all if mode == 'combine' else pipeline_step
+    slug = sanitize_slug(os.path.splitext(os.path.basename(checklist_path))[0])
+    attempt = 1
+    max_attempts = 3
+    ready = False
+    last_exit_code: Optional[int] = None
+    fs_checklist_path = (
+        checklist_path
+        if os.path.isabs(checklist_path)
+        else os.path.join(REPO_ROOT, checklist_path)
+    )
+    while attempt <= max_attempts:
+        attempt_log_file = os.path.join(base_dir, f"{stem}_{slug}_attempt{attempt}{ext}")
+        summary_filename = f"single_file_pipeline_summary_{slug}_attempt{attempt}.json"
+        attempt_summary_path = os.path.join(REPO_ROOT, 'output', summary_filename)
+        os.makedirs(os.path.dirname(attempt_summary_path), exist_ok=True)
+        print(f"[pipeline] {checklist_label.capitalize()} checklist {slug}: attempt {attempt}/{max_attempts}")
+        print(f"[log] Writing Copilot execution log to: {attempt_log_file}")
+        last_exit_code, _summary = execute_pipeline(
+            pipeline=[(prompt, params) for prompt, params in selected_pipeline],
+            log_file=attempt_log_file,
+            continue_on_error=args.continue_on_error,
+            step_by_step=step_by_step,
+            mode=mode,
+            summary_path=attempt_summary_path,
+        )
+        per_attempt_logs.append(os.path.abspath(attempt_log_file))
+        print(f"[verification] Checking {checklist_label} readiness for {slug} (attempt {attempt}) ...")
+        ready = readiness_checker(fs_checklist_path)
+        if ready:
+            print(
+                f"[verification] {checklist_label.capitalize()} readiness success for {slug} after attempt {attempt}."
+            )
+            break
+        if attempt < max_attempts:
+            print(
+                f"[retry] Will rerun pipeline for {slug} (next attempt: {attempt + 1}/{max_attempts})."
+            )
+        attempt += 1
+    if attempt > max_attempts and not ready:
+        print(
+            f"[verification] Final {checklist_label} readiness for {slug}: FAIL after {max_attempts} attempts."
+        )
+    repo_name = os.path.splitext(os.path.basename(checklist_path))[0]
+    status = 'OK' if ready else 'FAIL'
+    print(f"[final readiness] {checklist_label}={status} [{repo_name}]")
+    return ready, last_exit_code
+
+def _handle_remove_readonly(func: Callable[[str], None], path: str, exc: tuple) -> None:
+    """Best-effort removal helper for read-only files on Windows."""
+    try:
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    except Exception as err:  # pragma: no cover - diagnostic logging only
+        print(f"[purge-warn] Unable to force remove {path}: {err}")
+
+
 def purge_state_directories(log_file: str, *, remove_output: bool = True, remove_tasks: bool = True) -> None:
     """Remove stateful directories for a clean slate before pipeline runs."""
     purge_targets: List[str] = []
@@ -97,14 +214,17 @@ def purge_state_directories(log_file: str, *, remove_output: bool = True, remove
         purge_targets.append('tasks')
     for rel in purge_targets:
         target_path = os.path.join(REPO_ROOT, rel)
-        if os.path.isdir(target_path):
-            try:
-                shutil.rmtree(target_path)
+        try:
+            if os.path.isdir(target_path):
+                shutil.rmtree(target_path, onerror=_handle_remove_readonly)
                 print(f"[purge] Removed directory: {rel}")
-            except Exception as e:
-                print(f"[purge-warn] Failed to remove {rel}: {e}")
-        elif os.path.exists(target_path):
-            print(f"[purge-warn] Path exists but is not directory, skipping: {rel}")
+            elif os.path.exists(target_path):
+                os.remove(target_path)
+                print(f"[purge] Removed file: {rel}")
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            print(f"[purge-warn] Failed to remove {rel}: {e}")
     log_dir = os.path.dirname(log_file)
     if log_dir and not os.path.isdir(log_dir):
         try:
@@ -118,55 +238,15 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     p.add_argument('--log', default='./output/orchestrator.log', help='Path to log file.')
     p.add_argument('--continue-on-error', action='store_true', help='Continue pipeline despite failures.')
     p.add_argument('--mode', choices=['combine','steps'], default='combine', help="Execution mode: 'combine' runs automatically; 'steps' prompts before each stage.")
-    p.add_argument('--checklist', default=DEFAULT_CHECKLIST, help='Path to the repository checklist to drive the pipeline.')
+    p.add_argument('--checklist', help='Path to the repository or solution checklist to drive the pipeline.')
     return p.parse_args(argv)
 
 
 def main(argv: List[str]) -> int:
     args = parse_args(argv)
     mode = args.mode
-    checklist_path = args.checklist.replace('\\', '/')
-    initial_tasks: List[tuple] = []
-    readiness_checker = None
-    checklist_label = 'repository'
-    if 'repo_checklist.md' in checklist_path:
-        # Always seed repo checklist generation before any repository pipelines run.
-        initial_tasks.append(('task-generate-repo-task-checklists', {'input': 'repositories_small.txt'}))
-        pipeline_step, pipeline_all = build_repo_pipelines(checklist_path)
-        readiness_checker = check_repo_readiness
-        checklist_label = 'repository'
-    elif 'solution_checklist' in checklist_path:
-        pipeline_step, pipeline_all = build_solution_pipelines(checklist_path)
-        readiness_checker = check_solution_readiness
-        checklist_label = 'solution'
-    else:
-        print(f"[fatal] Unsupported checklist path: {checklist_path}")
-        return 1
-    if readiness_checker is None:
-        print(f"[fatal] No readiness checker available for checklist: {checklist_path}")
-        return 1
     step_by_step = (mode == 'steps')
-    # Normalize base log path (avoid backslashes); we'll derive per-attempt file names
     base_log_path = args.log.replace('\\', '/')
-    # Purge using base path (original behavior)
-    purge_state_directories(
-        base_log_path,
-        remove_output=('solution_checklist' not in checklist_path),
-        remove_tasks=('solution_checklist' not in checklist_path)
-    )
-
-    selected_pipeline = pipeline_all if mode == 'combine' else pipeline_step
-    # Track discovered solution checklist files (used for readiness verification)
-    # Solution-level handling removed (include-solution deprecated)
-
-    attempt = 1
-    max_attempts = 3
-    repo_name = os.path.splitext(os.path.basename(checklist_path))[0]
-    last_exit_code = None
-    per_attempt_logs: List[str] = []
-    ready = False
-
-    # Derive filename pattern: <stem>_attempt<N><ext>
     base_dir = os.path.dirname(base_log_path) or '.'
     base_file = os.path.basename(base_log_path)
     if '.' in base_file:
@@ -174,71 +254,189 @@ def main(argv: List[str]) -> int:
         ext = '.' + ext
     else:
         stem, ext = base_file, '.log'
-
     os.makedirs(base_dir, exist_ok=True)
+    per_attempt_logs: List[str] = []
 
-    if checklist_label == 'repository' and initial_tasks:
-        initial_log_file = os.path.join(base_dir, f"{stem}_initial{ext}")
-        initial_summary = os.path.join(REPO_ROOT, 'output', 'initial_pipeline_summary.json')
-        os.makedirs(os.path.dirname(initial_summary), exist_ok=True)
-        print("[pipeline] Running initial tasks prior to main pipeline ...")
-        print(f"[log] Writing Copilot execution log to: {initial_log_file}")
-        init_exit_code, _ = execute_pipeline(
-            pipeline=[(p, params) for p, params in initial_tasks],
-            log_file=initial_log_file,
-            continue_on_error=args.continue_on_error,
-            step_by_step=step_by_step,
-            mode=mode,
-            summary_path=initial_summary
+    if args.checklist:
+        checklist_path = normalize_checklist_path(args.checklist)
+        is_repo = 'repo_checklist.md' in checklist_path
+        is_solution = 'solution_checklist' in checklist_path
+        purge_state_directories(
+            base_log_path,
+            remove_output=not is_solution,
+            remove_tasks=is_repo,
         )
-        per_attempt_logs.append(os.path.abspath(initial_log_file))
-        if init_exit_code != 0 and not args.continue_on_error:
-            print(f"[fatal] Initial pipeline failed with exit code {init_exit_code}.")
-            return init_exit_code
 
-    # Phase 1: Repo attempts (original behavior)
-    while attempt <= max_attempts:
-        attempt_log_file = os.path.join(base_dir, f"{stem}_attempt{attempt}{ext}")
-        attempt_summary_path = os.path.join(REPO_ROOT, 'output', f'single_file_pipeline_summary_attempt{attempt}.json')
-        print(f"[pipeline] Attempt {attempt}/{max_attempts}")
-        print(f"[log] Writing Copilot execution log to: {attempt_log_file}")
-        last_exit_code, _summary = execute_pipeline(
-            pipeline=[(p, params) for p, params in selected_pipeline],
-            log_file=attempt_log_file,
-            continue_on_error=args.continue_on_error,
-            step_by_step=step_by_step,
-            mode=mode,
-            summary_path=attempt_summary_path
+        readiness_checker: Optional[Callable[[str], bool]] = None
+        pipeline_step: List[Tuple[str, Dict[str, str]]] = []
+        pipeline_all: List[Tuple[str, Dict[str, str]]] = []
+        label = 'repository' if is_repo else 'solution'
+
+        if is_repo:
+            initial_pipeline = [('task-generate-repo-task-checklists', {'input': 'repositories_small.txt'})]
+            init_exit = execute_initial_tasks(
+                initial_pipeline,
+                args=args,
+                mode=mode,
+                step_by_step=step_by_step,
+                base_dir=base_dir,
+                stem=stem,
+                ext=ext,
+                per_attempt_logs=per_attempt_logs,
+            )
+            if init_exit != 0 and not args.continue_on_error:
+                print(f"[fatal] Initial pipeline failed with exit code {init_exit}.")
+                print("[log] Attempt log files:")
+                for path in per_attempt_logs:
+                    print(f"  - {path}")
+                return init_exit
+            pipeline_step, pipeline_all = build_repo_pipelines(checklist_path)
+            readiness_checker = check_repo_readiness
+        elif is_solution:
+            pipeline_step, pipeline_all = build_solution_pipelines(checklist_path)
+            readiness_checker = check_solution_readiness
+        else:
+            print(f"[fatal] Unsupported checklist path: {checklist_path}")
+            return 1
+
+        fs_checklist_path = (
+            checklist_path if os.path.isabs(checklist_path) else os.path.join(REPO_ROOT, checklist_path)
         )
-        per_attempt_logs.append(os.path.abspath(attempt_log_file))
-        print(f"[verification] Checking {checklist_label} readiness (attempt {attempt}) ...")
-        ready = readiness_checker(os.path.join(REPO_ROOT, checklist_path))
+        if not os.path.exists(fs_checklist_path):
+            print(f"[fatal] Checklist not found: {fs_checklist_path}")
+            return 1
+        ready, last_exit_code = run_pipeline_for_checklist(
+            checklist_path,
+            args=args,
+            mode=mode,
+            step_by_step=step_by_step,
+            base_dir=base_dir,
+            stem=stem,
+            ext=ext,
+            per_attempt_logs=per_attempt_logs,
+            pipeline_step=pipeline_step,
+            pipeline_all=pipeline_all,
+            readiness_checker=readiness_checker,
+            checklist_label=label,
+        )
+        print("[log] Attempt log files:")
+        for path in per_attempt_logs:
+            print(f"  - {path}")
+        if last_exit_code is not None:
+            return last_exit_code
+        return 0 if ready else 1
+
+    # No checklist specified: process all repo and solution checklists sequentially.
+    purge_state_directories(base_log_path, remove_output=True, remove_tasks=True)
+    initial_pipeline = [('task-generate-repo-task-checklists', {'input': 'repositories_small.txt'})]
+    initial_exit = execute_initial_tasks(
+        initial_pipeline,
+        args=args,
+        mode=mode,
+        step_by_step=step_by_step,
+        base_dir=base_dir,
+        stem=stem,
+        ext=ext,
+        per_attempt_logs=per_attempt_logs,
+    )
+    overall_ready = (initial_exit == 0)
+    overall_exit = 0 if initial_exit == 0 else initial_exit or 1
+    if initial_exit != 0 and not args.continue_on_error:
+        print(f"[fatal] Initial pipeline failed with exit code {initial_exit}.")
+        print("[log] Attempt log files:")
+        for path in per_attempt_logs:
+            print(f"  - {path}")
+        return initial_exit
+
+    repo_checklists = sorted(glob.glob(os.path.join(REPO_ROOT, 'tasks', '*_repo_checklist.md')))
+    repo_checked = 0
+    repo_passed = 0
+    repo_failed = 0
+    if not repo_checklists:
+        print("[warn] No repository checklists found to process.")
+    for repo_file in repo_checklists:
+        rel_path = normalize_checklist_path(repo_file)
+        pipeline_step, pipeline_all = build_repo_pipelines(rel_path)
+        ready, last_exit_code = run_pipeline_for_checklist(
+            rel_path,
+            args=args,
+            mode=mode,
+            step_by_step=step_by_step,
+            base_dir=base_dir,
+            stem=stem,
+            ext=ext,
+            per_attempt_logs=per_attempt_logs,
+            pipeline_step=pipeline_step,
+            pipeline_all=pipeline_all,
+            readiness_checker=check_repo_readiness,
+            checklist_label='repository',
+        )
+        repo_checked += 1
         if ready:
-            print(f"[verification] {checklist_label.capitalize()} readiness success after attempt {attempt}.")
-            break
-        if attempt < max_attempts:
-            print(f"[retry] Will rerun pipeline (next attempt: {attempt+1}/{max_attempts}).")
-        attempt += 1
+            repo_passed += 1
+        else:
+            repo_failed += 1
+        if not ready:
+            overall_ready = False
+        if last_exit_code is not None and last_exit_code != 0:
+            overall_exit = last_exit_code
+        elif last_exit_code is None and not ready:
+            overall_exit = overall_exit or 1
 
-    if attempt > max_attempts and not ready:
-        print(f"[verification] Final {checklist_label} readiness: FAIL after {max_attempts} attempts.")
-
-    # Phase 2 removed: solution attempts deprecated with removal of include-solution flag.
-
-    # Combined final summary
-    repo_status = 'OK' if ready else 'FAIL'
-    print(f"[final readiness] {checklist_label}={repo_status}")
-    if ready:
-        print(f"[final readiness detail] {checklist_label}s OK: [{repo_name}]")
-    else:
-        print(f"[final readiness detail] {checklist_label}s FAIL: [{repo_name}]")
+    # After repo processing, discover solution checklists (which may have been generated).
+    solution_checklists = sorted(glob.glob(os.path.join(REPO_ROOT, 'tasks', '*_solution_checklist.md')))
+    solution_checked = 0
+    solution_passed = 0
+    solution_failed = 0
+    if not solution_checklists:
+        print("[info] No solution checklists found to process.")
+    for solution_file in solution_checklists:
+        rel_path = normalize_checklist_path(solution_file)
+        pipeline_step, pipeline_all = build_solution_pipelines(rel_path)
+        ready, last_exit_code = run_pipeline_for_checklist(
+            rel_path,
+            args=args,
+            mode=mode,
+            step_by_step=step_by_step,
+            base_dir=base_dir,
+            stem=stem,
+            ext=ext,
+            per_attempt_logs=per_attempt_logs,
+            pipeline_step=pipeline_step,
+            pipeline_all=pipeline_all,
+            readiness_checker=check_solution_readiness,
+            checklist_label='solution',
+        )
+        solution_checked += 1
+        if ready:
+            solution_passed += 1
+        else:
+            solution_failed += 1
+        if not ready:
+            overall_ready = False
+        if last_exit_code is not None and last_exit_code != 0:
+            overall_exit = last_exit_code
+        elif last_exit_code is None and not ready:
+            overall_exit = overall_exit or 1
 
     print("[log] Attempt log files:")
     for path in per_attempt_logs:
         print(f"  - {path}")
 
-    # Return last exit code (or 1 if none captured)
-    return last_exit_code if last_exit_code is not None else 1
+    print("[summary] Repository readiness: {}/{} passed ({} failed)".format(
+        repo_passed,
+        repo_checked,
+        repo_failed,
+    ))
+    print("[summary] Solution readiness: {}/{} passed ({} failed)".format(
+        solution_passed,
+        solution_checked,
+        solution_failed,
+    ))
+
+    if overall_ready:
+        return overall_exit if overall_exit else 0
+    return overall_exit or 1
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
