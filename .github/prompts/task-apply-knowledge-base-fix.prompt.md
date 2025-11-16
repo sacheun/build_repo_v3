@@ -142,11 +142,12 @@ Checklist Task & Variable Update
     - If an option was applied, parse `option_applied` (`"1"`, `"2"`, `"3"`) → `attempt_index`.
     - If `option_applied` is `null` (e.g., `fix_status = NO_MORE_OPTIONS`), derive `attempt_index = int(last_option_applied or 0) + 1` and cap within `[1,3]`.
     - Store `attempt_label = {1: "CONDITIONAL number 5 - Attempt 1", 2: "CONDITIONAL number 7 - Attempt 2", 3: "CONDITIONAL number 9 - Attempt 3"}[attempt_index]`.
-3. **Update the checklist task line:**
+3. **Update the checklist task line (do this first):**
    - Locate the bullet containing `@task-apply-knowledge-base-fix` and the matching attempt label.
    - Replace the leading checkbox with `[x]`.
    - When `fix_status` is `SKIPPED`, `NO_MORE_OPTIONS`, or the KB search indicated no fix required, append ` - SKIPPED ({reason})` using a concise reason (e.g., `no more KB options`, `KB search skipped`). Otherwise keep the existing suffix when the fix executed.
-4. **Refresh solution variables in `### Solution Variables`:**
+   *Ensure this checkbox edit is staged before touching solution variables, mirroring the ordering in Step 9 of `task-verify-build-artifacts`.*
+4. **After the task line is confirmed updated, refresh solution variables in `### Solution Variables`:**
     - Locate or insert the line starting with `- fix_applied_attempt_{attempt_index}:` and replace everything after the colon with:
        * ` APPLIED` when `fix_status = SUCCESS`.
        * ` NOT_APPLIED` when `fix_status` is `FAIL` or `FAIL_VERIFICATION`.
@@ -157,7 +158,7 @@ Checklist Task & Variable Update
        * ` null` when no option ran (e.g., `NO_MORE_OPTIONS`).
        * ` NOT REQUIRED` when the KB search status indicated no fix was necessary (Step 0 path).
     - Leave attempt slots for other indices untouched, as well as unrelated variables (`solution_path`, `build_status`, etc.).
-5. **Write changes atomically** (temp file replace) so the checklist is never partially updated.
+5. **Write changes atomically** (temp file replace) so the checkbox and variable edits land together and the checklist is never partially updated.
 
 
 ### Step 6 (MANDATORY)

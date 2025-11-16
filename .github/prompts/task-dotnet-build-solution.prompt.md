@@ -74,9 +74,9 @@ Runs a deterministic two-stage `dotnet` clean/build pipeline for a Visual Studio
 
 ## Step 5 — Checklist Update (MANDATORY)
 1. Re-open checklist content from disk.
-2. Mark the first unchecked line containing `@task-dotnet-build-solution` as completed (`- [ ]` → `- [x]`). If no such line exists, log verification error but continue.
-3. In `### Solution Variables`, set `dotnetbuild_status` to `"SUCCEEDED"` when `success` else `"FAILED"` (preserve exact arrow symbol `→`). Ensure exactly one `dotnetbuild_status` line exists.
-4. Preserve other variables unchanged. Write updated checklist atomically.
+2. Mark the first unchecked line containing `@task-dotnet-build-solution` as completed (`- [ ]` → `- [x]`). If no such line exists, log a verification error but continue. Do not touch solution variables until the task line change is persisted in memory.
+3. After the task line is updated, locate `### Solution Variables` and set `dotnetbuild_status` to `"SUCCEEDED"` when `success` else `"FAILED"` (preserve the exact arrow symbol `→`). Ensure exactly one `dotnetbuild_status` line exists; insert or replace as needed while leaving other variables untouched.
+4. Write the updated checklist atomically (e.g., temp file + replace) so the task checkbox and variable update land together.
 
 ---
 

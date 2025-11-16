@@ -78,15 +78,16 @@ DO NOT:
 
 1. Open `{{solution_checklist}}` (fresh read).
 2. Locate the task line for `@task-create-knowledge-base` for this attempt.
-3. Mark task as:
+3. Mark the task line first:
    - `[x] ... - KB CREATED` when `kb_article_creation_status == SUCCESS`
    - `[x] ... - SKIPPED` when `kb_article_creation_status == SKIPPED`
    - `[x] ... - ERROR` when a failure occurred
-4. Update Solution Variables in **### Solution Variables**:
+   *Perform this checkbox update before touching any solution variables, mirroring the ordering pattern from Step 9 of `task-verify-build-artifacts`.*
+4. After confirming the task line change, update only the relevant entries under **### Solution Variables**:
    - `kb_article_creation_status` → CREATED | SKIPPED | ERROR
    - `kb_file_path` → absolute path if created, else `N/A`
 5. Do not alter unrelated lines.
-6. Save atomically.
+6. Save atomically so the task checkbox and variable edits land together.
 
 ### Step 6 — FINAL VERIFICATION AND REDO SAFEGUARD
 

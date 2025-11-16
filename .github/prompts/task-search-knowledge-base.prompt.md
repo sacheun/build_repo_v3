@@ -77,11 +77,12 @@ This task requires AI STRUCTURAL semantic reasoning. Do **not** replace it with 
    - Any other value → `ERROR`
 4. Replace the entire task line with:
    `- [x] [CONDITIONAL (4)] Search knowledge base for error fix @task-search-knowledge-base - {suffix}`
-5. In the same file, locate `### Solution Variables` and update only:
+   *Perform this checkbox update first and keep the edited line in memory before touching any variables, mirroring the ordering used in Step 9 of `task-verify-build-artifacts`.*
+5. After the task line is confirmed updated, locate `### Solution Variables` and update only:
    - `kb_search_status` → `FOUND` | `NOT_FOUND` | `SKIPPED` | `ERROR`
    - `kb_file_path` → absolute KB path when FOUND; `None` when NOT_FOUND or SKIPPED; `FAIL` when `kb_search_status = ERROR`
    - `kb_article_status` → set to `REFERENCED` when FOUND; otherwise leave the existing value unchanged
-6. Preserve formatting, avoid duplicating lines, and save atomically (write to temp then replace).
+6. Preserve formatting, avoid duplicating lines, and save atomically (write to temp then replace) so the checkbox and variable changes land together.
 
 ✅ Checkpoint: Checklist line and related variables updated and saved.
 

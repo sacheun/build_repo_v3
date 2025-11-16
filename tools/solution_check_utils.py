@@ -75,11 +75,47 @@ def check_solution_readiness(solution_checklist_path: str) -> bool:
     normalize = lambda name: TASK_NAME_NORMALIZE.get(name, name)
     mandatory_tasks = extract_tasks(
         lines,
-        ('## Solution Tasks', '### Tasks'),
+        (
+            '## Solution Tasks',
+            '### Solution Tasks',
+            '### Tasks'
+        ),
         MANDATORY_TASK_PATTERN,
         normalize=normalize,
         relaxed_pattern=RELAXED_TASK_PATTERN,
     )
+
+    # Fallback / diagnostics when no tasks detected; attempt a simpler scan.
+    if not mandatory_tasks:
+        tasks_section = []
+        from checklist_utils import collect_section_lines
+        tasks_section = collect_section_lines(
+            lines,
+            (
+                '## Solution Tasks',
+                '### Solution Tasks',
+                '### Tasks'
+            )
+        )
+        debug_matches = []
+        simple_pattern = re.compile(r"^- \[(x| )\].*\[MANDATORY\].*?@([a-zA-Z0-9\-]+)")
+        for raw in tasks_section:
+            stripped = raw.strip()
+            m = simple_pattern.match(stripped)
+            if m:
+                done_flag, task_name = m.groups()
+                key = normalize(task_name)
+                if key not in mandatory_tasks:
+                    mandatory_tasks[key] = (done_flag == 'x')
+                debug_matches.append(f"MATCH:{stripped}")
+            else:
+                debug_matches.append(f"NO_MATCH:{stripped}")
+        if debug_matches:
+            print(f"[solution readiness debug] {solution_name}: fallback_scan_lines={len(tasks_section)}")
+            for line in debug_matches[:20]:  # limit output
+                print(f"[solution readiness debug] {line}")
+        if not mandatory_tasks:
+            print(f"[solution readiness debug] {solution_name}: pattern MANDATORY_TASK_PATTERN may not align with checklist format")
 
     var_values: Dict[str, str] = extract_variables(
         lines,

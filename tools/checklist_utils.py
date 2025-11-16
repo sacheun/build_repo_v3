@@ -109,6 +109,11 @@ def classify_variables(
     for name, value in var_values.items():
         if name in optional_set:
             continue
+        # Special-case: '(none)' for missing_artifacts means there are zero missing items,
+        # treat as a verified (non-blank) value rather than a missing variable.
+        if name == 'missing_artifacts' and isinstance(value, str) and value.strip().lower() == '(none)':
+            verified.append(name)
+            continue
         if is_blank_value(value):
             missing.append(name)
         else:
