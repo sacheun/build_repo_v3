@@ -114,7 +114,7 @@ Generated: {timestamp}
 ## Repo Tasks (Sequential Pipeline - Complete in Order)
 - [ ] (1) [MANDATORY] [SCRIPTABLE] Clone repository to local directory → @task-clone-repo
 - [ ] (2) [MANDATORY] [SCRIPTABLE] Find all solution files in repository → @task-find-solutions
-- [ ] (3) [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files (no inline sections) → @task-generate-solution-task-checklists
+- [ ] (3) [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files → @task-generate-solution-task-checklists
 - [ ] (4) [MANDATORY] [SCRIPTABLE] Search for README file in repository → @task-search-readme
 - [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Scan README and extract setup commands → @task-scan-readme
 - [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Execute safe commands from README → @task-execute-readme
@@ -193,4 +193,4 @@ Follow these rules *exactly* when resuming execution:
 5. Error Handling: collect all verification errors; never raise unhandled exceptions out of the run — always produce Step 7 JSON.
 6. Append Mode: compare normalized repo names case-insensitively.
 7. Logging: print a short human-readable log message at each checkpoint.
-
+8. **Script Location:** Save generated script to `temp-script`.

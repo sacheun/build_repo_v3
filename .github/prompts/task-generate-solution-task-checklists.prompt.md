@@ -2,18 +2,19 @@
 temperature: 0.0
 ---
 
-@generate-solution-task-checklists checklist_path={{checklist_path}}
+@task-generate-solution-task-checklists checklist_path={{checklist_path}}
 
-Task name: generate-solution-task-checklists
+Task name: task-generate-solution-task-checklists
 
 ## Description
 Generate individual solution-level checklist files for a repository.  
 This creates ONE checklist file per solution (.sln) discovered in the repo.
 
 ## Execution Policy
-**STRICT MODE: ENFORCED EXECUTION ORDER**
+**STRICT MODE: ENFORCED ORDER — NO EARLY EXIT**
 
-> ⚠️ **Every step below MUST be executed sequentially.**
+> ⚠️ EVERY STEP BELOW MUST BE EXECUTED IN ORDER (Step 1 → Step 2 → ... → Step 6).  
+
 > - **NO steps may be skipped, summarized, or merged.**
 > - **Each step has its own completion checkpoint.**
 > - **If any earlier step fails, mark status=FAIL but still execute Step 5 to produce output JSON.**
@@ -48,20 +49,21 @@ Each step must output a verification result before proceeding.
 8. If file missing or malformed, record a verification error but continue with empty list (status may still be SUCCESS if checklist load passed).  
 9. **Checkpoint:** Output interim success/fail (for checklist load) and continue to **Step 2** regardless.
 
-### Step 2 — Generate One Checklist File per Solution (MANDATORY)
-**Checkpoint → Confirm all files created.**
+### Step 2  Generate One Checklist File per Solution (MANDATORY)
+**Checkpoint  Confirm all files created, one per solution.**
 
-1. For each `solution` in the parsed list:
+1. For **every** `solution` in the parsed list from Step 1:
    - Create file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`  
    - Sanitize `solution_name` (replace spaces/special characters with underscores).  
    - Overwrite if it exists.  
-2. Ensure at least one checklist file created.  
-3. **Checkpoint:** Record verification result and continue to **Step 3**.
+2. After processing, **verify that the number of created solution checklist files is exactly equal to the number of `solutions` entries** parsed in Step 1.
+3. If the counts differ (e.g., only some solutions produced checklists), mark `status=FAIL` for this task but still proceed to Step 3 and later steps as required.
+4. **Checkpoint:** Explicitly log how many solutions were parsed and how many checklist files were created, then continue to **Step 3**.
 
 ### Step 3 — Write Solution Checklist Contents (MANDATORY)
 **Checkpoint → Confirm each file written with full template.**
 
-1. For each checklist file, write this canonical template atomically (FULL CONTENT – do not truncate):  
+1. For each checklist file, overwrite the file with this canonical template (write atomically; no legacy sections may remain):  
    ```markdown
    # Solution Checklist: {solution_name}
    Repository: {repo_url}
@@ -108,15 +110,21 @@ Each step must output a verification result before proceeding.
    2. Update build status/timestamp variables after each build.
    3. Record any KB article references inline below tasks.
    ```
-
-2. Verify that each file includes headings: “### Solution Variables”, “### Tasks”.  
-3. **Checkpoint:** Log verification status and continue to **Step 4**.
+2. Immediately re-open each file after writing and assert all canonical markers exist:
+   - Header lines (`# Solution Checklist:` / `Repository:` / `Generated:`) appear exactly once.
+   - Section headings exactly match `## Solution:`, `### Tasks`, `### Solution Variables`, and `** Knowledge base **`.
+   - Every task line contains a checkbox, sequential number 1–8, `[MANDATORY]` tag, the specific `@task-…` handle shown above, and uses the arrow character (`→`).
+   - Variable lines follow the exact colon format shown (e.g., `- solution_name: {solution_name}`) and include all 10 entries plus `dotnetbuild_status`.
+   - Knowledge base lines exactly match the block listed above (names, ordering, placeholders).
+   - No legacy headings such as `## Solution Tasks` or `## Notes` remain in the file.
+3. If any check fails, mark the attempt as `status=FAIL`, report the discrepancy, and stop further processing.
+4. **Checkpoint:** Log verification status and continue to **Step 4**.
 
 ### Step 4 — Update Repository Checklist (MANDATORY)
 **Checkpoint → Confirm repo checklist updated correctly.**
 
 1. Open `tasks/{{repo_name}}_repo_checklist.md`.  
-2. Mark `[x]` on the `@task-generate-solution-task-checklists` entry **only**.  
+2. Mark `[x]` on the `@task-generate-solution-task-checklists` entry **only after** all earlier steps in this prompt (including file generation and validation) have succeeded.  
 3. Do not modify other items.  
 4. **Checkpoint:** Record success/fail. Continue to **Step 5**.
 

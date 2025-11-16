@@ -1,11 +1,11 @@
-@execute-solution-task solution_checklist=<required>
+@execute-solution-task solution_checklist={{solution_checklist}}
 
 ---
 temperature: 0.0
 ---
 
 ## Description:
-This prompt finds all unmarked tasks from a **solution-level checklist markdown file** and executes them **strictly in sequence**, ensuring that **no task is skipped** and all results are properly persisted to disk.
+This prompt finds all unmarked tasks from a **solution-level checklist markdown file** and executes them **strictly in sequence**, ensuring that **no task is skipped**, that each referenced `@task-*` prompt is fully executed end-to-end, and that all results are properly persisted to disk.
 
 It continues processing until all tasks are complete or an error occurs, maintaining checkpoint validation after every step.
 
@@ -37,8 +37,9 @@ Execution requires **explicit reasoning**, **tool invocation**, and **file integ
 
 **CRITICAL REQUIREMENT:**  
 After completing each task, update the solution checklist file:
-- Change the corresponding task status from `[ ]` → `[x]`.
-- Persist update immediately and validate checksum before proceeding.
+- Load and execute the full referenced task prompt (e.g. `@task-build-solution` → `task-build-solution.prompt.md`), following **all of its numbered steps and final verification rules**.
+- Only after that prompt reports success and its own checklist/JSON contracts are satisfied, change the corresponding task status from `[ ]` → `[x]`.
+- Persist the checklist update immediately and validate checksum before proceeding.
 
 **CRITICAL - SEQUENTIAL EXECUTION:**
 - Executes **ALL unmarked `[ ]`** tasks in the order listed.
@@ -55,8 +56,6 @@ After completing each task, update the solution checklist file:
 2. Create or verify temporary working context if required.
 3. Initialise counters, error flags, and execution metadata.
 
----
-
 ### Step 1: Parse Solution Checklist (MANDATORY)
 1. Verify `[CHECKPOINT] step_0_complete` exists.
 2. Read the checklist markdown from disk.
@@ -64,8 +63,6 @@ After completing each task, update the solution checklist file:
 4. Identify the first unmarked (`- [ ]`) task.
    - If none found → `execution_status="ALL_TASKS_COMPLETE"` and jump to Step 4.
 
-
----
 
 ### Step 2: Evaluate and Execute Task (MANDATORY)
 Verify `[CHECKPOINT] step_1_complete` exists.
@@ -88,9 +85,6 @@ Verify `[CHECKPOINT] step_1_complete` exists.
 4. On success → mark `[x] SUCCESS` in checklist.
 5. Persist update and validate checksum.
 
-
----
-
 ### Step 3: Continue to Next Task (MANDATORY)
 1. Confirm `[CHECKPOINT] step_2_complete` exists.
 2. Reload checklist from disk.
@@ -98,7 +92,6 @@ Verify `[CHECKPOINT] step_1_complete` exists.
 4. If found → return to Step 1.
 5. If none → emit `[CHECKPOINT] step_3_complete`.
 
----
 
 ### Step 4: Finalise and Summarise (MANDATORY)
 1. Verify all checkpoints (`step_0` → `step_3`) exist.

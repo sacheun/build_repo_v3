@@ -28,6 +28,10 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 1. Open checklist: `{{solution_path}}`. If file missing, record warning but continue (task may still run).
 2. Parse `### Solution Variables` and read single authoritative `- build_count → <int>` line. If missing, assume 0 and insert a single `- build_count → 0` placeholder atomically (but mark that insertion in verification_errors).
 3. Cache `old_build_count` (integer) in memory for mapping logic and artifact naming (do not modify file here).
+4. Also capture the current `build_status` value. If it is already `SUCCEEDED`, set a flag `skip_build_due_to_prior_success = true` and obey the following rules for the remainder of the task:
+   - Skip Steps 3–8 entirely; no additional MSBuild invocation or JSON artifacts are required when the previous build succeeded.
+   - In Step 9 leave `build_count` untouched (do **not** increment it) and simply ensure the existing task line remains checked.
+   - In Step 10 leave `build_status` as-is and set the matching retry status slot (e.g., `retry_build_status_attempt_1`) to `SKIPPED (build already succeeded)` so the checklist records that no rerun occurred.
 
 ---
 

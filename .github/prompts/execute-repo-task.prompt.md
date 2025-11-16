@@ -1,4 +1,4 @@
-@execute-repo-task repo_checklist=<required> clone=<required>
+@execute-repo-task repo_checklist={{repo_checklist}} clone_path={{clone_path}}
 ---
 temperature: 0.0
 max_output_tokens: 4096
@@ -13,12 +13,14 @@ Read the provided repository checklist markdown (`repo_checklist`).
 
 **Primary Goal**
 1. Identify the first unchecked task (`- [ ]`) in the checklist.
-2. Load and execute the referenced prompt file (e.g. `@task-clone-repo` → `./prompts/task-clone-repo.md`).
-3. After successful completion, mark that task `[x]` in the checklist file.
+2. For the current task line, automatically resolve and open the corresponding prompt file from `.github/prompts/` (e.g. `@task-clone-repo` → `.github/prompts/task-clone-repo.prompt.md`) and **load and execute that prompt file end-to-end**, following **all numbered steps in that prompt in order**.
+3. Mark that task `[x]` in the checklist file **only after** the referenced prompt's final verification step succeeds (for that task's JSON/checklist contract).
 4. Continue iterating until all tasks are complete or a failure checkpoint occurs.
 
 **Behavioural Rules**
 - Do **not** skip, summarise, or merge tasks.
+- Do **not** mark any task `[x]` based only on assumption or existing state; you **must** honour the full `@task-*` prompt (including its JSON output and checklist update rules).
+- When a checklist task line contains `@task-foo`, resolve its prompt file as `.github/prompts/task-foo.prompt.md` (relative to the repository root), open it automatically, and treat that file as the authoritative specification for that task's steps and JSON/checklist contracts.
 - Maintain strict sequential order.
 - Each successful step **must** emit `[CHECKPOINT] step_n_complete`.
 - Confirm all previous checkpoints before continuing.
