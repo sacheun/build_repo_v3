@@ -17,12 +17,13 @@ Usage:
 
 import datetime
 import os
+import re
 import subprocess
 from pathlib import Path
 from typing import Tuple, Dict, Optional
 
 # Default model constant injected per user request
-MODEL = "gpt-5"
+MODEL = "gpt-5.1-codex"
 
 
 class CopilotExecutor:
@@ -38,6 +39,7 @@ class CopilotExecutor:
         """
         self.log_file = Path(log_file)
         self.debug = debug
+        self.prompts_root = Path('.github/prompts')
         
     def _debug_print(self, message: str):
         """Print debug message if debug mode is enabled."""
@@ -163,6 +165,9 @@ class CopilotExecutor:
         #prompt_parts.append("Now perform task:")
 
         full_prompt = "\n".join(prompt_parts)
+        full_prompt = self._rewrite_prompt_references(full_prompt)
+        preview = full_prompt[:100]
+        print(f"[copilot-executor] prompt preview (100 chars): {preview}")
         
         # Build full command (ensure model flag)
         command = f'copilot --prompt "{full_prompt}"'
@@ -173,6 +178,26 @@ class CopilotExecutor:
         command += ' --allow-all-paths'
         
         return self.execute_command(command)
+
+    def _rewrite_prompt_references(self, prompt_text: str) -> str:
+        """Replace /task-* or /execute-* tokens with #file references if prompt files exist."""
+        pattern = re.compile(r"/(task-[A-Za-z0-9_-]+|execute-[A-Za-z0-9_-]+)")
+
+        def replace(match: re.Match) -> str:
+            prompt_key = match.group(1)
+            prompt_file = self.prompts_root / f"{prompt_key}.prompt.md"
+            if not prompt_file.exists():
+                raise FileNotFoundError(
+                    f"Prompt file not found for '{prompt_key}' at {prompt_file}"
+                )
+            file_path = prompt_file.as_posix()
+            replacement = f"Follow instructions in #file: {file_path}"
+            self._debug_print(
+                f"rewriting /{prompt_key} to '{replacement}'"
+            )
+            return replacement
+
+        return pattern.sub(replace, prompt_text)
     
     def initialize_log(self, header: str):
         """

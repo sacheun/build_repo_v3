@@ -190,6 +190,14 @@ def run_pipeline_for_checklist(
         per_attempt_logs.append(os.path.abspath(attempt_log_file))
         print(f"[verification] Checking {checklist_label} readiness for {slug} (attempt {attempt}) ...")
         ready = readiness_checker(fs_checklist_path)
+        if ready and checklist_label == 'repository':
+            solution_glob = os.path.join(REPO_ROOT, 'tasks', '*_solution_checklist.md')
+            solution_files = glob.glob(solution_glob)
+            if not solution_files:
+                print(
+                    "[verification] repository checklist ready but no solution checklists found under tasks/."
+                )
+                ready = False
         if ready:
             print(
                 f"[verification] {checklist_label.capitalize()} readiness success for {slug} after attempt {attempt}."

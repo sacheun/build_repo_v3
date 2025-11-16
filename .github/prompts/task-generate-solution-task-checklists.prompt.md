@@ -71,15 +71,15 @@ Each step must output a verification result before proceeding.
 
    ## Solution: {solution_name}
 
-   ### Tasks
-   - [ ] (1) [MANDATORY] [SCRIPTABLE] Restore NuGet packages → @task-restore-solution
-   - [ ] (2) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution
-   - [ ] (3) [MANDATORY] [SCRIPTABLE] Validate build artifacts  → @task-validate-build-artifacts
-   - [ ] (4) [MANDATORY] [SCRIPTABLE] Dotnet Build solution → @task-dotnet-build-solution
-   - [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Search knowledge base for error fix → @task-search-knowledge-base
-   - [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Create new knowledge base for error → @task-create-knowledge-base
-   - [ ] (7) [MANDATORY] [NON-SCRIPTABLE] Apply fix from knowledge base → @task-apply-knowledge-base-fix
-   - [ ] (8) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution retry
+   ### Solution Tasks
+   - [ ] (1) [MANDATORY] [SCRIPTABLE] Restore NuGet packages → @task-restore-solution (see details in #file: .github/prompts/task-restore-solution.prompt.md)
+   - [ ] (2) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution (see details in #file: .github/prompts/task-build-solution.prompt.md)
+   - [ ] (3) [MANDATORY] [SCRIPTABLE] Validate build artifacts  → @task-validate-build-artifacts (see details in #file: .github/prompts/task-validate-build-artifacts.prompt.md)
+   - [ ] (4) [MANDATORY] [SCRIPTABLE] Dotnet Build solution → @task-dotnet-build-solution (see details in #file: .github/prompts/task-dotnet-build-solution.prompt.md)
+   - [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Search knowledge base for error fix → @task-search-knowledge-base (see details in #file: .github/prompts/task-search-knowledge-base.prompt.md)
+   - [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Create new knowledge base for error → @task-create-knowledge-base (see details in #file: .github/prompts/task-create-knowledge-base.prompt.md)
+   - [ ] (7) [MANDATORY] [NON-SCRIPTABLE] Apply fix from knowledge base → @task-apply-knowledge-base-fix (see details in #file: .github/prompts/task-apply-knowledge-base-fix.prompt.md)
+   - [ ] (8) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution retry (see details in #file: .github/prompts/task-build-solution.prompt.md)
 
    ### Solution Variables
    - solution_name: {solution_name}
@@ -110,15 +110,7 @@ Each step must output a verification result before proceeding.
    2. Update build status/timestamp variables after each build.
    3. Record any KB article references inline below tasks.
    ```
-2. Immediately re-open each file after writing and assert all canonical markers exist:
-   - Header lines (`# Solution Checklist:` / `Repository:` / `Generated:`) appear exactly once.
-   - Section headings exactly match `## Solution:`, `### Tasks`, `### Solution Variables`, and `** Knowledge base **`.
-   - Every task line contains a checkbox, sequential number 1–8, `[MANDATORY]` tag, the specific `@task-…` handle shown above, and uses the arrow character (`→`).
-   - Variable lines follow the exact colon format shown (e.g., `- solution_name: {solution_name}`) and include all 10 entries plus `dotnetbuild_status`.
-   - Knowledge base lines exactly match the block listed above (names, ordering, placeholders).
-   - No legacy headings such as `## Solution Tasks` or `## Notes` remain in the file.
-3. If any check fails, mark the attempt as `status=FAIL`, report the discrepancy, and stop further processing.
-4. **Checkpoint:** Log verification status and continue to **Step 4**.
+3. **Checkpoint:** Log verification status and continue to **Step 4**.
 
 ### Step 4 — Update Repository Checklist (MANDATORY)
 **Checkpoint → Confirm repo checklist updated correctly.**
@@ -148,9 +140,16 @@ Each step must output a verification result before proceeding.
 
 1. Reopen `tasks/{{repo_name}}_repo_checklist.md`.  
 2. Verify that the entry for `@task-generate-solution-task-checklists` is **checked `[x]`**.  
-3. If unchecked or missing, log a warning and **redo from Step 0** (reload and re‑execute the entire process).  
-4. Only mark task as `FINAL SUCCESS` if the verification passes.  
-5. Output a final confirmation message:  
+3. Immediately re-open each file after writing and assert all canonical markers exist:
+   - Header lines (`# Solution Checklist:` / `Repository:` / `Generated:`) appear exactly once.
+   - Section headings exactly match `## Solution:`, `### Solution Tasks`, `### Solution Variables`, and `** Knowledge base **`.
+   - Every task line contains a checkbox, sequential number 1–8, `[MANDATORY]` tag, the specific `@task-…` handle shown above, and uses the arrow character (`→`).
+   - Variable lines follow the exact colon format shown (e.g., `- solution_name: {solution_name}`) and include all entries.
+   - Knowledge base lines exactly match the block listed above (names, ordering, placeholders).
+   - If any check fails, mark the attempt as `status=FAIL`, report the discrepancy, and stop further processing.
+4. If unchecked or missing, log a warning and **redo from Step 0** (reload and re‑execute the entire process).  
+5. Only mark task as `FINAL SUCCESS` if the verification passes.  
+6. Output a final confirmation message:  
    > ✅ “All checklist updates verified successfully — task complete.”
 
 ### Reliability Enforcement

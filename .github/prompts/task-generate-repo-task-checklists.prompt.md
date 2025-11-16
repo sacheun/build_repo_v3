@@ -112,12 +112,12 @@ Repository: {repo_url}
 Generated: {timestamp}
 
 ## Repo Tasks (Sequential Pipeline - Complete in Order)
-- [ ] (1) [MANDATORY] [SCRIPTABLE] Clone repository to local directory → @task-clone-repo
-- [ ] (2) [MANDATORY] [SCRIPTABLE] Find all solution files in repository → @task-find-solutions
-- [ ] (3) [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files → @task-generate-solution-task-checklists
-- [ ] (4) [MANDATORY] [SCRIPTABLE] Search for README file in repository → @task-search-readme
-- [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Scan README and extract setup commands → @task-scan-readme
-- [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Execute safe commands from README → @task-execute-readme
+- [ ] (1) [MANDATORY] [SCRIPTABLE] Clone repository to local directory → @task-clone-repo (see details in #file: .github/prompts/task-clone-repo.prompt.md)
+- [ ] (2) [MANDATORY] [SCRIPTABLE] Find all solution files in repository → @task-find-solutions (see details in #file: .github/prompts/task-find-solutions.prompt.md)
+- [ ] (3) [MANDATORY] [SCRIPTABLE] Generate per-solution checklist files → @task-generate-solution-task-checklists (see details in #file: .github/prompts/task-generate-solution-task-checklists.prompt.md)
+- [ ] (4) [MANDATORY] [SCRIPTABLE] Search for README file in repository → @task-search-readme (see details in #file: .github/prompts/task-search-readme.prompt.md)
+- [ ] (5) [MANDATORY] [NON-SCRIPTABLE] Scan README and extract setup commands → @task-scan-readme (see details in #file: .github/prompts/task-scan-readme.prompt.md)
+- [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Execute safe commands from README → @task-execute-readme (see details in #file: .github/prompts/task-execute-readme.prompt.md)
 
 ## Repo Variables Available
 - {{repo_url}} → {repo_url}
