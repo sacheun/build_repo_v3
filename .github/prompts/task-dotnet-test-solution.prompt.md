@@ -77,15 +77,15 @@ Executes `dotnet test` against a Visual Studio solution referenced by the soluti
 ---
 
 ## Step 5 — Checklist Update (MANDATORY)
-1. Reload checklist content.
-2. Mark the first unchecked task line containing `@task-dotnet-test-solution` as complete (`- [ ]` → `- [x]`). If none exists, log verification error.
-3. In `### Solution Variables`, update (or insert if missing) exactly one line for each:
+1. Reload checklist content from disk (fresh read).
+2. Mark the first unchecked task line containing `@task-dotnet-test-solution` as complete (`- [ ]` → `- [x]`). If no such line exists, log a verification error but continue. Perform this checkbox update first and keep the modified line in memory before changing any solution variables (mirrors ordering pattern used in Step 9 of `task-verify-build-artifacts`).
+3. After confirming the task line update, locate `### Solution Variables` and update (or insert if missing) exactly one line for each:
    - `- test_run_status → SUCCEEDED|FAILED|SKIPPED`
    - `- total_tests_count → <int>`
    - `- passed_tests_count → <int>`
    - `- failed_tests_count → <int>`
-4. Preserve other variables and formatting (maintain arrow character `→`).
-5. Write the updated checklist atomically.
+4. Preserve other variables and formatting (maintain arrow character `→`). Do not alter unrelated lines.
+5. Write the updated checklist atomically (temp file + replace) so the checkbox and variable edits land together.
 
 ---
 
