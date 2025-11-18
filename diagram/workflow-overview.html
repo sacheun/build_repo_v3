@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Build Workflow Overview</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .diagram-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .phase-info {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .phase-info h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .phase {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid;
+            background-color: #f9f9f9;
+        }
+        .phase1 {
+            border-color: #0066cc;
+        }
+        .phase2 {
+            border-color: #cc8800;
+        }
+        .phase3 {
+            border-color: #00aa44;
+        }
+        .phase h3 {
+            margin-top: 0;
+        }
+        .phase ul {
+            margin: 10px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Repository Build Workflow Overview</h1>
+    
+    <div class="phase-info">
+        <p style="text-align: center; font-size: 1.1em; color: #666;">
+            Complete workflow for processing multiple repositories through task generation, repository-level tasks, and solution-level tasks.
+        </p>
+    </div>
+    
+    <div class="diagram-container">
+        <div class="mermaid">
+flowchart TD
+    Start([Start: repositories.txt]) --> Step1
+
+    Step1["/generate-repo-task-checklists<br/>input='repositories.txt'"]
+    Step1Desc["<b>Purpose:</b> Generate task checklists for all repositories<br/><br/><b>Input:</b> List of repository URLs from repositories.txt<br/><b>Output:</b> Individual *_repo_checklist.md files for each repository<br/>"]
+    
+    Step1 --> Step1Desc
+    Step1Desc --> FindRepoChecklist
+
+    FindRepoChecklist["Find next *_repo_checklist.md in tasks/"]
+    FindRepoChecklist --> Step2
+
+    Step2["/execute-repo-task<br/>input='tasks/*_repo_checklist.md'<br/>clone_path='.\\clone_repos'"]
+    Step2Desc["<b>Purpose:</b> Run the 6-task repo pipeline using repo checklists<br/><br/><b>Input:</b> Current *_repo_checklist.md file from tasks/ and clone path<br/><b>Output:</b> <br/>- Cloned repository under clone_repos<br/>- Discovered solution files (*.sln)<br/>- Generated *_solutions_checklist.md files<br/>- README analysis and extracted setup commands<br/>- Tracked task results in output/ and results/<br/><b>Details:</b> For each repo checklist (6-task pipeline):<br/>1. Clone repository to local directory<br/>2. Find all solution files in repository<br/>3. Generate per-solution checklist files<br/>4. Search for README file in repository<br/>5. Scan README and extract setup commands<br/>6. Execute safe commands from README"]
+    
+    Step2 --> Step2Desc
+    Step2Desc --> RepoLoopCheck
+
+    RepoLoopCheck{"More *_repo_checklist.md files in tasks/?"}
+    RepoLoopCheck -->|Yes: next repo checklist| FindRepoChecklist
+    RepoLoopCheck -->|No: all repo checklists done| FindSolutionChecklist
+
+    FindSolutionChecklist["Find next *_solution_checklist.md in tasks/"]
+    FindSolutionChecklist --> Step3
+
+    Step3["/execute-solution-task<br/>input='tasks/*_solution_checklist.md'"]
+    Step3Desc["<b>Purpose:</b> Build and fix all discovered solutions<br/><br/><b>Input:</b> Current *_solution_checklist.md file from tasks/<br/><b>Output:</b> <br/>- NuGet packages restored<br/>- Solutions built (success/failure status)<br/>- Build errors documented in knowledge base<br/>- Fixed solutions (iterative build-fix loop)<br/><b>Details:</b> For each solution (10-task pipeline):<br/>1. Restore NuGet packages<br/>2. Build solution<br/>3-4. Search/create knowledge base entries for errors<br/>5-7. Fix attempts (3 iterations)<br/>8-10. Retry builds after fixes"]
+
+    Step3 --> Step3Desc
+    Step3Desc --> SolutionLoopCheck
+
+    SolutionLoopCheck{"More *_solution_checklist.md files in tasks/?"}
+    SolutionLoopCheck -->|Yes: next solution checklist| FindSolutionChecklist
+    SolutionLoopCheck -->|No: all solution checklists done| End
+
+    End([End: All repositories processed<br/>and solutions built])
+
+    %% Phase 1 styles
+    style Start fill:#666666,stroke:#333333,stroke-width:3px,color:#ffffff
+    style Step1 fill:#0066cc,stroke:#003d7a,stroke-width:3px,color:#ffffff
+    style Step1Desc fill:#f0f9ff,stroke:#0066cc,stroke-width:2px,color:#000000,text-align:left
+
+    %% Repo checklist + repo pipeline (orange)
+    style FindRepoChecklist fill:#ffe6cc,stroke:#cc8800,stroke-width:2px,color:#000000
+    style Step2 fill:#cc8800,stroke:#995500,stroke-width:3px,color:#ffffff
+    style Step2Desc fill:#fffbf0,stroke:#cc8800,stroke-width:2px,color:#000000,text-align:left
+    style RepoLoopCheck fill:#ffe6cc,stroke:#cc8800,stroke-width:2px,color:#000000
+
+    %% Solution checklist + solution pipeline (green)
+    style FindSolutionChecklist fill:#e3f6eb,stroke:#00aa44,stroke-width:2px,color:#000000
+    style Step3 fill:#00aa44,stroke:#007a33,stroke-width:3px,color:#ffffff
+    style Step3Desc fill:#f1f8f4,stroke:#00aa44,stroke-width:2px,color:#000000,text-align:left
+    style SolutionLoopCheck fill:#e3f6eb,stroke:#00aa44,stroke-width:2px,color:#000000
+
+    %% End
+    style End fill:#666666,stroke:#333333,stroke-width:3px,color:#ffffff
+    </div>
+    
+    <div class="phase-info">
+        <h2>Workflow Summary</h2>
+        
+        <div class="phase phase1">
+            <h3>Phase 1: Generate Task Checklists</h3>
+            <p><strong>Prompt:</strong> <span class="code">/generate-repo-task-checklists</span></p>
+            <ul>
+                <li>Reads repository URLs from <span class="code">repositories.txt</span></li>
+                <li>Creates one <span class="code">*_repo_checklist.md</span> file per repository</li>
+                <li>Defines 6 sequential tasks to be executed for each repo</li>
+            </ul>
+        </div>
+        
+        <div class="phase phase2">
+            <h3>Phase 2: Execute Repository Tasks</h3>
+            <p><strong>Prompt:</strong> <span class="code">/execute-repo-task</span></p>
+            <ul>
+                <li>Processes each repository through the 6-task pipeline</li>
+                <li>Clones repositories to local directory</li>
+                <li>Analyzes README files and extracts setup commands</li>
+                <li>Discovers all solution files (*.sln)</li>
+                <li>Generates solution-specific task checklists</li>
+                <li><strong>Outputs:</strong> cloned repos, task results, solution checklists</li>
+            </ul>
+        </div>
+        
+        <div class="phase phase3">
+            <h3>Phase 3: Execute Solution Tasks</h3>
+            <p><strong>Prompt:</strong> <span class="code">/execute-solution-task</span></p>
+            <ul>
+                <li>Processes each discovered solution through 10-task pipeline</li>
+                <li>Restores dependencies and builds solutions</li>
+                <li>Captures build errors and creates knowledge base entries</li>
+                <li>Iteratively fixes build errors (up to 1 attempts)</li>
+                <li>Retries builds after each fix attempt</li>
+                <li><strong>Outputs:</strong> built solutions, error documentation, fix attempts</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="phase-info">
+        <h2>Key Files Generated</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Phase</th>
+                    <th>Files Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Phase 1</strong></td>
+                    <td><span class="code">tasks/*_repo_checklist.md</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 2</strong></td>
+                    <td>
+                        <span class="code">tasks/*_solutions_checklist.md</span><br/>
+                        <span class="code">output/*_task*.json</span><br/>
+                        <span class="code">results/repo_result.csv</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 3</strong></td>
+                    <td>
+                        <span class="code">knowledge_base_markdown/*.md</span><br/>
+                        <span class="code">results/solution_result.csv</span><br/>
+                        Build artifacts in solution directories
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>

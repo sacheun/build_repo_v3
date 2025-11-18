@@ -59,6 +59,9 @@ OPTIONAL_VARIABLES = {
     'kb_file_path',
     'kb_option_applied_attempt_1',
     'last_option_applied',
+    'fix_status',
+    'kb_article_status',
+    'kb_create_status',
 }
 
 def check_solution_readiness(solution_checklist_path: str) -> bool:

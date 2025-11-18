@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solution Workflow</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .diagram-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .legend {
+            background-color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+        .legend h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .legend-item {
+            display: inline-block;
+            margin: 6px 16px 6px 0;
+        }
+        .legend-box {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .mandatory { background-color: #ffffff; border-color: #28a745; }
+        .conditional { background-color: #ffffff; border-color: #ffc107; }
+        .scriptable { background-color: #cfe2ff; border-color: #007bff; }
+        .aiReasoning { background-color: #f8d7da; border-color: #dc3545; }
+
+        .layout-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .layout-left {
+            flex: 3 1 0;
+        }
+        .layout-right {
+            flex: 0 0 260px;
+            max-width: 260px;
+        }
+        @media (max-width: 900px) {
+            .layout-row {
+                flex-direction: column;
+            }
+            .layout-right {
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Solution checklist workflow</h1>
+
+    <div class="layout-row">
+        <div class="layout-left diagram-container">
+            <div class="mermaid">
+graph TD
+    Start([Start for solution<br/>checklist]) --> Task1[1. Restore NuGet<br/>packages]
+    Task1 --> Task2[2. Build solution<br/>Clean and build]
+    Task2 --> Task3[3. Validate build<br/>artifacts]
+    Task3 --> Task4[4. dotnet build<br/>solution]
+    Task4 --> Task5[5. dotnet test<br/>solution]
+    Task5 --> Task6[6. Search knowledge base for<br/>error fix]
+    Task6 --> Task7[7. Create new knowledge base<br/>entry for error]
+    Task7 --> Task8[8. Apply fix from knowledge base]
+    Task8 --> Task9[9. Retry build<br/>Clean and build]
+    Task9 --> Task10[10. Run solution]
+    Task10 --> End([End: Solution checklist complete])
+
+    classDef mandatory fill:#ffffff,stroke:#28a745,stroke-width:3px,color:#000000
+    classDef scriptable fill:#cfe2ff,stroke:#007bff,stroke-width:3px,color:#000000
+    classDef aiReasoning fill:#f8d7da,stroke:#dc3545,stroke-width:3px,color:#000000
+    classDef terminal fill:#ffffff,stroke:#343a40,stroke-width:3px,color:#000000
+
+    class Start,End terminal
+    class Task1,Task2,Task3,Task4,Task5,Task9,Task10 scriptable
+    class Task6,Task7,Task8 aiReasoning
+</div>
+        </div>
+
+        <div class="layout-right legend">
+            <h2>Legend</h2>
+            <div class="legend-item">
+                <span class="legend-box mandatory"></span>
+                <span>Mandatory Tasks</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-box scriptable"></span>
+                <span>Scriptable Tasks</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-box aiReasoning"></span>
+                <span>AI Reasoning Required</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral'
+});
+    </script>
+</body>
+</html>
