@@ -11,10 +11,11 @@ This task clones or refreshes a repository from `repo_url` into the `clone_path`
 
 ## Execution Policy
 **STRICT MODE ENABLED**
+
 - Execute all numbered steps **in exact order: 1 → 6**.  
 - **Do not skip, summarise, or merge** any step.
 - After finishing each step, explicitly confirm completion before continuing.
-- If any step fails, **stop immediately**, set `status=FAIL`, and emit JSON output.
+- If any step fails, **stop immediately**, set `status=FAIL`, and emit JSON output (jump directly to Step 5).
 - The task is **NOT complete** until **Step 6 (Final Checklist Verification)** passes successfully.
 - Step 6 may **re-run Steps 1–4** automatically if the checklist file was not updated.
 
@@ -24,7 +25,7 @@ This task clones or refreshes a repository from `repo_url` into the `clone_path`
 
 ## Step 1 — Load Variables (MANDATORY)
 1. Verify that `{{checklist_path}}` exists.  
-   - If missing, immediately set `status=FAIL`, emit JSON output (see Step 5), and ABORT.
+   - If missing, immediately set `status=FAIL`, emit JSON output (jump directly to Step 5).
 2. Open the checklist file and locate section header:  
    `## Repo Variables Available`
 3. From that section, extract values for:
@@ -34,11 +35,9 @@ This task clones or refreshes a repository from `repo_url` into the `clone_path`
    - `repo_url` = extracted URL  
    - `repo_name` = extracted name  
 5. Confirm both values are non-empty before continuing.  
-   - If empty, set `status=FAIL` and ABORT.
+   - If empty, set `status=FAIL` and emit JSON output (jump directly to Step 5).
 
 ✅ **Checkpoint:** Both `repo_url` and `repo_name` successfully loaded.
-
----
 
 ## Step 2 — Verify Target Directory (MANDATORY)
 1. Compute `repo_directory = {{clone_path}}/{{repo_name}}`
@@ -49,19 +48,17 @@ This task clones or refreshes a repository from `repo_url` into the `clone_path`
 
 ✅ **Checkpoint:** Directory status and `operation` flag determined.
 
----
-
 ## Step 3 — Perform Git Operation (MANDATORY)
 If `operation == CLONE`:
 1. Run:
-   ```bash
+   ```
    git clone --depth 1 {{repo_url}} {{clone_path}}/{{repo_name}}
    ```
 2. Capture stdout/stderr as `git_output`.
 
 If `operation == REFRESH`:
 1. Run sequentially (do not merge commands):
-   ```bash
+   ```
    cd {{clone_path}}/{{repo_name}}
    git reset --hard HEAD
    git clean -fd
@@ -70,20 +67,22 @@ If `operation == REFRESH`:
 2. Capture all output into `git_output`.
 
 3. After each command, check exit code:
-   - Any non-zero → `clone_status=FAIL`, `status=FAIL`, then go directly to Step 5 (output).
+   - Any non-zero → set `clone_status=FAIL`, `status=FAIL`, and immediately record that both `clone_path` and `repo_directory` variables should be treated as `None` for subsequent steps (they must **not** point to a partially cloned or refreshed directory). Then go directly to Step 5 (output).
 
 ✅ **Checkpoint:** Git operation finished with status recorded.
 
----
 
 ## Step 4 — Update Checklist File (MANDATORY)
 1. Open `{{checklist_path}}` in-place.
-2. Locate the line for `@task-clone-repo` and mark `[x]` only if `clone_status=SUCCESS`.
+2. Locate the line for `@task-clone-repo` and mark it as `[x]` **regardless of** `clone_status` (always treat this task line as completed once this prompt finishes, whether SUCCESS or FAIL).
 3. Under `## Repo Variables Available`, ensure lines exist (exactly one per variable):
    ```
-   - {{clone_path}} → {clone_path}
-   - {{repo_directory}} → {repo_directory}
+   - {{clone_path}} → {clone_path_or_empty}
+   - {{repo_directory}} → {repo_directory_or_empty}
    ```
+   where:
+   - if `clone_status=SUCCESS`, `clone_path_or_empty` and `repo_directory_or_empty` are the resolved paths from Steps 1–2;
+   - if `clone_status=FAIL`, both `clone_path_or_empty` and `repo_directory_or_empty` must be left blank (or explicitly `None`) to indicate no valid directory.
 4. Use exact spacing and single arrow format `→`.
 5. Do not duplicate or re-order variable lines.
 6. If `clone_status=FAIL`, still ensure `repo_url` and `repo_name` are present.
@@ -91,11 +90,10 @@ If `operation == REFRESH`:
 
 ✅ **Checkpoint:** Checklist update attempted.
 
----
 
 ## Step 5 — Emit Structured JSON Output (MANDATORY)
 Create file:  
-`output/{{repo_name}}_task1_clone-repo.json`
+`output/{{repo_name}}_task_clone-repo.json`
 
 Include **all fields**, even if failure occurred:
 ```json
@@ -108,17 +106,16 @@ Include **all fields**, even if failure occurred:
   "clone_status": "SUCCESS or FAIL",
   "status": "SUCCESS or FAIL",
   "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
-  "git_output": "...",
-  "checklist_verified": "PENDING"
+  "git_output": "..."
 }
 ```
 
 ✅ **Checkpoint:** Output file written (pending final verification).
----
+
 
 ## Step 6 — Final Checklist Verification & Retry Guard (MANDATORY)
 1. Reopen `{{checklist_path}}` from disk.
-2. Confirm the checklist line for `@task-clone-repo` reflects the final `status` (`[x]` when SUCCESS, `[ ]` when FAIL).
+2. Confirm the checklist line for `@task-clone-repo` reflects the final `status` (`[x].
 3. Under `## Repo Variables Available`, ensure the `{{clone_path}}` and `{{repo_directory}}` entries match the resolved values from Steps 1-2 and appear exactly once.
 4. If verification fails (line unchanged, variables missing, or mismatched values), log `WARNING: checklist verification failed - restarting from Step 1`, then repeat Steps 1-4 before attempting Step 6 again.
 5. Once verification succeeds, update the JSON file from Step 5 by setting `"checklist_verified": "CONFIRMED"` (or `"FAIL"` if verification ultimately fails) and save it atomically.
@@ -133,9 +130,8 @@ Include **all fields**, even if failure occurred:
 2. **Idempotent Behaviour:** Existing directories trigger REFRESH, not reclone.  
 3. **Error Handling:** Any failed git command or checklist check sets `status=FAIL`.  
 4. **Reliability Guarantee:** Step 6 enforces that the checklist update is **confirmed on disk**.  
-5. **Script Location:** Save generated script to `temp-script/step{N}_repo{M}_task1_clone-repo.py`.
+5. **Script Location:** Save generated script to `temp-script`.
 
 ---
 
-## End of Task
-Mark the task complete **only when Step 6 confirms** the checklist file is updated and verified.
+

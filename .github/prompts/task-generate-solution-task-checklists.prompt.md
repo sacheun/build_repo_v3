@@ -22,9 +22,8 @@ This creates ONE checklist file per solution (.sln) discovered in the repo.
 > - **ALWAYS continue to the next step once the current step is complete or fails.**
 
 You are executing a **multi-step scripted task**.  
-Follow steps **in exact order (Step 1 → Step 2 → Step 3 → Step 4 → Step 5 → Step 6)**.  
-Each step must output a verification result before proceeding.
 
+**This task is fully SCRIPTABLE.**
 ---
 
 ## Instructions (Follow Exactly as Ordered)
@@ -49,8 +48,8 @@ Each step must output a verification result before proceeding.
 8. If file missing or malformed, record a verification error but continue with empty list (status may still be SUCCESS if checklist load passed).  
 9. **Checkpoint:** Output interim success/fail (for checklist load) and continue to **Step 2** regardless.
 
-### Step 2  Generate One Checklist File per Solution (MANDATORY)
-**Checkpoint  Confirm all files created, one per solution.**
+### Step 2 - Generate One Checklist File per Solution (MANDATORY)
+**Checkpoint → Confirm all files created, one per solution.**
 
 1. For **every** `solution` in the parsed list from Step 1:
    - Create file: `./tasks/{repo_name}_{solution_name}_solution_checklist.md`  
@@ -125,7 +124,7 @@ Each step must output a verification result before proceeding.
    - Mark completed tasks with [x]
    - Each referenced `@task-*` file is an independent prompt that must be executed completely before 
    ```
-3. **Checkpoint:** Log verification status and continue to **Step 4**.
+**Checkpoint:** Log verification status and continue to **Step 4**.
 
 ### Step 4 — Update Repository Checklist (MANDATORY)
 **Checkpoint → Confirm repo checklist updated correctly.**
@@ -157,12 +156,11 @@ Each step must output a verification result before proceeding.
 2. Verify that the entry for `@task-generate-solution-task-checklists` is **checked `[x]`**.  
 3. Immediately re-open each file after writing and assert all canonical markers exist:
    - Header lines (`# Solution Checklist:` / `Repository:` / `Generated:`) appear exactly once.
-   - Section headings exactly match `## Solution:`, `### Solution Tasks`, `### Solution Variables`, and `** Knowledge base **`.
+   - Section headings exactly match `## Solution:`, `### Solution Tasks` and `### Solution Variables`.
    - Every task line contains a checkbox, sequential number 1–8, `[MANDATORY]` tag, the specific `@task-…` handle shown above, and uses the arrow character (`→`).
    - Variable lines follow the exact colon format shown (e.g., `- solution_name: {solution_name}`) and include all entries.
-   - Knowledge base lines exactly match the block listed above (names, ordering, placeholders).
    - If any check fails, mark the attempt as `status=FAIL`, report the discrepancy, and stop further processing.
-4. If unchecked or missing, log a warning and **redo from Step 0** (reload and re‑execute the entire process).  
+4. If unchecked or missing, log a warning and **redo from Step 1** (reload and re‑execute the entire process).  
 5. Only mark task as `FINAL SUCCESS` if the verification passes.  
 6. Output a final confirmation message:  
    > ✅ “All checklist updates verified successfully — task complete.”
@@ -171,3 +169,8 @@ Each step must output a verification result before proceeding.
 - After each step, log: `✅ Step N complete — proceeding to Step N+1`  
 - Never stop early before Step 6.  
 - Always produce structured JSON output at the end.
+
+
+## Implementation Notes
+1. **STRICT SEQUENTIAL EXECUTION:** Must complete Step 6 for success.  
+2. **Script Location:** Save generated script to `temp-script`.

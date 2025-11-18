@@ -36,7 +36,7 @@ To ensure **no skipped steps**, apply these control rules throughout execution:
 - If any expected variable is missing or malformed, stop immediately and set `status=FAIL`.  
 
 ### Step 2 – README Load & Preflight Verification (MANDATORY)
-- Load the file at `readme_content_path` extracted in Step 1.  
+- Load the file at `readme_content` extracted in Step 1.  
 - Validate existence, readability, and non-empty content.  
 - If missing: set `status=SKIPPED` and stop.  
 - Verify `tasks/{{repo_name}}_repo_checklist.md` contains line `- {{commands_extracted}} →`. Restore if missing.  
@@ -65,17 +65,16 @@ To ensure **no skipped steps**, apply these control rules throughout execution:
 
 ### Step 8 – Update Repo Checklist (MANDATORY)
 - Update only the `- {{commands_extracted}} →` line in `tasks/{{repo_name}}_repo_checklist.md`.  
-  - If commands were found, point the line to `output/{{repo_name}}_task3_scan-readme.json (field=commands_extracted)`.  
+  - If commands were found, point the line to `output/{{repo_name}}_task_scan-readme.json (field=commands_extracted)`.  
   - If no commands were found, set the value to `None`.
 - Mark `@task-scan-readme` as complete.  
 
 ### Step 9 – Structured Output Assembly (MANDATORY)
-- Write final JSON to `output/{{repo_name}}_task3_scan-readme.json`.  
+- Write final JSON to `output/{{repo_name}}_task_scan-readme.json`.  
 - Include all required fields.  
 - Validate all checkpoints 1–9 exist; if any missing, set `status=FAIL_MISSING_STEP`.  
 - Log checkpoint: `step_completed=9`.
 
----
 
 ### Step 10 - Post-Run Verification And Retry Guard (MANDATORY)
 Re-open and fully re-parse `tasks/{{repo_name}}_repo_checklist.md` from disk (no cached content). Perform ALL checks below:
@@ -84,10 +83,10 @@ Re-open and fully re-parse `tasks/{{repo_name}}_repo_checklist.md` from disk (no
   - Locate the line containing `@task-scan-readme`.
   - If `status=SUCCESS` the line MUST be `[x]`; if `status=SKIPPED` may be `[x]` or `[ ]` (implementation choice) but note outcome; if `status=FAIL` it MUST be `[ ]`.
 2. Variable line presence (exactly once):
-  - `- {{commands_extracted}} → output/{{repo_name}}_task3_scan-readme.json (field=commands_extracted)`
+  - `- {{commands_extracted}} → output/{{repo_name}}_task_scan-readme.json (field=commands_extracted)`
   - Single arrow `→`, one space before and after, no duplicates, no trailing spaces.
 3. JSON file integrity:
-  - Open `output/{{repo_name}}_task3_scan-readme.json`; verify file exists and is parseable JSON.
+  - Open `output/{{repo_name}}_task_scan-readme.json`; verify file exists and is parseable JSON.
   - Confirm keys: `commands_extracted` (array) and `total_commands` (integer) present.
 4. Semantic alignment by status:
   - SUCCESS & commands found: `total_commands > 0` AND `len(commands_extracted) == total_commands`.

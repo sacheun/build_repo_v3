@@ -16,13 +16,15 @@ This task locates and reads the repository’s main README file (if present) fro
 - After completing each step, explicitly confirm completion before moving to the next.
 - If any step fails, immediately set `status=FAIL` and skip directly to Step 5 (JSON output).
 
+**This task is fully SCRIPTABLE.**
+
 ---
 
 ## Step-by-Step Instructions
 
 ### Step 1 — Load Variables (MANDATORY)
 1. Verify that `{{checklist_path}}` exists.  
-   - If missing, set `status=FAIL`, emit output JSON (Step 5), and **ABORT immediately**.
+   - If missing, set `status=FAIL`, emit output JSON (jump directly to Step 5).
 2. Open `{{checklist_path}}` and locate section header:  
    `## Repo Variables Available`
 3. Parse variable lines beginning with:
@@ -39,16 +41,15 @@ This task locates and reads the repository’s main README file (if present) fro
 ---
 
 ### Step 2 — Locate README Candidate (MANDATORY)
-1. Search **only in the root of** `repo_directory`.  
-   - Do **not** recurse into subdirectories.
+1. Search the **entire** `repo_directory` tree, including all subdirectories.  
+   - Perform a recursive walk starting at `repo_directory` and consider every file encountered.
 2. Perform a **case-insensitive** filename scan for these patterns (in priority order):
    1. `README.md`
    2. `README.txt`
    3. `README.rst`
    4. `README` (no extension)
 3. If multiple matches exist, select the highest priority one.  
-4. If no match found, record `readme_filename = null` and skip Step 3 content read.  
-   Status will be handled in Step 5.
+4. If no match found, record `readme_filename = null` and jumnp to step 4.
 
 ✅ **Checkpoint:** Candidate README file resolved or explicitly noted as missing.
 
@@ -67,12 +68,11 @@ This task locates and reads the repository’s main README file (if present) fro
 ### Step 4 — Update Checklist File (MANDATORY)
 1. Open `{{checklist_path}}` for inline edit.
 2. In the checklist:
-   - Mark `[x]` for `@task-search-readme` **only if** `readme_content` was successfully loaded.  
-     Leave `[ ]` if failed.
+   - Mark `[x]` for `@task-search-readme` 
 3. Under section `## Repo Variables Available`, ensure these lines exist exactly once:
    ```
-   - {{readme_content}} → output/{{repo_name}}_task2_search-readme.json (field=readme_content)
-   - {{readme_filename}} → <actual filename or empty if none>
+   - {{readme_content}} → output/{{repo_name}}task_search-readme.json (field=readme_content)
+   - {{readme_filename}} → <actual filename or `None` if none>
    ```
 4. Keep arrow (`→`) format exact.  
    - One arrow per line, single space before and after.
@@ -85,7 +85,7 @@ This task locates and reads the repository’s main README file (if present) fro
 
 ### Step 5 — Structured Output JSON (MANDATORY)
 Create file:  
-`output/{{repo_name}}_task2_search-readme.json`
+`output/{{repo_name}}task_search-readme.json`
 
 The JSON must always include **all fields**, even on failure:
 
@@ -111,7 +111,7 @@ Re-open and re-parse `{{checklist_path}}` to ensure on-disk consistency. Perform
    - Locate the line containing `@task-search-readme`.
    - If `status=SUCCESS` it MUST be `[x]`; if `status=FAIL` it MUST be `[ ]`.
 2. Required variable lines (exactly once each) under `## Repo Variables Available`:
-   - `- {{readme_content}} → output/{{repo_name}}_task2_search-readme.json (field=readme_content)`
+   - `- {{readme_content}} → output/{{repo_name}}task_search-readme.json (field=readme_content)`
    - `- {{readme_filename}} → <actual filename or empty if none>`
 3. Semantic validation by status:
    - SUCCESS + README found: `readme_filename` non-empty AND JSON file exists AND JSON.readme_content length > 0.
@@ -122,7 +122,7 @@ Re-open and re-parse `{{checklist_path}}` to ensure on-disk consistency. Perform
    - No duplicate occurrences of the variable lines.
    - No trailing spaces after the value.
 5. Consistency with JSON file:
-   - Open `output/{{repo_name}}_task2_search-readme.json` and confirm fields `readme_content` and `readme_filename` match the checklist values.
+   - Open `output/{{repo_name}}task_search-readme.json` and confirm fields `readme_content` and `readme_filename` match the checklist values.
 6. Failure handling:
    - If ANY check fails, log `WARNING: checklist verification failed - restarting from Step 1` then re-run Steps 1–5 completely and attempt Step 6 again (single automatic retry).
 7. Finalization:
@@ -136,14 +136,11 @@ Re-open and re-parse `{{checklist_path}}` to ensure on-disk consistency. Perform
 ## Implementation Notes
 1. **Strict sequential execution:** complete one step fully before next.  
 2. **Idempotent behaviour:** running again should not duplicate variables or add new sections.  
-3. **Search scope:** root directory only, non-recursive.  
+3. **Search scope:** entire repo tree, **recursive** starting from `repo_directory`.  
 4. **Encoding tolerance:** use UTF-8 with `ignore` for invalid bytes.  
 5. **Prioritisation:** `.md` > `.txt` > `.rst` > none.  
 6. **Output integrity:** always emit JSON, even when status = FAIL.  
 7. **Script Location:** Save generated script in  
-   `temp-script/step{N}_repo{M}_task2_search-readme.py`
+   `temp-script`
 
 ---
-
-## End of Task
-Mark task complete only when Step 5 finishes successfully.

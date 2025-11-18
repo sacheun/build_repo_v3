@@ -4,7 +4,6 @@ temperature: 0.0
 max_output_tokens: 4096
 strict_mode: true
 follow_all_steps: true
-output_format: markdown
 ---
 
 ## Execution Directive ✅
@@ -123,6 +122,4 @@ After completing a task (repo‑level or solution‑level), you **must update** 
 - After each write, **recalculate a checksum** and re‑read the checklist to verify integrity.
 - Missing checkpoints must trigger resume from the last confirmed step.
 - Re‑run detection is supported via persisted `[CHECKPOINT]` markers.
-- This combined prompt **reuses the reliability model** of both `@execute-repo-task` and `@execute-solution-task`, but generalises them to any single checklist file.
 
-✅ This `@execute-checklist-task` prompt can be used wherever you previously used `@execute-repo-task` or `@execute-solution-task` by simply pointing `checklist_path` at the desired checklist markdown file.

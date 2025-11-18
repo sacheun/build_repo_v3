@@ -27,14 +27,12 @@ If inputs are empty → status=SKIPPED → continue to output with SKIPPED statu
 2. Extract required variables:
    - `repo_name`, `repo_directory`, `commands_extracted`.
 3. Validate all are present and non-empty.
-4. If missing or invalid → `status=FAIL` and proceed to Step 5 (output only).
+4. If missing or invalid → `status=FAIL` and proceed to Step 4 directly.
 5. Parse `commands_extracted`:
-   - If NONE, SKIPPED, FAIL, or empty → `status=SKIPPED`.
+   - If NONE, SKIPPED, FAIL, or empty → `status=SKIPPED` and proceed to Step 4 directly.
    - Else split by comma into `raw_commands` array.
 6. Confirm directory existence using tool call.
 7. Record verification log (OK/FAIL) internally before proceeding.
-
----
 
 ## Step 2 – Safety Classification (MANDATORY)
 *Run only if Step 1 != SKIPPED or FAIL.*  
@@ -43,9 +41,8 @@ If uncertain → UNSAFE.
 Record classification result per command before continuing.  
 At end, verify: `safe_count + unsafe_count == total_commands_scanned`.
 
-If mismatch → retry classification once, else mark `status=FAIL`.
+If mismatch → retry classification once, else mark `status=FAIL` and proceed to Step 4 directly.
 
----
 
 ## Step 3 – Execution of SAFE Commands (MANDATORY)
 1. For each SAFE command:
@@ -57,21 +54,19 @@ If mismatch → retry classification once, else mark `status=FAIL`.
 3. After each command, append structured record to `executed_commands`.
 4. Verify counts match SAFE commands before proceeding.
 
----
 
 ## Step 4 – Checklist Update (MANDATORY)
 1. Open `tasks/{{repo_name}}_repo_checklist.md`.
 2. Update only task lines for `@task-execute-readme` and the executed/skipped fields.
-3. Set `- {{executed_commands}} →` to the pipe-delimited list of executed safe commands (or `None` if none executed).
+3. Set `{{executed_commands}}` to the pipe-delimited list of executed safe commands (or `None` if none executed).
 4. Ensure only **one** `→` per line.
-5. Confirm `[x]` set correctly (SUCCESS or SKIPPED only).
+5. Confirm the task line for `@task-execute-readme` is marked `[x]` **regardless of** `status` (always treat this task as completed once this prompt finishes, whether SUCCESS, SKIPPED, or FAIL).
 6. Validate summary counts match Step 3 output before saving.
 7. If validation fails, retry update once.
 
----
 
 ## Step 5 – Structured Output (MANDATORY)
-Write structured JSON at `./output/{{repo_name}}_task4_execute-readme.json` with:
+Write structured JSON at `./output/{{repo_name}}_task_execute-readme.json` with:
 - repo_directory
 - repo_name
 - total_commands_scanned
@@ -84,20 +79,19 @@ Write structured JSON at `./output/{{repo_name}}_task4_execute-readme.json` with
 
 Validate JSON field presence before writing file.
 
----
 
 ## Step 6 – Post-Run Verification And Retry Guard (MANDATORY)
 Re-open and re-parse `tasks/{{repo_name}}_repo_checklist.md` from disk (no cached content). Perform ALL checks below:
 
 1. Task line correctness:
    - Locate the line containing `@task-execute-readme`.
-   - If `status=SUCCESS` or `status=SKIPPED` it MUST be `[x]`; if `status=FAIL` it MUST remain `[ ]`.
+   - It MUST be `[x]` for all final statuses (`SUCCESS`, `SKIPPED`, or `FAIL`).
 2. Required variable lines (exactly once each) under `## Repo Variables Available`:
    - `- {{executed_commands}} → <concise pipe-delimited list OR empty>`
    - `- {{skipped_commands}} → <concise pipe-delimited list OR empty>`
    (Single arrow `→`, one space before and after, no trailing spaces, no duplication.)
 3. JSON file integrity:
-   - Open `output/{{repo_name}}_task4_execute-readme.json`; verify presence of `executed_commands`, `skipped_commands`, `safe_commands_count`, `unsafe_commands_count`, `total_commands_scanned`.
+   - Open `output/{{repo_name}}_task_execute-readme.json`; verify presence of `executed_commands`, `skipped_commands`, `safe_commands_count`, `unsafe_commands_count`, `total_commands_scanned`.
 4. Semantic alignment by status:
    - SUCCESS: `safe_commands_count == len(executed_commands)` AND all executed were classified SAFE.
    - SKIPPED: `safe_commands_count == 0` AND `executed_commands` empty; `unsafe_commands_count` may be >=0.

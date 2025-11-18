@@ -21,7 +21,7 @@ It is a **deterministic, scriptable operation** that must follow each step in ex
 
 ---
 
-### Step 1 (MANDATORY — must complete before Step 2)
+### Step 1 (MANDATORY)
 **Checklist Load, Variable Extraction, Existing Solutions Parse & Validation**
 
 1. Open `{{checklist_path}}`.
@@ -36,9 +36,7 @@ It is a **deterministic, scriptable operation** that must follow each step in ex
 
 ✅ **At end of Step 1:** confirm that required variables are loaded, any preexisting solution names parsed, and validation result (`SUCCESS` or `FAIL`) is recorded.
 
----
-
-### Step 2 (MANDATORY — only if Step 1 succeeded)
+### Step 2 (MANDATORY)
 **Recursive Solution Discovery**
 
 1. Recursively search within `{{repo_directory}}` for all `.sln` files.
@@ -47,8 +45,6 @@ It is a **deterministic, scriptable operation** that must follow each step in ex
 3. If directory invalid or access denied, mark discovery `FAIL`.
 
 ✅ **At end of Step 2:** confirm number of `.sln` files found (even if zero) and whether search completed successfully.
-
----
 
 ### Step 3 (MANDATORY)
 **Path Collection**
@@ -59,40 +55,37 @@ It is a **deterministic, scriptable operation** that must follow each step in ex
 
 ✅ **At end of Step 3:** confirm that array structure is valid JSON array.
 
----
 
 ### Step 4 (MANDATORY)
 **Checklist Update & Variable Refresh (INLINE ONLY)**
 
 1. Open `{{checklist_path}}` again.
 2. Locate the `@task-find-solutions` task line and:
-   - Mark `[x]` only if `status=SUCCESS`; leave `[ ]` if `FAIL`.
+   - Always mark it as `[x]` once this task has finished, **regardless of** `status` (treat the task line as completed whether SUCCESS or FAIL).
 3. Under `## Repo Variables Available`, ensure:
    - A line exists beginning with `- {{solutions_json}}`
      - If missing, append it to the end of the section.
 4. Replace only the value after `→` on `{{solutions_json}}`:
-   - On SUCCESS: `output/{{repo_name}}_task5_find-solutions.json`
-   - On FAIL: `FAIL`
+   - On SUCCESS: `output/{{repo_name}}_task_find-solutions.json`
+   - On FAIL: Set explicitly to `None` to indicate no valid solutions JSON (do **not** point at a JSON file path).
 5. Maintain exact format:  
    ```
-   - {{solutions_json}} → output/{{repo_name}}_task5_find-solutions.json
+   - {{solutions_json}} → output/{{repo_name}}_task_find-solutions.json
    ```
-   or  
+   or (for failure) a line where the value after `→` is the literal `None`, e.g.:  
    ```
-   - {{solutions_json}} → FAIL
+   - {{solutions_json}} → None
    ```
 6. Never duplicate variable lines or change unrelated content.
 
 ✅ **At end of Step 4:** confirm that checklist file was updated in place and saved successfully.
-
----
 
 ### Step 5 (MANDATORY)
 **Structured Output JSON**
 
 1. Always generate (or overwrite) JSON at:
    ```
-   output/{{repo_name}}_task5_find-solutions.json
+   output/{{repo_name}}_task_find-solutions.json
    ```
 2. Include the following fields in every run (even on FAIL):
    - `local_path`
@@ -105,19 +98,15 @@ It is a **deterministic, scriptable operation** that must follow each step in ex
 
 ✅ **At end of Step 5:** confirm JSON file creation, field presence, and that timestamp uses UTC seconds.
 
----
-
 ### Step 6 (MANDATORY)
 **Final Verification & Completion (With Single Automatic Retry)**
 
-1. Ensure Steps 1–5 executed sequentially and that both the checklist and `output/{{repo_name}}_task5_find-solutions.json` files currently exist on disk.
+1. Ensure Steps 1–5 executed sequentially and that both the checklist and `output/{{repo_name}}_task_find-solutions.json` files currently exist on disk.
 2. Print or log the final `status` result (SUCCESS or FAIL) before verification begins.
 3. Re-open `{{checklist_path}}` from disk (fresh read; do not reuse cached content) and perform ALL checks below:
-   - **Task line correctness**: the line containing `@task-find-solutions` must be `[x]` when `status=SUCCESS`, and must remain `[ ]` when `status=FAIL`.
-   - **`solutions_json` variable**: exactly one line starts with `- {{solutions_json}} →`. When `status=SUCCESS`, its value is `output/{{repo_name}}_task5_find-solutions.json`; when `status=FAIL`, its value is `FAIL`. Ensure proper spacing around the arrow and no duplicates.
-   - **JSON validation (SUCCESS cases)**: `output/{{repo_name}}_task5_find-solutions.json` exists, parses as JSON, and includes the required fields (`local_path`, `repo_name`, `solutions`, `solution_count`, `status`, `timestamp`). Confirm `solution_count == len(solutions)` and each entry in `solutions` is an absolute `.sln` path.
-   - **JSON validation (FAIL cases)**: JSON file still exists with `solutions=[]`, `solution_count=0`, and `status=FAIL`. Confirm the checklist variable value is `FAIL`.
-   - **Consistency**: `repo_name` inside the JSON matches the checklist value, and no duplicate `{{solutions_json}}` lines are present.
+   - **Task line correctness**: the line containing `@task-find-solutions` must be `[x]` **for both** `status=SUCCESS` and `status=FAIL` (the task line is always considered completed once this prompt finishes).
+   - **`solutions_json` variable**: exactly one line starts with `- {{solutions_json}} →`. When `status=SUCCESS`, its value is `output/{{repo_name}}_task_find-solutions.json`; when `status=FAIL`, its value must be the literal `None`. Ensure proper spacing around the arrow and no duplicates.
+   - **Checklist consistency**: no duplicate `{{solutions_json}}` lines are present and the variable line value matches the expected value for the current `status`.
 4. If ANY verification check fails (missing line, mismatched bracket state, invalid JSON, count mismatch, etc.):
    - Log `WARNING: checklist verification failed - restarting from Step 1`.
    - Re-run Steps 1–5 completely once, then repeat Step 6.
@@ -145,7 +134,7 @@ It is a **deterministic, scriptable operation** that must follow each step in ex
 3. Treat empty results as SUCCESS.
 4. Each step requires explicit confirmation before moving on.
 5. Save generated script to:  
-   `temp-script/step{N}_repo{M}_task5_find-solutions.py`
+   `temp-script`
 6. Final verification (Step 6) is **mandatory** — never skip or ignore failed checklist updates.
 
 ---
