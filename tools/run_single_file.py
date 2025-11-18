@@ -60,7 +60,7 @@ def build_repo_pipelines(checklist_path: str) -> tuple[List[tuple], List[tuple]]
     ]
 
     repo_pipeline_all = [
-        ('execute-repo-task', {'repo_checklist': checklist_path}),
+        ('execute-checklist-task', {'checklist_path': checklist_path}),
     ]
     return repo_pipeline_step, repo_pipeline_all
 
@@ -74,7 +74,7 @@ def build_solution_pipelines(checklist_path: str) -> tuple[List[tuple], List[tup
     ]
 
     solution_pipeline_all = [
-        ('execute-solution-task', {'solution_checklist': checklist_path}),
+        ('execute-checklist-task', {'checklist_path': checklist_path}),
     ]
     return solution_pipeline_step, solution_pipeline_all
 

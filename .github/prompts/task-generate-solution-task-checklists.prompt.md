@@ -81,6 +81,7 @@ Each step must output a verification result before proceeding.
    - [ ] (7) [MANDATORY] [NON-SCRIPTABLE] Create new knowledge base for error → @task-create-knowledge-base (see details in #file: .github/prompts/task-create-knowledge-base.prompt.md)
    - [ ] (8) [MANDATORY] [NON-SCRIPTABLE] Apply fix from knowledge base → @task-apply-knowledge-base-fix (see details in #file: .github/prompts/task-apply-knowledge-base-fix.prompt.md)
    - [ ] (9) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution retry (see details in #file: .github/prompts/task-build-solution.prompt.md)
+   - [ ] (10) [MANDATORY] [SCRIPTABLE] Run solution → @task-run-solution (see details in #file: .github/prompts/task-run-solution.prompt.md)
 
    ### Solution Variables
    - solution_name: {solution_name}
@@ -94,6 +95,7 @@ Each step must output a verification result before proceeding.
    - missing_artifacts: (blank)
    - verified_artifacts: (blank)
    - dotnetbuild_status: (blank)
+   - run_status: (blank)
 
    ** Knowledge base **
    - kb_search_status: (blank)
@@ -107,7 +109,7 @@ Each step must output a verification result before proceeding.
    - retry_build_status_attempt_1: (blank)
 
    ** Test **
-   - test_run_status: (blank)
+   - test_status: (blank)
    - total_tests_count: 0
    - passed_tests_count: 0
    - failed_tests_count: 0
@@ -116,6 +118,12 @@ Each step must output a verification result before proceeding.
    1. Start at the first unchecked task in order.
    2. Update build status/timestamp variables after each build.
    3. Record any KB article references inline below tasks.
+
+   ## Execution Notes
+   - [SCRIPTABLE] tasks: restore-solution, build-solution, validate-build-artifacts, dotnet-build-solution, dotnet-test-solution
+   - [NON-SCRIPTABLE] tasks: search-knowledge-base, create-knowledge-base, apply-knowledge-base-fix
+   - Mark completed tasks with [x]
+   - Each referenced `@task-*` file is an independent prompt that must be executed completely before 
    ```
 3. **Checkpoint:** Log verification status and continue to **Step 4**.
 

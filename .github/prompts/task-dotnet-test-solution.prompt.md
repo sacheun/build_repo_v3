@@ -22,7 +22,7 @@ Executes `dotnet test` against a Visual Studio solution referenced by the soluti
 2. Confirm file exists and decode as UTF-8 (use `errors='ignore'`). Missing file → `status=FAIL` (`error="checklist_missing"`).
 3. In section `### Solution Variables`, extract:
    - `solution_path`
-   - Existing values (if any) for `test_run_status`, `total_tests_count`, `passed_tests_count`, `failed_tests_count`.
+   - Existing values (if any) for `test_status`, `total_tests_count`, `passed_tests_count`, `failed_tests_count`.
 4. Validate `solution_path` is non-empty, exists on disk, and ends with `.sln`. Failure → `status=FAIL` (`error="solution_path_invalid"`).
 5. Derive `solution_name` (basename w/out extension) and `solution_dir` (directory of the solution).
 
@@ -46,7 +46,7 @@ Executes `dotnet test` against a Visual Studio solution referenced by the soluti
    - `total = max(passed + failed + skipped, 0)`
    - `passed = failed = skipped = 0` and add verification error.
 3. Record `skipped_tests_count` for completeness, but only `total`, `passed`, `failed` required for checklist update.
-4. Compute `test_run_status`:
+4. Compute `test_status`:
    - `SUCCEEDED` when `test_success` and `failed == 0`
    - `FAILED` when `failed > 0` or exit code non-zero
    - `SKIPPED` if total == 0 and exit code == 0 (no tests discovered)
@@ -61,7 +61,7 @@ Executes `dotnet test` against a Visual Studio solution referenced by the soluti
      "solution_name": "...",
      "solution_path": "...",
      "test_exit_code": <int>,
-     "test_run_status": "SUCCEEDED|FAILED|SKIPPED",
+     "test_status": "SUCCEEDED|FAILED|SKIPPED",
      "total_tests_count": <int>,
      "passed_tests_count": <int>,
      "failed_tests_count": <int>,
@@ -80,7 +80,7 @@ Executes `dotnet test` against a Visual Studio solution referenced by the soluti
 1. Reload checklist content from disk (fresh read).
 2. Mark the first unchecked task line containing `@task-dotnet-test-solution` as complete (`- [ ]` → `- [x]`). If no such line exists, log a verification error but continue. Perform this checkbox update first and keep the modified line in memory before changing any solution variables (mirrors ordering pattern used in Step 9 of `task-verify-build-artifacts`).
 3. After confirming the task line update, locate `### Solution Variables` and update (or insert if missing) exactly one line for each:
-   - `- test_run_status → SUCCEEDED|FAILED|SKIPPED`
+   - `- test_status → SUCCEEDED|FAILED|SKIPPED`
    - `- total_tests_count → <int>`
    - `- passed_tests_count → <int>`
    - `- failed_tests_count → <int>`

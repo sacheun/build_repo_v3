@@ -187,10 +187,7 @@ Follow these rules *exactly* when resuming execution:
 
 ## Implementation Notes
 1. THIS IS SCRIPTABLE: produce a Python script implementing these exact steps.
-2. Deterministic behavior and idempotency are required.
-3. Use UTF-8, Unix line endings, single final newline.
-4. Timestamp format: ISO 8601 UTC truncated to seconds (e.g., 2025-11-03T00:00:00Z).
-5. Error Handling: collect all verification errors; never raise unhandled exceptions out of the run — always produce Step 7 JSON.
-6. Append Mode: compare normalized repo names case-insensitively.
-7. Logging: print a short human-readable log message at each checkpoint.
-8. **Script Location:** Save generated script to `temp-script`.
+2. **Script Location:** Save generated script to `temp-script`.
+3. Deterministic behavior and idempotency are required.
+4. Error Handling: collect all verification errors; never raise unhandled exceptions out of the run — always produce Step 7 JSON.
+5. Logging: print a short human-readable log message at each checkpoint.
