@@ -9,7 +9,7 @@ temperature: 0.1
 ## Description
 This task processes commands extracted by task-scan-readme, classifies them for safety, and executes safe ones. Reliability and sequence integrity are **critical**.
 
-## Reliability Framework (MANDATORY)
+## Execution Policy
 **STRICT EXECUTION GUARANTEE:**  
 - Each step MUST complete before the next begins.  
 - After every step, the AI must **explicitly confirm completion internally** before proceeding.  
@@ -21,8 +21,9 @@ If any step fails validation → status=FAIL → jump directly to Structured Out
 If inputs are empty → status=SKIPPED → continue to output with SKIPPED status.
 
 ---
+## Instructions (Follow these steps exactly in sequence)
 
-## Step 1 – Checklist Load & Verification (MANDATORY)
+### Step 1 – Checklist Load & Verification (MANDATORY)
 1. Load checklist from `{{checklist_path}}`.
 2. Extract required variables:
    - `repo_name`, `repo_directory`, `commands_extracted`.
@@ -34,7 +35,7 @@ If inputs are empty → status=SKIPPED → continue to output with SKIPPED statu
 6. Confirm directory existence using tool call.
 7. Record verification log (OK/FAIL) internally before proceeding.
 
-## Step 2 – Safety Classification (MANDATORY)
+### Step 2 – Safety Classification (MANDATORY)
 *Run only if Step 1 != SKIPPED or FAIL.*  
 For each command, classify as SAFE or UNSAFE using structural reasoning and the defined rules.  
 If uncertain → UNSAFE.  
@@ -44,7 +45,7 @@ At end, verify: `safe_count + unsafe_count == total_commands_scanned`.
 If mismatch → retry classification once, else mark `status=FAIL` and proceed to Step 4 directly.
 
 
-## Step 3 – Execution of SAFE Commands (MANDATORY)
+### Step 3 – Execution of SAFE Commands (MANDATORY)
 1. For each SAFE command:
    - Select appropriate shell.
    - Execute with `run_in_terminal` in `{{repo_directory}}`.
@@ -55,7 +56,7 @@ If mismatch → retry classification once, else mark `status=FAIL` and proceed t
 4. Verify counts match SAFE commands before proceeding.
 
 
-## Step 4 – Checklist Update (MANDATORY)
+### Step 4 – Checklist Update (MANDATORY)
 1. Open `tasks/{{repo_name}}_repo_checklist.md`.
 2. Update only task lines for `@task-execute-readme` and the executed/skipped fields.
 3. Set `{{executed_commands}}` to the pipe-delimited list of executed safe commands (or `None` if none executed).
@@ -65,7 +66,7 @@ If mismatch → retry classification once, else mark `status=FAIL` and proceed t
 7. If validation fails, retry update once.
 
 
-## Step 5 – Structured Output (MANDATORY)
+### Step 5 – Structured Output (MANDATORY)
 Write structured JSON at `./output/{{repo_name}}_task_execute-readme.json` with:
 - repo_directory
 - repo_name
@@ -80,7 +81,7 @@ Write structured JSON at `./output/{{repo_name}}_task_execute-readme.json` with:
 Validate JSON field presence before writing file.
 
 
-## Step 6 – Post-Run Verification And Retry Guard (MANDATORY)
+### Step 6 – Post-Run Verification And Retry Guard (MANDATORY)
 Re-open and re-parse `tasks/{{repo_name}}_repo_checklist.md` from disk (no cached content). Perform ALL checks below:
 
 1. Task line correctness:

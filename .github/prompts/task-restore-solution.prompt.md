@@ -10,9 +10,9 @@ Performs NuGet package restore for a Visual Studio solution file using MSBuild w
 
 ---
 
-## RELIABILITY FRAMEWORK (MANDATORY)
 
-**Execution Mode:**  
+## Execution Policy
+**STRICT MODE ENABLED**
 - All steps are **strictly sequential**.  
 - Each step must **explicitly complete and verify its success condition** before the next begins.  
 - If a step fails validation or produces incomplete data → retry once; if still invalid → `status=FAIL` → jump to Structured Output.
@@ -22,9 +22,12 @@ Performs NuGet package restore for a Visual Studio solution file using MSBuild w
 - Do not combine steps or assume prior results.  
 - Each major phase (validation, restore, retry, output, checklist update) must have **an explicit internal checkpoint** confirming that its completion criteria are met.
 
+**This task is fully SCRIPTABLE.**
 ---
 
-## Step 1 — Input & Checklist Validation (MANDATORY)
+## Instructions (Follow Exactly — Each Step Emits a Checkpoint)
+
+### Step 1 — Input & Checklist Validation (MANDATORY)
 
 1. Expect input: `solution_checklist` → path to `tasks/<repo_name>_<solution_name>_solution_checklist.md`.
 2. Confirm file exists; if not → `status=FAIL` → emit JSON `{success:false, error:"checklist_missing"}` and **terminate**.
@@ -35,26 +38,19 @@ Performs NuGet package restore for a Visual Studio solution file using MSBuild w
 7. Derive `solution_name` from the basename.
 9. Proceed **only if Step 1 checkpoint is printed**.
 
----
 
-## Step 2 — Primary Restore Attempt (MANDATORY)
+### Step 2 — Primary Restore Attempt (MANDATORY)
 
 1. Command:
    ```
    msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo
    ```
 2. Run synchronously and capture stdout, stderr, and exit code.
-3. If msbuild not found → fallback:
-   ```
-   dotnet msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo
-   ```
-4. Record exit_code, restore_stdout, restore_stderr.
-5. If command or fallback both fail to run → `status=FAIL` (`error_code="restore_failed_init"`).
-6. Proceed only if **exit_code** or **stderr/stdout** are captured successfully.
+3. Record exit_code, restore_stdout, restore_stderr.
+4. If command or fallback both fail to run → `status=FAIL` (`error_code="restore_failed_init"`).
+5. Proceed only if **exit_code** or **stderr/stdout** are captured successfully.
 
----
-
-## Step 3 — NuGet Fallback (MANDATORY IF Step 2 FAILED)
+### Step 3 — NuGet Fallback (MANDATORY IF Step 2 FAILED)
 
 Run this step **only if Step 2’s final exit_code != 0**.
 
@@ -62,31 +58,23 @@ Run this step **only if Step 2’s final exit_code != 0**.
    ```
    nuget restore "{{solution_path}}"
    ```
-2. If success → re-run MSBuild restore once:
-   ```
-   msbuild "{{solution_path}}" --restore --property:Configuration=Release --verbosity:quiet -noLogo
-   ```
-3. Aggregate outputs with section headers (MSBUILD_PRIMARY, NUGET_FALLBACK, MSBUILD_RETRY).
-4. Ensure captured outputs are merged before proceeding.
+2. Aggregate outputs with section headers (MSBUILD_PRIMARY, NUGET_FALLBACK, MSBUILD_RETRY).
+3. Ensure captured outputs are merged before proceeding.
 
----
 
-## Step 4 — Success Determination & Error Parsing (MANDATORY)
+### Step 4 — Success Determination & Error Parsing (MANDATORY)
 
 1. `success = (final_exit_code == 0)`.
 2. Combine stdout+stderr → search for lines containing `warning` or `error` (case-insensitive).
 3. Extract up to 50 warning lines and 50 error lines.
 
----
 
-## Step 5 — Output Truncation (MANDATORY)
+### Step 5 — Output Truncation (MANDATORY)
 
 1. Truncate both stdout and stderr to last 8000 characters.
 2. Confirm truncation succeeded (`len<=8000` each).
 
----
-
-## Step 6 — Structured Output JSON (MANDATORY)
+### Step 6 — Structured Output JSON (MANDATORY)
 
 1. Compose JSON:
    ```json
@@ -102,9 +90,7 @@ Run this step **only if Step 2’s final exit_code != 0**.
 2. Verify JSON field presence and validity.
 3. Proceed only after JSON validated.
 
----
-
-## Step 7 — Checklist Update (MANDATORY)
+### Step 7 — Checklist Update (MANDATORY)
 
 1. Open `{{solution_checklist}}`.
 2. Mark `@task-restore-solution` as complete (`- [x]`).
@@ -113,17 +99,14 @@ Run this step **only if Step 2’s final exit_code != 0**.
 4. Preserve all other lines unchanged.
 5. Write atomically (replace file only after full validation).
 
----
 
-## Step 8 — Final Integrity Verification (MANDATORY)
+### Step 8 — Final Integrity Verification (MANDATORY)
 
 1. Validate that all checkpoints from Steps 1–7 were printed.
 2. Validate that the final JSON exists and contains `success` and `exit_code`.
 3. Re-open `{{solution_checklist}}` from disk and confirm `restore_status` reflects the outcome (`SUCCEEDED` when success=true, otherwise `FAILED`).
 4. If the variable is missing or mismatched → re-run Step 7 once; if still incorrect set `status=FAIL`.
 5. If any checkpoint missing → re-run last incomplete step once.
-
----
 
 ## Implementation Notes
 

@@ -22,8 +22,9 @@ This task clones or refreshes a repository from `repo_url` into the `clone_path`
 **This task is fully SCRIPTABLE.**
 
 ---
+## Instructions (Follow these steps exactly in sequence)
 
-## Step 1 — Load Variables (MANDATORY)
+### Step 1 — Load Variables (MANDATORY)
 1. Verify that `{{checklist_path}}` exists.  
    - If missing, immediately set `status=FAIL`, emit JSON output (jump directly to Step 5).
 2. Open the checklist file and locate section header:  
@@ -39,7 +40,7 @@ This task clones or refreshes a repository from `repo_url` into the `clone_path`
 
 ✅ **Checkpoint:** Both `repo_url` and `repo_name` successfully loaded.
 
-## Step 2 — Verify Target Directory (MANDATORY)
+### Step 2 — Verify Target Directory (MANDATORY)
 1. Compute `repo_directory = {{clone_path}}/{{repo_name}}`
 2. Check if directory exists.
    - If missing → mark `operation = CLONE`
@@ -48,7 +49,7 @@ This task clones or refreshes a repository from `repo_url` into the `clone_path`
 
 ✅ **Checkpoint:** Directory status and `operation` flag determined.
 
-## Step 3 — Perform Git Operation (MANDATORY)
+### Step 3 — Perform Git Operation (MANDATORY)
 If `operation == CLONE`:
 1. Run:
    ```
@@ -72,7 +73,7 @@ If `operation == REFRESH`:
 ✅ **Checkpoint:** Git operation finished with status recorded.
 
 
-## Step 4 — Update Checklist File (MANDATORY)
+### Step 4 — Update Checklist File (MANDATORY)
 1. Open `{{checklist_path}}` in-place.
 2. Locate the line for `@task-clone-repo` and mark it as `[x]` **regardless of** `clone_status` (always treat this task line as completed once this prompt finishes, whether SUCCESS or FAIL).
 3. Under `## Repo Variables Available`, ensure lines exist (exactly one per variable):
@@ -91,7 +92,7 @@ If `operation == REFRESH`:
 ✅ **Checkpoint:** Checklist update attempted.
 
 
-## Step 5 — Emit Structured JSON Output (MANDATORY)
+### Step 5 — Emit Structured JSON Output (MANDATORY)
 Create file:  
 `output/{{repo_name}}_task_clone-repo.json`
 
@@ -113,7 +114,7 @@ Include **all fields**, even if failure occurred:
 ✅ **Checkpoint:** Output file written (pending final verification).
 
 
-## Step 6 — Final Checklist Verification & Retry Guard (MANDATORY)
+### Step 6 — Final Checklist Verification & Retry Guard (MANDATORY)
 1. Reopen `{{checklist_path}}` from disk.
 2. Confirm the checklist line for `@task-clone-repo` reflects the final `status` (`[x].
 3. Under `## Repo Variables Available`, ensure the `{{clone_path}}` and `{{repo_directory}}` entries match the resolved values from Steps 1-2 and appear exactly once.

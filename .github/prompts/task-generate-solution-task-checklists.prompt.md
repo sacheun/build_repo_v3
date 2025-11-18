@@ -79,7 +79,7 @@ You are executing a **multi-step scripted task**.
    - [ ] (6) [MANDATORY] [NON-SCRIPTABLE] Search knowledge base for error fix → @task-search-knowledge-base (see details in #file: .github/prompts/task-search-knowledge-base.prompt.md)
    - [ ] (7) [MANDATORY] [NON-SCRIPTABLE] Create new knowledge base for error → @task-create-knowledge-base (see details in #file: .github/prompts/task-create-knowledge-base.prompt.md)
    - [ ] (8) [MANDATORY] [NON-SCRIPTABLE] Apply fix from knowledge base → @task-apply-knowledge-base-fix (see details in #file: .github/prompts/task-apply-knowledge-base-fix.prompt.md)
-   - [ ] (9) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution retry (see details in #file: .github/prompts/task-build-solution.prompt.md)
+   - [ ] (9) [MANDATORY] [SCRIPTABLE] Build solution (Clean + Build) → @task-build-solution-retry (see details in #file: .github/prompts/task-build-solution.prompt.md)
    - [ ] (10) [MANDATORY] [SCRIPTABLE] Run solution → @task-run-solution (see details in #file: .github/prompts/task-run-solution.prompt.md)
 
    ### Solution Variables

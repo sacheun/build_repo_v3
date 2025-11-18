@@ -18,8 +18,9 @@ If verification has not yet succeeded, this task will (re)invoke the build-artif
 - **Audit**: Before finishing ensure all checkpoints were printed; otherwise set `status=FAIL_MISSING_STEP`.
 
 ---
+## Instructions (Follow Exactly — Each Step Emits a Checkpoint)
 
-## Step 1 — Checklist & Verification Status Validation (MANDATORY)
+### Step 1 — Checklist & Verification Status Validation (MANDATORY)
 1. Expect `solution_checklist` pointing to `tasks/<repo>_<solution>_solution_checklist.md`.
 2. Confirm file exists and decode as UTF-8 (use `errors='ignore'`). Missing file → `status=FAIL` (`error="checklist_missing"`).
 3. In section `### Solution Variables`, extract at minimum:
@@ -38,7 +39,7 @@ If verification has not yet succeeded, this task will (re)invoke the build-artif
 
 ---
 
-## Step 2 — Ensure Verified Artifacts Present (MANDATORY)
+### Step 2 — Ensure Verified Artifacts Present (MANDATORY)
 1. With the refreshed checklist content, check `verified_artifacts` in `### Solution Variables`.
 2. If `verified_artifacts` is blank or missing:
    - Re-run the artifact verification task (`@task-validate-build-artifacts`) once more.
@@ -52,7 +53,7 @@ If verification has not yet succeeded, this task will (re)invoke the build-artif
 
 ---
 
-## Step 3 — Select and Run Executable (MANDATORY)
+### Step 3 — Select and Run Executable (MANDATORY)
 1. Reload `solution_checklist` and read `executable_artifacts`.
 2. Parse `executable_artifacts` into a list of absolute paths (comma- or newline-separated).
 3. If at least one executable path exists:
@@ -67,7 +68,7 @@ If verification has not yet succeeded, this task will (re)invoke the build-artif
 
 ---
 
-## Step 4 — Fallback: dotnet sln list & dotnet run (MANDATORY)
+### Step 4 — Fallback: dotnet sln list & dotnet run (MANDATORY)
 1. If Step 3 did not successfully run an executable (e.g., no valid `.exe` found), fall back to running the solution via `dotnet`.
 2. Derive:
    - `solution_name` = basename of `solution_path` without extension.
@@ -93,7 +94,7 @@ If verification has not yet succeeded, this task will (re)invoke the build-artif
 
 ---
 
-## Step 5 — Structured Output & Checklist Update (MANDATORY)
+### Step 5 — Structured Output & Checklist Update (MANDATORY)
 1. Compose JSON payload including at least:
    - `solution_checklist`
    - `solution_path`

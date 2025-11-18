@@ -17,9 +17,9 @@ It is a **deterministic, scriptable operation** that must follow each step in ex
 - Confirm the output or state change at the end of each step before moving to the next.
 **THIS TASK IS SCRIPTABLE**
 
-## Instructions (Follow these steps exactly in sequence)
+-- 
 
----
+## Instructions (Follow these steps exactly in sequence)
 
 ### Step 1 (MANDATORY)
 **Checklist Load, Variable Extraction, Existing Solutions Parse & Validation**

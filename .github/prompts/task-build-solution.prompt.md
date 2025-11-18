@@ -8,23 +8,29 @@ Task name: task-build-solution
 ## Description
 Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release configuration, extracts diagnostic tokens, classifies them, and returns structured JSON summarizing build success. This version adds strict, checkpoint-driven execution to prevent skipped steps.
 
-## Reliability Framework (MANDATORY)
+## Execution Policy
+**STRICT MODE ENABLED**
 - **Sequential enforcement**: Steps 1→11 must run in order. Do not skip, merge, or reorder steps.
 - **Checkpointing**: After each step, print a checkpoint line: `✅ Step N complete` or on failure `❌ Step N failed — <reason>`.
 - **Retry-once**: If a step's required validation fails, retry the step once; on second failure set `status=FAIL` and go to final structured output.
 - **Atomic writes**: All file writes must be atomic — build to temp file then move/replace.
 - **Audit**: Final integrity check confirms all checkpoints present; otherwise set `status=FAIL_MISSING_STEP`.
 
+**This task is fully SCRIPTABLE.**
+
 ---
 
-## Step 1 — Input Validation (MANDATORY)
+## Instructions (Follow Exactly — Each Step Emits a Checkpoint)
+
+
+### Step 1 — Input Validation (MANDATORY)
 1. Verify `{{solution_path}}` parameter provided, is a string, and file exists. If missing → set `status=FAIL` (error: "CONTRACT") and emit JSON as described in Step 8.
 2. Must end with `.sln`; otherwise `status=FAIL` (error: "CONTRACT").
 3. Derive `solution_name` = basename without extension.
 
 ---
 
-## Step 2 — Pre-Build Artifact: Snapshot build_count (MANDATORY)
+### Step 2 — Pre-Build Artifact: Snapshot build_count (MANDATORY)
 1. Open checklist: `{{solution_path}}`. If file missing, record warning but continue (task may still run).
 2. Parse `### Solution Variables` and read single authoritative `- build_count → <int>` line. If missing, assume 0 and insert a single `- build_count → 0` placeholder atomically (but mark that insertion in verification_errors).
 3. Cache `old_build_count` (integer) in memory for mapping logic and artifact naming (do not modify file here).
@@ -35,7 +41,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 
 ---
 
-## Step 3 — MsBuild Invocation (MANDATORY)
+### Step 3 — MsBuild Invocation (MANDATORY)
 1. Command (exact):
    ```
    msbuild "{{solution_path}}" --target:Clean,Build --property:Configuration=Release --maxcpucount --verbosity:quiet -noLogo
@@ -45,31 +51,31 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 
 ---
 
-## Step 4 — Success Determination (MANDATORY)
+### Step 4 — Success Determination (MANDATORY)
 1. `success = (exit_code == 0)` based on final build invocation (after attempted fallbacks).
 
 ---
 
-## Step 5 — Tail Truncation (MANDATORY)
+### Step 5 — Tail Truncation (MANDATORY)
 1. Truncate stdout and stderr tails to the **last 12,000 characters** each (if shorter, keep full content).
 2. Store as `stdout_tail`, `stderr_tail`.
 
 ---
 
-## Step 6 — Token Extraction (MANDATORY)
+### Step 6 — Token Extraction (MANDATORY)
 1. Combine full captured output (prefer using truncated tails for performance) and scan for unique tokens matching patterns: `CS\d{4}`, `NETSDK\d{4}`, `CA\d{4}`, `NU\d{4}`, `MSB\d{4}` (case-insensitive).
 2. Produce `tokens` = distinct list of matches.
 
 ---
 
-## Step 7 — Classification Heuristic (MANDATORY)
+### Step 7 — Classification Heuristic (MANDATORY)
 1. For each token, search combined output for a case-insensitive line containing `warning` near the token (same line or +/-2 lines). If found → categorize as `warning`, else `error`.
 2. Build two distinct arrays: `warnings[]` and `errors[]`; each element `{ code: <token>, message: "" }` (message reserved for future enrichment).
 3. Cap arrays to first 200 entries total (100 each preferred); record truncation in verification_errors if exceeded.
 
 ---
 
-## Step 8 — Pre-Commit Artifact JSON (MANDATORY)
+### Step 8 — Pre-Commit Artifact JSON (MANDATORY)
 1. Compose base JSON payload (regardless of success):
    - solution_path, solution_name, success, return_code, stdout_tail, stderr_tail, errors[], warnings[]
 2. Write JSON to stdout and also save to `output/{{solution_name}}_task-build-solution.json` atomically.
@@ -78,7 +84,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 
 ---
 
-## Step 9 — Checklist Marking & build_count Increment (MANDATORY)
+### Step 9 — Checklist Marking & build_count Increment (MANDATORY)
 1. Load checklist file and authoritative `- build_count → <old>` line (if missing, was inserted in Step 2).
 2. Determine `target_line_to_mark` using **old_build_count** mapping:
    - 0 → mark the primary `@task-build-solution` line
@@ -90,7 +96,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 
 ---
 
-## Step 10 — Repo Variable Refresh (MANDATORY)
+### Step 10 — Repo Variable Refresh (MANDATORY)
 1. Using cached `old_build_count` (NOT the newly written value), update exactly ONE status variable in `### Solution Variables` per mapping:
    - old_build_count==0 → set `build_status` to `SUCCEEDED` or `FAILED` based on `success`
    - old_build_count==1 → set `retry_build_status_attempt_1`
@@ -100,7 +106,7 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 
 ---
 
-## Step 11 — Verification & Final JSON (MANDATORY)
+### Step 11 — Verification & Final JSON (MANDATORY)
 1. Verify integrity:
    - Exactly one `- build_count →` line present and value == new_build_count.
    - Only one task line was flipped (if applicable).

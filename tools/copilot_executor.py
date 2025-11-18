@@ -166,8 +166,8 @@ class CopilotExecutor:
 
         full_prompt = "\n".join(prompt_parts)
         full_prompt = self._rewrite_prompt_references(full_prompt)
-        preview = full_prompt[:100]
-        print(f"[copilot-executor] prompt preview (100 chars): {preview}")
+        preview = full_prompt[:200]
+        print(f"[copilot-executor] prompt preview (200 chars): {preview}")
         
         # Build full command (ensure model flag)
         command = f'copilot --prompt "{full_prompt}"'
