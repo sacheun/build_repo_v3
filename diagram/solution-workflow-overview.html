@@ -83,7 +83,8 @@
             <div class="mermaid">
 graph TD
     Start([Start for solution<br/>checklist]) --> Task1[1. Restore NuGet<br/>packages]
-    Task1 --> Task2[2. Build solution<br/>Clean and build]
+    Task1 --> CheckRestoreStatus{restore_status set?}
+    CheckRestoreStatus -- Yes --> Task2[2. Build solution<br/>Clean and build]
     Task2 --> Task3[3. Validate build<br/>artifacts]
     Task3 --> Task4[4. dotnet build<br/>solution]
     Task4 --> Task5[5. dotnet test<br/>solution]
@@ -107,10 +108,6 @@ graph TD
 
         <div class="layout-right legend">
             <h2>Legend</h2>
-            <div class="legend-item">
-                <span class="legend-box mandatory"></span>
-                <span>Mandatory Tasks</span>
-            </div>
             <div class="legend-item">
                 <span class="legend-box scriptable"></span>
                 <span>Scriptable Tasks</span>

@@ -29,14 +29,15 @@ Performs NuGet package restore for a Visual Studio solution file using MSBuild w
 
 ### Step 1 — Input & Checklist Validation (MANDATORY)
 
-1. Expect input: `solution_checklist` → path to `tasks/<repo_name>_<solution_name>_solution_checklist.md`.
-2. Confirm file exists; if not → `status=FAIL` → emit JSON `{success:false, error:"checklist_missing"}` and **terminate**.
-3. Read UTF-8 content and locate section `### Solution Variables`.
-4. Extract `solution_path` value (text after `- solution_path →`).
-5. If missing or blank → `status=FAIL` (`error_code="variable_missing"`) → terminate.
-6. Validate file exists and ends with `.sln`; if not → `status=FAIL` (`error_code="sln_missing"`).
-7. Derive `solution_name` from the basename.
-9. Proceed **only if Step 1 checkpoint is printed**.
+1. Treat `solution_checklist` as the path to `tasks/<repo_name>_<solution_name>_solution_checklist.md`.
+2. If the file does not exist → set `status=FAIL`, emit `{"success": false, "error": "checklist_missing"}`, and jump to Step 7.
+3. Read the file as UTF-8 and locate the `### Solution Variables` section.
+4. Extract the value after `- solution_path →`.
+   - If missing or blank → set `status=FAIL` with `error_code="variable_missing"` and jump to Step 7.
+5. Verify that `solution_path` exists on disk and ends with `.sln`.
+   - If not → set `status=FAIL` with `error_code="sln_missing"` and jump to Step 7.
+6. Derive `solution_name` from the basename of `solution_path`.
+7. Emit a clear "Step 1 checkpoint" marker and proceed only after it is printed.
 
 
 ### Step 2 — Primary Restore Attempt (MANDATORY)

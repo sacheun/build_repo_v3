@@ -23,10 +23,15 @@ Performs a clean MSBuild (Clean + Build) of a Visual Studio solution in Release 
 ## Instructions (Follow Exactly — Each Step Emits a Checkpoint)
 
 
-### Step 1 — Input Validation (MANDATORY)
-1. Verify `{{solution_path}}` parameter provided, is a string, and file exists. If missing → set `status=FAIL` (error: "CONTRACT") and emit JSON as described in Step 8.
-2. Must end with `.sln`; otherwise `status=FAIL` (error: "CONTRACT").
-3. Derive `solution_name` = basename without extension.
+### Step 1 — Input & Prerequisite Validation (MANDATORY)
+1. Verify `{{solution_path}}` parameter is provided, is a string, and the file exists. If missing → set `status=FAIL` (error: "CONTRACT") and emit JSON as described in Step 8.
+2. Ensure `{{solution_path}}` ends with `.sln`; otherwise set `status=FAIL` (error: "CONTRACT").
+3. Derive `solution_name` = basename of `{{solution_path}}` without extension.
+4. Locate the corresponding solution checklist file in `tasks/` (e.g., `tasks/<repo_name>_<solution_name>_solution_checklist.md`) and read the `### Solution Variables` section.
+5. Extract `restore_status`. If it is not present or not equal to `"SUCCEEDED"` (case-sensitive), treat build as not runnable:
+   - Set `build_status` in the checklist to either `FAILED` or `SKIPPED` (choose the most appropriate based on context, but it must not remain `SUCCEEDED`).
+   - Set `status=FAIL` with error `"RESTORE_NOT_SUCCEEDED"`.
+   - Emit JSON as in Step 8 and jump directly to Step 11 (no build invocation).
 
 ---
 
